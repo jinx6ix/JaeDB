@@ -45,6 +45,17 @@ const s = StyleSheet.create({
   sigRow:      { flexDirection: 'row', marginBottom: 3 },
   sigLabel:    { fontFamily: 'Helvetica-Bold', fontSize: 11, color: B, width: 55 },
   sigValue:    { fontFamily: 'Helvetica-Bold', fontSize: 11, color: O },
+  // ── badge (for amended / cancelled status) ──────────────────────────────
+  badge:       {
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    textTransform: 'uppercase',
+    marginBottom: 12,
+  },
 });
 
 function fmtDate(d: string | null | undefined) {
@@ -75,6 +86,7 @@ export default function HotelVoucherPDF({ voucher }: { voucher: any }) {
 
         {/* ── Date ───────────────────────────────────────────────────── */}
         <Text style={s.date}>Date: {issueDate}</Text>
+
         {/* Booking status badge - top right */}
         {voucher.bookingStatus && voucher.bookingStatus !== 'book' && (
           <Text style={[s.badge, {
@@ -111,16 +123,15 @@ export default function HotelVoucherPDF({ voucher }: { voucher: any }) {
 
         {/* ── Please Book + Room breakdown ───────────────────────────── */}
         <View style={s.bookSection}>
-          {/* Dynamic booking action */}
-        <Text style={[s.pleaseBook, {
-          color: voucher.bookingStatus === 'cancel' ? '#dc2626'
-               : voucher.bookingStatus === 'amend'  ? '#f97316'
-               : '#16a34a'
-        }]}>
-          {voucher.bookingStatus === 'cancel' ? 'Please Cancel'
-           : voucher.bookingStatus === 'amend' ? 'Please Amend'
-           : 'Please Book'}
-        </Text>
+          <Text style={[s.pleaseBook, {
+            color: voucher.bookingStatus === 'cancel' ? '#dc2626'
+                 : voucher.bookingStatus === 'amend'  ? '#f97316'
+                 : '#16a34a'
+          }]}>
+            {voucher.bookingStatus === 'cancel' ? 'Please Cancel'
+             : voucher.bookingStatus === 'amend' ? 'Please Amend'
+             : 'Please Book'}
+          </Text>
           <View style={s.roomsCol}>
             {[['TWINS:',   voucher.numTwins],
               ['DOUBLES:', voucher.numDoubles],
