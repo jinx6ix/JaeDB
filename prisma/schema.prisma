@@ -187,9 +187,9 @@ model Itinerary {
 }
 
 model ItineraryDay {
-  id            String    @id @default(cuid())
+  id            String             @id @default(cuid())
   itineraryId   String
-  itinerary     Itinerary @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
+  itinerary     Itinerary          @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
   dayNumber     Int
   date          DateTime?
   destination   String
@@ -197,7 +197,19 @@ model ItineraryDay {
   mealPlan      String?
   activities    String?
   notes         String?
-  createdAt     DateTime  @default(now())
+  images        ItineraryImage[]
+  createdAt     DateTime           @default(now())
+}
+
+model ItineraryImage {
+  id          String       @id @default(cuid())
+  dayId       String?
+  day         ItineraryDay? @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  filename    String
+  mimeType    String
+  data        String       // base64 encoded image data
+  caption     String?
+  createdAt   DateTime     @default(now())
 }
 
 // ─── VOUCHERS ────────────────────────────────────────────────────────────────

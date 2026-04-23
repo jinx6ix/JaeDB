@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
           })),
         },
       },
-      include: { days: { orderBy: { dayNumber: 'asc' } } },
+      include: { days: { orderBy: { dayNumber: 'asc' }, include: { images: true } } },
     });
 
     return NextResponse.json(itinerary, { status: 201 });

@@ -2,6 +2,16 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import DayImagePicker from '@/components/DayImagePicker';
+
+interface ItineraryImage {
+  id: string;
+  filename: string;
+  mimeType: string;
+  data: string;
+  caption?: string | null;
+  dayId?: string | null;
+}
 
 export default function EditItineraryPage() {
   const router = useRouter();
@@ -21,6 +31,7 @@ export default function EditItineraryPage() {
             ? JSON.parse(d.activities).map((a: any) => a.time ? `${a.time}: ${a.description}` : a.description).join('\n')
             : '',
           date: d.date ? new Date(d.date).toISOString().split('T')[0] : '',
+          images: d.images || [],
         })),
       });
     });
@@ -146,6 +157,11 @@ export default function EditItineraryPage() {
                 <label className="label text-xs">Notes</label>
                 <input value={day.notes || ''} onChange={e => updateDay(i, 'notes', e.target.value)} className="input text-sm" />
               </div>
+              <DayImagePicker
+                attachedImages={day.images || []}
+                onImagesChange={(imgs) => updateDay(i, 'images', imgs)}
+                dayId={day.id}
+              />
             </div>
           ))}
         </div>

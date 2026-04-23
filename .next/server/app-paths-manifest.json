@@ -1,8 +1,8 @@
 {
   "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js",
-  "/dashboard/tours/page": "app/dashboard/tours/page.js",
   "/dashboard/rates/page": "app/dashboard/rates/page.js",
-  "/dashboard/itineraries/page": "app/dashboard/itineraries/page.js",
-  "/dashboard/clients/page": "app/dashboard/clients/page.js",
-  "/dashboard/bookings/page": "app/dashboard/bookings/page.js"
+  "/dashboard/safari-rates/prices/page": "app/dashboard/safari-rates/prices/page.js",
+  "/dashboard/safari-rates/page": "app/dashboard/safari-rates/page.js",
+  "/dashboard/safari-rates/hotels/page": "app/dashboard/safari-rates/hotels/page.js",
+  "/dashboard/admin/users/[id]/edit/page": "app/dashboard/admin/users/[id]/edit/page.js"
 }

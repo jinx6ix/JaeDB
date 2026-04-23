@@ -13,7 +13,10 @@ export default async function ItineraryDetailPage({ params }: { params: { id: st
           tourPackage: true,
         },
       },
-      days: { orderBy: { dayNumber: 'asc' } },
+      days: {
+        orderBy: { dayNumber: 'asc' },
+        include: { images: { orderBy: { createdAt: 'asc' } } },
+      },
     },
   });
 
@@ -144,6 +147,26 @@ export default async function ItineraryDetailPage({ params }: { params: { id: st
                           <div key={idx} className="text-sm">
                             {a.time && <span className="font-semibold text-orange-700">{a.time}: </span>}
                             <span className="text-gray-700">→ {a.description}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {(day as any).images?.length > 0 && (
+                    <div className="mt-4">
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-2">📷 Gallery</p>
+                      <div className={`grid gap-2 ${(day as any).images.length === 1 ? 'grid-cols-1' : (day as any).images.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                        {(day as any).images.map((img: any) => (
+                          <div key={img.id} className="rounded-lg overflow-hidden border border-gray-100 shadow-sm">
+                            <img
+                              src={`data:${img.mimeType};base64,${img.data}`}
+                              alt={img.caption || img.filename}
+                              className="w-full object-cover"
+                              style={{ maxHeight: (day as any).images.length === 1 ? '300px' : '180px' }}
+                            />
+                            {img.caption && (
+                              <p className="text-xs text-gray-500 text-center px-2 py-1 bg-gray-50">{img.caption}</p>
+                            )}
                           </div>
                         ))}
                       </div>

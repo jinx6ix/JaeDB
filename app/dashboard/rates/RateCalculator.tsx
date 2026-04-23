@@ -10,7 +10,7 @@ interface RateCard {
 }
 interface Props { tours: Tour[]; rateCards: (RateCard & { tourPackage: Tour })[]; }
 
-interface DayRow { destination: string; property: string; propertyCostPerPax: number; parkFeePerPax: number; }
+interface DayRow { destination: string; property: string; propertyCostPerPax: number; parkFeePerPax: number; transportPerPax: number; }
 
 const BOARD_BASIS = [
   { code: 'FB', label: 'Full Board' },
@@ -29,7 +29,6 @@ export default function RateCalculator({ tours, rateCards }: Props) {
   const [boardBasis,   setBoardBasis]   = useState('FB');
   const [dayRows,      setDayRows]      = useState<DayRow[]>([]);
   // Global extras
-  const [transport,    setTransport]    = useState(0);
   const [fileHandling, setFileHandling] = useState(0);
   const [ecoBottle,    setEcoBottle]    = useState(0);
   const [evacInsurance,setEvacInsurance]= useState(0);
@@ -44,7 +43,7 @@ export default function RateCalculator({ tours, rateCards }: Props) {
       setNumDays(t.durationDays);
       setNumNights(t.durationNights);
       setDayRows(Array.from({ length: t.durationDays }, (_, i) => ({
-        destination: '', property: '', propertyCostPerPax: 0, parkFeePerPax: 0,
+        destination: '', property: '', propertyCostPerPax: 0, parkFeePerPax: 0, transportPerPax: 0,
       })));
     }
   }, [tourId, tours]);
@@ -54,7 +53,7 @@ export default function RateCalculator({ tours, rateCards }: Props) {
     setDayRows(prev => {
       if (prev.length === numDays) return prev;
       const rows = Array.from({ length: numDays }, (_, i) =>
-        prev[i] || { destination: '', property: '', propertyCostPerPax: 0, parkFeePerPax: 0 }
+        prev[i] || { destination: '', property: '', propertyCostPerPax: 0, parkFeePerPax: 0, transportPerPax: 0 }
       );
       return rows;
     });
@@ -67,10 +66,11 @@ export default function RateCalculator({ tours, rateCards }: Props) {
   // ── Calculations ──────────────────────────────────────────────────────────
   const totalPropertyCost = dayRows.reduce((s, r) => s + (r.propertyCostPerPax * numPax), 0);
   const totalParkFees     = dayRows.reduce((s, r) => s + (r.parkFeePerPax     * numPax), 0);
+  const totalTransport    = dayRows.reduce((s, r) => s + (r.transportPerPax   * numPax), 0);
   const totalExtras       = extraItems.reduce((s, e) => s + e.cost, 0);
   const maasaiTotal       = maasaiVillage ? maasaiCost * numPax : 0;
 
-  const subtotal = totalPropertyCost + totalParkFees + transport + fileHandling + ecoBottle + evacInsurance + totalExtras + maasaiTotal;
+  const subtotal = totalPropertyCost + totalParkFees + totalTransport + fileHandling + ecoBottle + evacInsurance + totalExtras + maasaiTotal;
   const markupAmt = subtotal * (markup / 100);
   const grandTotal = subtotal + markupAmt;
   const perPerson  = numPax > 0 ? grandTotal / numPax : 0;
@@ -138,14 +138,15 @@ export default function RateCalculator({ tours, rateCards }: Props) {
                   <th className="text-left px-3 py-2 font-medium text-gray-600 w-8">Day</th>
                   <th className="text-left px-3 py-2 font-medium text-gray-600">Destination</th>
                   <th className="text-left px-3 py-2 font-medium text-gray-600">Property / Accommodation</th>
-                  <th className="text-left px-3 py-2 font-medium text-gray-600 w-36">Property Cost/pp ({currency})</th>
-                  <th className="text-left px-3 py-2 font-medium text-gray-600 w-36">Park Fees/pp ({currency})</th>
+                  <th className="text-left px-3 py-2 font-medium text-gray-600 w-32">Property Cost/pp ({currency})</th>
+                  <th className="text-left px-3 py-2 font-medium text-gray-600 w-32">Park Fees/pp ({currency})</th>
+                  <th className="text-left px-3 py-2 font-medium text-gray-600 w-32">Transport/pp ({currency})</th>
                   <th className="text-right px-3 py-2 font-medium text-gray-600 w-28">Day Total</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-orange-50">
                 {dayRows.map((row, i) => {
-                  const dayTotal = (row.propertyCostPerPax + row.parkFeePerPax) * numPax;
+                  const dayTotal = (row.propertyCostPerPax + row.parkFeePerPax + row.transportPerPax) * numPax;
                   return (
                     <tr key={i} className="hover:bg-orange-50/50">
                       <td className="px-3 py-2">
@@ -169,6 +170,11 @@ export default function RateCalculator({ tours, rateCards }: Props) {
                           onChange={e => updateRow(i,'parkFeePerPax',Number(e.target.value))}
                           className="input text-xs py-1.5 font-mono text-center" placeholder="0" />
                       </td>
+                      <td className="px-3 py-2">
+                        <input type="number" min={0} step="0.01" value={row.transportPerPax || ''}
+                          onChange={e => updateRow(i,'transportPerPax',Number(e.target.value))}
+                          className="input text-xs py-1.5 font-mono text-center" placeholder="0" />
+                      </td>
                       <td className="px-3 py-2 text-right font-mono text-sm font-medium text-gray-700">
                         {currency} {dayTotal.toLocaleString(undefined, {minimumFractionDigits:2,maximumFractionDigits:2})}
                       </td>
@@ -181,11 +187,7 @@ export default function RateCalculator({ tours, rateCards }: Props) {
         </div>
 
         {/* Global extras (match costing sheet rows) */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-          <div>
-            <label className="label">Transport (total, {currency})</label>
-            <input type="number" min={0} value={transport || ''} onChange={e => setTransport(Number(e.target.value))} className="input font-mono" placeholder="0" />
-          </div>
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
           <div>
             <label className="label">File Handling Fees ({currency})</label>
             <input type="number" min={0} value={fileHandling || ''} onChange={e => setFileHandling(Number(e.target.value))} className="input font-mono" placeholder="0" />
@@ -244,7 +246,7 @@ export default function RateCalculator({ tours, rateCards }: Props) {
               {[
                 { label: 'Properties (total)',      value: totalPropertyCost },
                 { label: 'Park Fees (total)',        value: totalParkFees },
-                { label: 'Transport',               value: transport },
+                { label: 'Transport (total)',        value: totalTransport },
                 { label: 'File Handling',           value: fileHandling },
                 { label: 'Eco Bottle + Water',      value: ecoBottle },
                 { label: 'Evacuation Insurance',    value: evacInsurance },

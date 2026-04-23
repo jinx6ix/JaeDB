@@ -17,6 +17,7 @@ export default function PricesPage() {
   const [selHotel, setSelHotel] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<number|null>(null);
   const [form, setForm] = useState({ roomTypeId:'', seasonId:'', boardBasis:'FB', ratePerPersonSharing:'', singleRoomRate:'', childRate:'', currency:'USD' });
 
   async function load() {
@@ -40,7 +41,27 @@ export default function PricesPage() {
     await fetch('/api/safari-rates/prices', {
       method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(form),
     });
-    setSaving(false); setShowForm(false); load();
+    setSaving(false); setShowForm(false); setEditingId(null); load();
+  }
+
+  function handleEdit(p: Price) {
+    // Find roomType and season IDs from loaded data
+    const room = rooms.find(r => r.name === p.roomType.name && p.roomType.hotel.name);
+    const season = seasons.find(s => s.name === p.season.name);
+    const hotel = hotels.find(h => h.name === p.roomType.hotel.name);
+    setSelHotel(hotel ? String(hotel.id) : '');
+    setForm({
+      roomTypeId: room ? String(room.id) : '',
+      seasonId: season ? String(season.id) : '',
+      boardBasis: p.boardBasis,
+      ratePerPersonSharing: p.ratePerPersonSharing != null ? String(p.ratePerPersonSharing) : '',
+      singleRoomRate: p.singleRoomRate != null ? String(p.singleRoomRate) : '',
+      childRate: p.childRate != null ? String(p.childRate) : '',
+      currency: p.currency,
+    });
+    setEditingId(p.id);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   return (
@@ -55,7 +76,7 @@ export default function PricesPage() {
 
       {showForm && (
         <form onSubmit={save} className="card space-y-4">
-          <h2 className="font-semibold text-gray-800">Add / Update Price</h2>
+          <h2 className="font-semibold text-gray-800">{editingId ? '✏️ Edit Price' : 'Add / Update Price'}</h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Hotel (to filter rooms/seasons)</label>
@@ -105,7 +126,7 @@ export default function PricesPage() {
           </div>
           <div className="flex gap-3">
             <button type="submit" disabled={saving} className="btn-primary">{saving?'Saving…':'Save Price'}</button>
-            <button type="button" onClick={()=>setShowForm(false)} className="btn-secondary">Cancel</button>
+            <button type="button" onClick={()=>{ setShowForm(false); setEditingId(null); }} className="btn-secondary">Cancel</button>
           </div>
         </form>
       )}

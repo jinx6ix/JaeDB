@@ -21,6 +21,16 @@
       "static/chunks/main-app.js",
       "static/chunks/app/dashboard/layout.js"
     ],
+    "/dashboard/itineraries/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/dashboard/itineraries/page.js"
+    ],
+    "/dashboard/itineraries/new/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/dashboard/itineraries/new/page.js"
+    ],
     "/dashboard/safari-rates/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -31,40 +41,25 @@
       "static/chunks/main-app.js",
       "static/chunks/app/dashboard/safari-rates/hotels/page.js"
     ],
-    "/dashboard/reports/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/reports/page.js"
-    ],
     "/dashboard/rates/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/dashboard/rates/page.js"
     ],
-    "/dashboard/tours/page": [
+    "/dashboard/admin/users/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/tours/page.js"
+      "static/chunks/app/dashboard/admin/users/page.js"
     ],
-    "/dashboard/itineraries/page": [
+    "/dashboard/admin/users/[id]/edit/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/itineraries/page.js"
+      "static/chunks/app/dashboard/admin/users/[id]/edit/page.js"
     ],
-    "/dashboard/vouchers/page": [
+    "/dashboard/safari-rates/prices/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/vouchers/page.js"
-    ],
-    "/dashboard/clients/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/clients/page.js"
-    ],
-    "/dashboard/bookings/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/bookings/page.js"
+      "static/chunks/app/dashboard/safari-rates/prices/page.js"
     ]
   }
 }

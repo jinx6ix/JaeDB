@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import DayImagePicker from '@/components/DayImagePicker';
 
 interface TourDay {
   dayNumber: number;
@@ -25,6 +26,15 @@ interface Booking {
   } | null;
 }
 
+interface ItineraryImage {
+  id: string;
+  filename: string;
+  mimeType: string;
+  data: string;
+  caption?: string | null;
+  dayId?: string | null;
+}
+
 export default function NewItineraryPage() {
   const router = useRouter();
   const sp = useSearchParams();
@@ -37,6 +47,7 @@ export default function NewItineraryPage() {
     accommodation: string; mealPlan: { breakfast: boolean; lunch: boolean; dinner: boolean; note: string };
     activities: string; notes: string;
   }>>([]);
+  const [dayImages, setDayImages] = useState<Record<number, ItineraryImage[]>>({});
   const [title, setTitle] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -125,6 +136,22 @@ export default function NewItineraryPage() {
     const res = await fetch('/api/itineraries', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (res.ok) {
       const data = await res.json();
+      // Link any uploaded images to their respective saved day IDs
+      const savedDays: any[] = data.days || [];
+      const imagePatchPromises: Promise<any>[] = [];
+      savedDays.forEach((savedDay: any, idx: number) => {
+        const imgs = dayImages[idx] || [];
+        imgs.forEach(img => {
+          imagePatchPromises.push(
+            fetch(`/api/itinerary-images/${img.id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ dayId: savedDay.id }),
+            })
+          );
+        });
+      });
+      await Promise.all(imagePatchPromises);
       router.push(`/dashboard/itineraries/${data.id}`);
     } else {
       const d = await res.json();
@@ -218,6 +245,10 @@ export default function NewItineraryPage() {
                 <label className="label text-xs">Notes</label>
                 <input value={day.notes} onChange={e => updateDay(i, 'notes', e.target.value)} className="input text-sm" placeholder="Any special notes for this day…" />
               </div>
+              <DayImagePicker
+                attachedImages={dayImages[i] || []}
+                onImagesChange={(imgs) => setDayImages(prev => ({ ...prev, [i]: imgs }))}
+              />
             </div>
           ))}
         </div>
