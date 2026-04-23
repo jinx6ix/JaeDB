@@ -135,13 +135,13 @@ export default function PricesPage() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              {['Hotel','Room Type','Season','Board','Per Person Sharing','Single','Child','Currency'].map(h=>(
+              {['Hotel','Room Type','Season','Board','Per Person Sharing','Single','Child','Currency',''].map(h=>(
                 <th key={h} className="text-left px-4 py-3 font-medium text-gray-600 text-xs">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {prices.length===0&&<tr><td colSpan={8} className="text-center text-gray-400 py-10">No prices yet. Click + Add Price.</td></tr>}
+            {prices.length===0&&<tr><td colSpan={9} className="text-center text-gray-400 py-10">No prices yet. Click + Add Price.</td></tr>}
             {prices.slice(0,100).map(p=>(
               <tr key={p.id} className="hover:bg-gray-50">
                 <td className="px-4 py-2 font-medium text-gray-800 text-xs">{p.roomType.hotel.name}</td>
@@ -152,6 +152,15 @@ export default function PricesPage() {
                 <td className="px-4 py-2 font-mono text-xs text-gray-500">{p.singleRoomRate?.toLocaleString()||'—'}</td>
                 <td className="px-4 py-2 font-mono text-xs text-gray-500">{p.childRate?.toLocaleString()||'—'}</td>
                 <td className="px-4 py-2 text-gray-400 text-xs">{p.currency}</td>
+                <td className="px-4 py-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => handleEdit(p)}
+                    className="text-orange-500 hover:underline font-medium"
+                  >
+                    Edit
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
