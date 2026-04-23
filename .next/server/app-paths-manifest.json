@@ -1,8 +1,15 @@
 {
   "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js",
+  "/api/safari-rates/hotels/route": "app/api/safari-rates/hotels/route.js",
+  "/api/safari-rates/seasons/route": "app/api/safari-rates/seasons/route.js",
+  "/api/safari-rates/room-types/route": "app/api/safari-rates/room-types/route.js",
+  "/api/safari-rates/prices/route": "app/api/safari-rates/prices/route.js",
+  "/dashboard/safari-rates/page": "app/dashboard/safari-rates/page.js",
+  "/dashboard/admin/users/[id]/edit/page": "app/dashboard/admin/users/[id]/edit/page.js",
   "/dashboard/rates/page": "app/dashboard/rates/page.js",
   "/dashboard/safari-rates/prices/page": "app/dashboard/safari-rates/prices/page.js",
-  "/dashboard/safari-rates/page": "app/dashboard/safari-rates/page.js",
-  "/dashboard/safari-rates/hotels/page": "app/dashboard/safari-rates/hotels/page.js",
-  "/dashboard/admin/users/[id]/edit/page": "app/dashboard/admin/users/[id]/edit/page.js"
+  "/dashboard/bookings/page": "app/dashboard/bookings/page.js",
+  "/dashboard/vouchers/page": "app/dashboard/vouchers/page.js",
+  "/dashboard/itineraries/page": "app/dashboard/itineraries/page.js",
+  "/dashboard/itineraries/[id]/page": "app/dashboard/itineraries/[id]/page.js"
 }
