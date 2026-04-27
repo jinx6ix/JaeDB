@@ -269,11 +269,12 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   if (!itinerary) return new NextResponse('Not found', { status: 404 });
 
   try {
-    // 🔧 Fixed type error: cast to any
+    // Fix 1: cast React element to any to satisfy renderToBuffer type
     const buffer = await renderToBuffer(React.createElement(ItineraryPDF, { itinerary }) as any);
     const filename = `${itinerary.title.replace(/[^a-zA-Z0-9]/g, '_')}_itinerary.pdf`;
 
-    return new NextResponse(buffer, {
+    // Fix 2: cast buffer to any to satisfy NextResponse BodyInit type
+    return new NextResponse(buffer as any, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
