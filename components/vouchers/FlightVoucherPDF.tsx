@@ -49,8 +49,8 @@ export default function FlightVoucherPDF({ voucher }: { voucher: any }) {
 
         {/* Logos */}
         <View style={s.header}>
-          <Image style={s.logo} src="/logos/left-logo.png" />
-          <Image style={s.logo} src="/logos/right-logo.png" />
+          <Image style={s.logo} src="/logos/logo.jpg" />
+          <Image style={s.logo} src="/logos/logo.jpg" />
         </View>
 
         {/* F L I G H T  V O U C H E R */}

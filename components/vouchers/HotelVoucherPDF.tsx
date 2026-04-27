@@ -77,8 +77,8 @@ export default function HotelVoucherPDF({ voucher }: { voucher: any }) {
 
         {/* ── Dual logos ──────────────────────────────────────────────── */}
         <View style={s.header}>
-          <Image style={s.logo} src="/logos/left-logo.png" />
-          <Image style={s.logo} src="/logos/right-logo.png" />
+          <Image style={s.logo} src="/logos/logo.jpg" />
+          <Image style={s.logo} src="/logos/logo.jpg" />
         </View>
 
         {/* ── Voucher No ─────────────────────────────────────────────── */}
