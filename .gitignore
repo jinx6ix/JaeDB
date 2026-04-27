@@ -103,6 +103,7 @@ share/python-wheels/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.next
 .pnpm-debug.log*
 
 # --- Go specific ---
