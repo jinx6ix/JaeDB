@@ -79,7 +79,7 @@ export default async function ToursPage() {
                 <div className="flex gap-2 ml-4 flex-shrink-0">
                   <Link href={`/dashboard/tours/${tour.id}`} className="btn-secondary text-sm">View</Link>
                   <Link href={`/dashboard/tours/${tour.id}/edit`} className="btn-secondary text-sm">Edit</Link>
-                  <Link href={`/dashboard/rates/new?tourId=${tour.id}`} className="btn-secondary text-sm">+ Rate</Link>
+                  <Link href={`/dashboard/costing/new?tourId=${tour.id}`} className="btn-secondary text-sm">+ Rate</Link>
                 </div>
               </div>
             </div>

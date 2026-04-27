@@ -38,7 +38,7 @@ export default async function TourDetailPage({ params }: { params: { id: string 
           </div>
         </div>
         <div className="flex gap-2">
-          <Link href={`/dashboard/rates/new?tourId=${tour.id}`} className="btn-secondary">+ Rate Card</Link>
+          <Link href={`/dashboard/costing/new?tourId=${tour.id}`} className="btn-secondary">+ Rate Card</Link>
           <Link href={`/dashboard/tours/${tour.id}/edit`} className="btn-primary">Edit</Link>
         </div>
       </div>
@@ -65,7 +65,7 @@ export default async function TourDetailPage({ params }: { params: { id: string 
           <div className="card p-0 overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
               <h2 className="font-semibold text-gray-800 text-sm">Rate Cards</h2>
-              <Link href={`/dashboard/rates/new?tourId=${tour.id}`} className="text-orange-500 text-xs hover:underline">+ Add</Link>
+              <Link href={`/dashboard/costing/new?tourId=${tour.id}`} className="text-orange-500 text-xs hover:underline">+ Add</Link>
             </div>
             {tour.rateCards.length === 0 ? (
               <p className="text-gray-400 text-sm text-center py-4">No rate cards</p>

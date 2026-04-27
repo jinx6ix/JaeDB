@@ -13,7 +13,7 @@ const nav = [
   { label: 'Vouchers', href: '/dashboard/vouchers', icon: '🎫', adminOnly: false },
   { label: 'Itineraries', href: '/dashboard/itineraries', icon: '🗺️', adminOnly: false },
   { label: 'Tours', href: '/dashboard/tours', icon: '🦁', adminOnly: false },
-  { label: 'Rates', href: '/dashboard/rates', icon: '💰', adminOnly: false },
+  { label: 'Costing', href: '/dashboard/costing', icon: '💰', adminOnly: false },
   { label: 'Reports', href: '/dashboard/reports', icon: '📊', adminOnly: false },
   { label: 'Safari Rates', href: '/dashboard/safari-rates', icon: '🏨', adminOnly: false },
   { label: 'Amend Voucher', href: '/dashboard/vouchers/amend', icon: '✏️', adminOnly: false },

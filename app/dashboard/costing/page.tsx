@@ -19,7 +19,7 @@ export default async function RatesPage() {
           <h1 className="text-2xl font-bold text-gray-900">Rates & Costing</h1>
           <p className="text-gray-500 text-sm mt-0.5">Manage rate cards and calculate tour costs</p>
         </div>
-        <Link href="/dashboard/rates/new" className="btn-primary">+ New Rate Card</Link>
+        <Link href="/dashboard/costing/new" className="btn-primary">+ New Rate Card</Link>
       </div>
 
       {/* Interactive Cost Calculator */}
@@ -65,7 +65,7 @@ export default async function RatesPage() {
                 <td className="px-4 py-3 text-gray-600">{rc.currency}</td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
-                    <Link href={`/dashboard/rates/${rc.id}/edit`} className="text-orange-500 hover:underline text-xs">Edit</Link>
+                    <Link href={`/dashboard/costing/${rc.id}/edit`} className="text-orange-500 hover:underline text-xs">Edit</Link>
                   </div>
                 </td>
               </tr>

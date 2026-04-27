@@ -41,7 +41,7 @@ export default function NewRateCardPage() {
     };
     const res = await fetch('/api/rates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (res.ok) {
-      router.push('/dashboard/rates');
+      router.push('/dashboard/costing');
     } else {
       const d = await res.json();
       setError(d.error || 'Failed to save');
@@ -52,7 +52,7 @@ export default function NewRateCardPage() {
   return (
     <div className="max-w-3xl space-y-5">
       <div className="flex items-center gap-3">
-        <Link href="/dashboard/rates" className="text-gray-400 hover:text-gray-600 text-sm">← Rates</Link>
+        <Link href="/dashboard/costing" className="text-gray-400 hover:text-gray-600 text-sm">← Rates</Link>
         <h1 className="text-2xl font-bold text-gray-900">New Rate Card</h1>
       </div>
 
@@ -150,7 +150,7 @@ export default function NewRateCardPage() {
 
         <div className="flex gap-3">
           <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving…' : 'Save Rate Card'}</button>
-          <Link href="/dashboard/rates" className="btn-secondary">Cancel</Link>
+          <Link href="/dashboard/costing" className="btn-secondary">Cancel</Link>
         </div>
       </form>
     </div>
