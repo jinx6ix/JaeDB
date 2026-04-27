@@ -15,7 +15,7 @@ const nav = [
   { label: 'Tours', href: '/dashboard/tours', icon: '🦁', adminOnly: false },
   { label: 'Costing', href: '/dashboard/costing', icon: '💰', adminOnly: false },
   { label: 'Reports', href: '/dashboard/reports', icon: '📊', adminOnly: false },
-  { label: 'Safari Rates', href: '/dashboard/safari-rates', icon: '🏨', adminOnly: false },
+  { label: 'Contract Rates', href: '/dashboard/safari-rates', icon: '🏨', adminOnly: false },
   { label: 'Amend Voucher', href: '/dashboard/vouchers/amend', icon: '✏️', adminOnly: false },
   { label: 'Users', href: '/dashboard/admin/users', icon: '🔑', adminOnly: true },
 ];
