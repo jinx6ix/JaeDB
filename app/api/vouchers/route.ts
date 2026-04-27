@@ -67,6 +67,8 @@ export async function POST(req: NextRequest) {
         voucherNo,
         type: body.type,
         bookingId: body.bookingId || null,
+        clientId: body.clientId || null,
+        agentId: body.agentId || null,
         propertyId: body.propertyId || null,
         vehicleId: body.vehicleId || null,
         createdById: userId,

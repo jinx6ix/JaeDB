@@ -1,12 +1,19 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+
+interface Agent { id: string; name: string; company?: string; }
 
 export default function NewClientPage() {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [agents, setAgents] = useState<Agent[]>([]);
+
+  useEffect(() => {
+    fetch('/api/agents').then(r => r.json()).then(d => setAgents(Array.isArray(d) ? d : []));
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -21,6 +28,7 @@ export default function NewClientPage() {
       isResident: fd.get('isResident') === 'true',
       address: fd.get('address') || null,
       notes: fd.get('notes') || null,
+      agentId: fd.get('agentId') || null,
     };
     const res = await fetch('/api/clients', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (res.ok) {
@@ -70,6 +78,15 @@ export default function NewClientPage() {
           <div className="col-span-2">
             <label className="label">Address</label>
             <input name="address" className="input" placeholder="City, Country" />
+          </div>
+          <div className="col-span-2">
+            <label className="label">Referred by Agent</label>
+            <select name="agentId" className="input">
+              <option value="">— No agent / Direct —</option>
+              {agents.map(a => (
+                <option key={a.id} value={a.id}>{a.name}{a.company ? ` — ${a.company}` : ''}</option>
+              ))}
+            </select>
           </div>
           <div className="col-span-2">
             <label className="label">Notes / Special Requirements</label>

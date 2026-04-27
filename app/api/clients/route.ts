@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
         isResident: body.isResident ?? false,
         address: body.address || null,
         notes: body.notes || null,
+        agentId: body.agentId || null,
       },
     });
     return NextResponse.json(client, { status: 201 });

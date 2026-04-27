@@ -5,7 +5,9 @@ import Link from 'next/link';
 
 interface Property { id: string; name: string; location?: string; }
 interface Vehicle  { id: string; name: string; type: string; seats: number; ratePerDay?: number; }
-interface Booking  { id: string; bookingRef: string; client: { name: string }; startDate: string; endDate: string; }
+interface Booking  { id: string; bookingRef: string; client: { name: string; id: string }; startDate: string; endDate: string; }
+interface Client   { id: string; name: string; phone?: string; agentId?: string; agent?: { name: string; company?: string }; }
+interface Agent    { id: string; name: string; company?: string; }
 type VType = 'HOTEL' | 'VEHICLE' | 'FLIGHT';
 
 export default function NewVoucherPage() {
@@ -18,7 +20,11 @@ export default function NewVoucherPage() {
   const [properties,  setProperties]  = useState<Property[]>([]);
   const [vehicles,    setVehicles]    = useState<Vehicle[]>([]);
   const [bookings,    setBookings]    = useState<Booking[]>([]);
+  const [clients,     setClients]     = useState<Client[]>([]);
+  const [agents,      setAgents]      = useState<Agent[]>([]);
   const [selBooking,  setSelBooking]  = useState<Booking | null>(null);
+  const [selClientId, setSelClientId] = useState('');
+  const [selAgentId,  setSelAgentId]  = useState('');
   const [hotelName,   setHotelName]   = useState('');
   const [vehicleName, setVehicleName] = useState('');
   const [vehicleType, setVehicleType] = useState('');
@@ -30,9 +36,15 @@ export default function NewVoucherPage() {
   useEffect(() => {
     fetch('/api/properties').then(r => r.json()).then(setProperties);
     fetch('/api/vehicles').then(r => r.json()).then(setVehicles);
+    fetch('/api/agents').then(r => r.json()).then(d => setAgents(Array.isArray(d) ? d : []));
+    fetch('/api/clients').then(r => r.json()).then(d => setClients(Array.isArray(d) ? d : []));
     fetch('/api/bookings?all=1').then(r => r.json()).then((data: Booking[]) => {
       setBookings(data);
-      if (preBookingId) setSelBooking(data.find(b => b.id === preBookingId) || null);
+      if (preBookingId) {
+        const b = data.find((b: Booking) => b.id === preBookingId) || null;
+        setSelBooking(b);
+        if (b) setSelClientId(b.client.id);
+      }
     });
   }, [preBookingId]);
 
@@ -51,7 +63,9 @@ export default function NewVoucherPage() {
     const body: Record<string, any> = {
       type:      voucherType,
       bookingId: fd.get('bookingId') || null,
-      clientName: fd.get('clientName'),
+      clientId:  selClientId || null,
+      agentId:   selAgentId || null,
+      clientName: clients.find(c => c.id === selClientId)?.name || fd.get('clientName') || '',
       status: 'ACTIVE',
     };
 
@@ -142,17 +156,47 @@ export default function NewVoucherPage() {
         <div>
           <label className="label">Link to Booking (optional)</label>
           <select name="bookingId" className="input" defaultValue={preBookingId}
-            onChange={e => setSelBooking(bookings.find(b => b.id === e.target.value) || null)}>
+            onChange={e => {
+              const b = bookings.find(bk => bk.id === e.target.value) || null;
+              setSelBooking(b);
+              if (b) setSelClientId(b.client.id);
+            }}>
             <option value="">— Standalone Voucher —</option>
             {bookings.map(b => <option key={b.id} value={b.id}>{b.bookingRef} · {b.client.name}</option>)}
           </select>
         </div>
 
-        {/* Client name */}
-        <div>
-          <label className="label">Client Name *</label>
-          <input name="clientName" required className="input"
-            defaultValue={selBooking?.client.name || ''} placeholder="e.g. Amit Shirali" />
+        {/* Client picker */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="label">Client *</label>
+            <select
+              className="input"
+              value={selClientId}
+              onChange={e => {
+                setSelClientId(e.target.value);
+                const c = clients.find(c => c.id === e.target.value);
+                if (c?.agentId) setSelAgentId(c.agentId);
+              }}
+              required
+            >
+              <option value="">— Select client —</option>
+              {clients.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.name}{c.agent ? ` (via ${c.agent.company || c.agent.name})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">Agent (auto-filled from client)</label>
+            <select className="input" value={selAgentId} onChange={e => setSelAgentId(e.target.value)}>
+              <option value="">— No agent —</option>
+              {agents.map(a => (
+                <option key={a.id} value={a.id}>{a.name}{a.company ? ` — ${a.company}` : ''}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* ── HOTEL ─────────────────────────────────────────────────────── */}

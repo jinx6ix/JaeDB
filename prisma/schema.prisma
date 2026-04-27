@@ -25,6 +25,23 @@ model User {
   vouchers  Voucher[]
 }
 
+// ─── AGENTS ──────────────────────────────────────────────────────────────────
+
+model Agent {
+  id        String    @id @default(cuid())
+  name      String
+  company   String?
+  email     String?
+  phone     String?
+  address   String?
+  notes     String?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  clients   Client[]
+  vouchers  Voucher[]
+}
+
 // ─── CLIENTS ─────────────────────────────────────────────────────────────────
 
 model Client {
@@ -36,9 +53,12 @@ model Client {
   isResident  Boolean   @default(false)
   address     String?
   notes       String?
+  agentId     String?
+  agent       Agent?    @relation(fields: [agentId], references: [id])
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   bookings    Booking[]
+  vouchers    Voucher[]
 }
 
 // ─── DESTINATIONS ────────────────────────────────────────────────────────────
@@ -220,6 +240,10 @@ model Voucher {
   type           String    @default("HOTEL")
   bookingId      String?
   booking        Booking?  @relation(fields: [bookingId], references: [id])
+  clientId       String?
+  client         Client?   @relation(fields: [clientId], references: [id])
+  agentId        String?
+  agent          Agent?    @relation(fields: [agentId], references: [id])
   propertyId     String?
   property       Property? @relation(fields: [propertyId], references: [id])
   hotelName      String?   // free-text hotel name (overrides property.name)
