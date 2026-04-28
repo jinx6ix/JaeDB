@@ -5,7 +5,16 @@ import Link from 'next/link';
 interface Hotel      { id: number; name: string; county: { name: string }; }
 interface RoomType   { id: number; hotelId: number; name: string; maxOccupancy: number; hotel?: { name: string }; }
 interface Season     { id: number; hotelId: number; name: string; startDate: string; endDate: string; hotel?: { name: string }; }
-interface Price      { id: number; boardBasis: string; ratePerPersonSharing: number|null; singleRoomRate: number|null; childRate: number|null; currency: string; roomType: { name: string; hotel: { name: string } }; season: { name: string }; }
+interface Price      { 
+  id: number; 
+  boardBasis: string; 
+  ratePerPersonSharing: number|null; 
+  singleRoomRate: number|null; 
+  childRate: number|null; 
+  currency: string; 
+  roomType: { name: string; hotel: { name: string } }; 
+  season: { name: string; startDate?: string; endDate?: string }; // ← added dates
+}
 
 const BOARDS = ['FB','HB','BB','RO','AI'];
 
@@ -427,25 +436,31 @@ export default function PricesPage() {
         )}
       </div>
 
-      {/* Price Table */}
+      {/* Price Table with Season Dates column */}
       <div className="card p-0 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              {['Hotel','Room Type','Season','Board','Per Person Sharing','Single','Child','Currency',''].map(h=>(
+              {['Hotel','Room Type','Season','Season Dates','Board','Per Person Sharing','Single','Child','Currency',''].map(h=>(
                 <th key={h} className="text-left px-4 py-3 font-medium text-gray-600 text-xs">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {filteredPrices.length===0&&(
-              <tr><td colSpan={9} className="text-center text-gray-400 py-10">No prices found. Try a different hotel name or add a price.</td></tr>
+              <tr><td colSpan={10} className="text-center text-gray-400 py-10">No prices found. Try a different hotel name or add a price.</td></tr>
             )}
             {filteredPrices.slice(0,100).map(p=>(
               <tr key={p.id} className="hover:bg-gray-50">
                 <td className="px-4 py-2 font-medium text-gray-800 text-xs">{p.roomType.hotel.name}</td>
                 <td className="px-4 py-2 text-gray-600 text-xs">{p.roomType.name}</td>
                 <td className="px-4 py-2 text-orange-600 text-xs">{p.season.name}</td>
+                {/* New column: season dates */}
+                <td className="px-4 py-2 text-gray-600 text-xs">
+                  {p.season.startDate && p.season.endDate ? (
+                    `${new Date(p.season.startDate).toLocaleDateString('en-KE', {day:'numeric',month:'short'})} – ${new Date(p.season.endDate).toLocaleDateString('en-KE', {day:'numeric',month:'short',year:'numeric'})}`
+                  ) : '—'}
+                </td>
                 <td className="px-4 py-2 text-gray-500 text-xs">{p.boardBasis}</td>
                 <td className="px-4 py-2 font-mono text-xs">{p.ratePerPersonSharing?.toLocaleString()||'—'}</td>
                 <td className="px-4 py-2 font-mono text-xs text-gray-500">{p.singleRoomRate?.toLocaleString()||'—'}</td>

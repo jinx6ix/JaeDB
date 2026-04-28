@@ -20,14 +20,14 @@ interface DayRow {
   // Hotel
   hotelId: string;
   hotelName: string;
-  roomTypeId: string;
-  roomTypeName: string;
-  // Rates per person
-  adultCostPP: number;
-  childCostPP: number;
-  parkFeeAdultPP: number;
-  parkFeeChildPP: number;
-  transportPP: number;
+  // Rate fields — auto-filled from DB or manual entry
+  adultCostPP: number;       // accommodation per adult
+  childCostPP: number;       // accommodation per child
+  parkFeeAdultPP: number;    // park fee per adult
+  parkFeeChildPP: number;    // park fee per child
+  transportTotal: number;    // transport TOTAL for the day (not per person)
+  flightAdultPP: number;     // flight per adult (optional per-day flight)
+  flightChildPP: number;     // flight per child
   // Available rates from DB
   availableRates: RoomPrice[];
   ratesLoading: boolean;
@@ -41,7 +41,14 @@ const BOARD_BASIS = [
 ];
 
 function emptyRow(): DayRow {
-  return { destination:'', hotelId:'', hotelName:'', roomTypeId:'', roomTypeName:'', adultCostPP:0, childCostPP:0, parkFeeAdultPP:0, parkFeeChildPP:0, transportPP:0, availableRates:[], ratesLoading:false };
+  return {
+    destination: '', hotelId: '', hotelName: '',
+    adultCostPP: 0, childCostPP: 0,
+    parkFeeAdultPP: 0, parkFeeChildPP: 0,
+    transportTotal: 0,
+    flightAdultPP: 0, flightChildPP: 0,
+    availableRates: [], ratesLoading: false,
+  };
 }
 
 function fmt2(n: number) { return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
@@ -143,46 +150,51 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
     }
   }, []);
 
-  // ── When hotel or board changes on a row, fetch rates ──────────────────────
   function onHotelChange(i: number, hotelId: string) {
     const h = hotels.find(h => String(h.id) === hotelId);
     const dayDate = startDate ? new Date(new Date(startDate).getTime() + i * 86400000).toISOString().split('T')[0] : undefined;
-    updateRow(i, { hotelId, hotelName: h?.name || '', roomTypeId: '', roomTypeName: '', adultCostPP: 0, childCostPP: 0 });
+    updateRow(i, { hotelId, hotelName: h?.name || '', adultCostPP: 0, childCostPP: 0 });
     if (hotelId) fetchRates(i, hotelId, boardBasis, dayDate);
   }
 
-  function onRoomTypeSelect(i: number, priceId: string) {
+  function onRoomPriceSelect(i: number, priceId: string) {
     const row = dayRows[i];
     const price = row.availableRates.find(p => String(p.id) === priceId);
     if (!price) return;
     updateRow(i, {
-      roomTypeId:   String(price.roomType.id),
-      roomTypeName: price.roomType.name,
-      adultCostPP:  price.ratePerPersonSharing || 0,
-      childCostPP:  price.childRate || 0,
+      adultCostPP: price.ratePerPersonSharing || 0,
+      childCostPP: price.childRate || 0,
     });
   }
 
   // ── Calculations ────────────────────────────────────────────────────────────
-  const adultPropertyTotal   = dayRows.reduce((s, r) => s + r.adultCostPP * numAdults, 0);
-  const childPropertyTotal   = dayRows.reduce((s, r) => s + r.childCostPP * numChildren, 0);
-  const adultParkTotal       = dayRows.reduce((s, r) => s + r.parkFeeAdultPP * numAdults, 0);
-  const childParkTotal       = dayRows.reduce((s, r) => s + r.parkFeeChildPP * numChildren, 0);
-  const transportTotal       = dayRows.reduce((s, r) => s + r.transportPP * numPax, 0);
-  const totalExtras          = extraItems.reduce((s, e) => s + e.cost, 0);
-  const maasaiTotal          = maasaiVillage ? maasaiCost * numPax : 0;
-  const arrivalTotal         = arrivalTransfer   ? arrivalCostPP   * numPax : 0;
-  const departureTotal       = departureTransfer ? departureCostPP * numPax : 0;
-  const flightTotal          = includeFlight     ? flightCostPP    * numPax : 0;
+  const adultPropertyTotal = dayRows.reduce((s, r) => s + r.adultCostPP * numAdults, 0);
+  const childPropertyTotal = dayRows.reduce((s, r) => s + r.childCostPP * numChildren, 0);
+  const adultParkTotal     = dayRows.reduce((s, r) => s + r.parkFeeAdultPP * numAdults, 0);
+  const childParkTotal     = dayRows.reduce((s, r) => s + r.parkFeeChildPP * numChildren, 0);
+  const transportTotal     = dayRows.reduce((s, r) => s + r.transportTotal, 0);  // already a total
+  const dayFlightAdult     = dayRows.reduce((s, r) => s + r.flightAdultPP * numAdults, 0);
+  const dayFlightChild     = dayRows.reduce((s, r) => s + r.flightChildPP * numChildren, 0);
+  const totalExtras        = extraItems.reduce((s, e) => s + e.cost, 0);
+  const maasaiTotal        = maasaiVillage ? maasaiCost * numPax : 0;
+  const arrivalTotal       = arrivalTransfer   ? arrivalCostPP   * numPax : 0;
+  const departureTotal     = departureTransfer ? departureCostPP * numPax : 0;
+  const globalFlightTotal  = includeFlight     ? flightCostPP    * numPax : 0;
 
   const subtotal = adultPropertyTotal + childPropertyTotal + adultParkTotal + childParkTotal +
-    transportTotal + fileHandling + ecoBottle + evacInsurance + totalExtras +
-    maasaiTotal + arrivalTotal + departureTotal + flightTotal;
+    transportTotal + dayFlightAdult + dayFlightChild +
+    fileHandling + ecoBottle + evacInsurance + totalExtras +
+    maasaiTotal + arrivalTotal + departureTotal + globalFlightTotal;
 
-  const markupAmt   = subtotal * (markup / 100);
-  const grandTotal  = subtotal + markupAmt;
-  const perAdult    = numAdults   > 0 ? grandTotal / numPax : 0;  // simplified: share equally
-  const perChild    = numChildren > 0 ? grandTotal / numPax * 0.5 : 0; // children at 50% — adjust as needed
+  const markupAmt  = subtotal * (markup / 100);
+  const grandTotal = subtotal + markupAmt;
+
+  // Per person = grand total divided by that group size
+  // For the current group: split evenly among adults, children at 50%
+  // Effective adult units = numAdults + numChildren * 0.5
+  const adultUnits  = numAdults + numChildren * 0.5;
+  const perAdult    = adultUnits > 0 ? grandTotal / adultUnits : 0;
+  const perChild    = perAdult * 0.5;
 
   const selectedTour    = tours.find(t => t.id === tourId);
   const selectedClient  = clients.find(c => c.id === clientId);
@@ -205,14 +217,15 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
       boardBasis,
       currency,
       dayRows: dayRows.map(r => ({
-        destination: r.destination,
-        hotelName:   r.hotelName,
-        roomTypeName:r.roomTypeName,
-        adultCostPP: r.adultCostPP,
-        childCostPP: r.childCostPP,
+        destination:    r.destination,
+        hotelName:      r.hotelName,
+        adultCostPP:    r.adultCostPP,
+        childCostPP:    r.childCostPP,
         parkFeeAdultPP: r.parkFeeAdultPP,
         parkFeeChildPP: r.parkFeeChildPP,
-        transportPP: r.transportPP,
+        transportTotal: r.transportTotal,
+        flightAdultPP:  r.flightAdultPP,
+        flightChildPP:  r.flightChildPP,
       })),
       fileHandlingFee:   fileHandling,
       ecoBottle,
@@ -350,38 +363,43 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
         <div className="mb-5">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold text-gray-700 text-sm">🏕 Properties & Costs — Day by Day</h3>
-            <p className="text-xs text-gray-400">Select hotel to auto-fill rates from database</p>
+            <p className="text-xs text-gray-400">Select hotel to auto-fill rates · Transport = full day total</p>
           </div>
           <div className="overflow-x-auto rounded-xl border border-orange-100">
             <table className="w-full text-xs">
               <thead className="bg-orange-100">
                 <tr>
-                  <th className="px-2 py-2 text-left font-semibold text-gray-600 w-8">Day</th>
+                  <th className="px-2 py-2 text-left font-semibold text-gray-600 w-14">Day</th>
                   <th className="px-2 py-2 text-left font-semibold text-gray-600 w-28">Destination</th>
                   <th className="px-2 py-2 text-left font-semibold text-gray-600">Hotel / Accommodation</th>
-                  <th className="px-2 py-2 text-left font-semibold text-gray-600 w-36">Room Type</th>
-                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-24">Adult/pp<br/><span className="text-gray-400 font-normal">({currency})</span></th>
-                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-24">Child/pp<br/><span className="text-gray-400 font-normal">({currency})</span></th>
-                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-24">Park Fee Adult<br/><span className="text-gray-400 font-normal">({currency})</span></th>
-                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-24">Park Fee Child<br/><span className="text-gray-400 font-normal">({currency})</span></th>
-                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-24">Transport/pp<br/><span className="text-gray-400 font-normal">({currency})</span></th>
+                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-24">Adult/pp<br/><span className="text-gray-400 font-normal">accom ({currency})</span></th>
+                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-24">Child/pp<br/><span className="text-gray-400 font-normal">accom ({currency})</span></th>
+                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-24">Park Fee<br/><span className="text-gray-400 font-normal">Adult ({currency})</span></th>
+                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-24">Park Fee<br/><span className="text-gray-400 font-normal">Child ({currency})</span></th>
+                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-24">Transport<br/><span className="text-gray-400 font-normal">total ({currency})</span></th>
+                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-24">Flight Adult/pp<br/><span className="text-gray-400 font-normal">({currency})</span></th>
+                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-24">Flight Child/pp<br/><span className="text-gray-400 font-normal">({currency})</span></th>
                   <th className="px-2 py-2 text-right font-semibold text-gray-600 w-28">Day Total</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-orange-50">
                 {dayRows.map((row, i) => {
                   const dayDate = startDate ? new Date(new Date(startDate).getTime() + i * 86400000).toISOString().split('T')[0] : undefined;
-                  const adultDayTotal = (row.adultCostPP + row.parkFeeAdultPP) * numAdults;
-                  const childDayTotal = (row.childCostPP + row.parkFeeChildPP) * numChildren;
-                  const transportDayTotal = row.transportPP * numPax;
-                  const dayTotal = adultDayTotal + childDayTotal + transportDayTotal;
+                  const adultAccomTotal    = row.adultCostPP    * numAdults;
+                  const childAccomTotal    = row.childCostPP    * numChildren;
+                  const adultParkDayTotal  = row.parkFeeAdultPP * numAdults;
+                  const childParkDayTotal  = row.parkFeeChildPP * numChildren;
+                  const flightAdultTotal   = row.flightAdultPP  * numAdults;
+                  const flightChildTotal   = row.flightChildPP  * numChildren;
+                  const dayTotal = adultAccomTotal + childAccomTotal + adultParkDayTotal + childParkDayTotal + row.transportTotal + flightAdultTotal + flightChildTotal;
 
                   return (
                     <tr key={i} className="hover:bg-orange-50/40">
-                      {/* Day number */}
+
+                      {/* Day badge */}
                       <td className="px-2 py-2">
                         <span className="bg-orange-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">{i+1}</span>
-                        {dayDate && <p className="text-gray-400 text-xs mt-0.5">{new Date(dayDate).toLocaleDateString('en-KE', { day:'numeric', month:'short' })}</p>}
+                        {dayDate && <p className="text-gray-400 text-xs mt-0.5 whitespace-nowrap">{new Date(dayDate).toLocaleDateString('en-KE', { day:'numeric', month:'short' })}</p>}
                       </td>
 
                       {/* Destination */}
@@ -391,68 +409,51 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
                       </td>
 
                       {/* Hotel picker */}
-                      <td className="px-2 py-2">
-                        <select
-                          className="input py-1 text-xs w-full"
-                          value={row.hotelId}
-                          onChange={e => onHotelChange(i, e.target.value)}
-                        >
-                          <option value="">— Search hotel —</option>
+                      <td className="px-2 py-2 min-w-[180px]">
+                        <select className="input py-1 text-xs w-full" value={row.hotelId} onChange={e => onHotelChange(i, e.target.value)}>
+                          <option value="">— Select hotel —</option>
                           {hotels.map(h => (
-                            <option key={h.id} value={h.id}>
-                              {h.name} · {h.county.name}{h.stars ? ` ${'★'.repeat(h.stars)}` : ''}
-                            </option>
+                            <option key={h.id} value={h.id}>{h.name} · {h.county.name}{h.stars ? ` ${'★'.repeat(h.stars)}` : ''}</option>
                           ))}
                         </select>
-                        {!row.hotelId && (
-                          <input value={row.hotelName} onChange={e => updateRow(i, { hotelName: e.target.value })}
-                            className="input py-1 text-xs w-full mt-1" placeholder="Or type name manually" />
+                        {/* Rate picker appears once hotel is selected */}
+                        {row.ratesLoading && (
+                          <p className="text-orange-400 text-xs mt-1 flex items-center gap-1">
+                            <span className="inline-block w-2.5 h-2.5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" /> Loading rates…
+                          </p>
                         )}
-                      </td>
-
-                      {/* Room type — populated from hotel rates */}
-                      <td className="px-2 py-2">
-                        {row.ratesLoading ? (
-                          <div className="text-xs text-orange-500 flex items-center gap-1">
-                            <span className="inline-block w-3 h-3 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
-                            Loading…
-                          </div>
-                        ) : row.availableRates.length > 0 ? (
-                          <select
-                            className="input py-1 text-xs w-full"
-                            value={String(row.roomTypeId)}
-                            onChange={e => onRoomTypeSelect(i, e.target.value)}
-                          >
-                            <option value="">— Select room —</option>
+                        {!row.ratesLoading && row.availableRates.length > 0 && (
+                          <select className="input py-1 text-xs w-full mt-1 border-orange-200 bg-orange-50"
+                            onChange={e => onRoomPriceSelect(i, e.target.value)} defaultValue="">
+                            <option value="">↑ Pick rate to auto-fill →</option>
                             {row.availableRates.map(p => (
-                              <option key={p.id} value={String(p.id)}>
-                                {p.roomType.name} — {currency} {p.ratePerPersonSharing ?? '?'}/pp
-                                {p.childRate ? ` | Child: ${p.childRate}` : ''}
-                                {p.season?.name ? ` (${p.season.name})` : ''}
+                              <option key={p.id} value={p.id}>
+                                {p.roomType.name}: {p.ratePerPersonSharing ?? '?'}/adult{p.childRate ? ` · ${p.childRate}/child` : ''} ({p.season?.name})
                               </option>
                             ))}
                           </select>
-                        ) : (
-                          <input value={row.roomTypeName} onChange={e => updateRow(i, { roomTypeName: e.target.value })}
-                            className="input py-1 text-xs w-full" placeholder="Room type" />
+                        )}
+                        {!row.hotelId && (
+                          <input value={row.hotelName} onChange={e => updateRow(i, { hotelName: e.target.value })}
+                            className="input py-1 text-xs w-full mt-1" placeholder="Or type manually" />
                         )}
                       </td>
 
-                      {/* Adult cost/pp */}
+                      {/* Adult accom/pp */}
                       <td className="px-2 py-2">
                         <input type="number" min={0} step="0.01" value={row.adultCostPP || ''}
                           onChange={e => updateRow(i, { adultCostPP: Number(e.target.value) })}
                           className="input py-1 text-xs font-mono text-center w-full" placeholder="0" />
-                        <p className="text-gray-400 text-xs text-center">× {numAdults} = {fmt2(row.adultCostPP * numAdults)}</p>
+                        <p className="text-gray-400 text-xs text-center mt-0.5">={fmt2(adultAccomTotal)}</p>
                       </td>
 
-                      {/* Child cost/pp */}
+                      {/* Child accom/pp */}
                       <td className="px-2 py-2">
                         <input type="number" min={0} step="0.01" value={row.childCostPP || ''}
                           onChange={e => updateRow(i, { childCostPP: Number(e.target.value) })}
-                          className={`input py-1 text-xs font-mono text-center w-full ${numChildren === 0 ? 'opacity-40' : ''}`}
-                          placeholder="0" disabled={numChildren === 0} />
-                        {numChildren > 0 && <p className="text-gray-400 text-xs text-center">× {numChildren} = {fmt2(row.childCostPP * numChildren)}</p>}
+                          className={`input py-1 text-xs font-mono text-center w-full ${numChildren === 0 ? 'opacity-30 bg-gray-50' : ''}`}
+                          placeholder="0" />
+                        {numChildren > 0 && <p className="text-gray-400 text-xs text-center mt-0.5">={fmt2(childAccomTotal)}</p>}
                       </td>
 
                       {/* Park fee adult */}
@@ -460,31 +461,50 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
                         <input type="number" min={0} step="0.01" value={row.parkFeeAdultPP || ''}
                           onChange={e => updateRow(i, { parkFeeAdultPP: Number(e.target.value) })}
                           className="input py-1 text-xs font-mono text-center w-full" placeholder="0" />
-                        <p className="text-gray-400 text-xs text-center">= {fmt2(row.parkFeeAdultPP * numAdults)}</p>
+                        <p className="text-gray-400 text-xs text-center mt-0.5">={fmt2(adultParkDayTotal)}</p>
                       </td>
 
                       {/* Park fee child */}
                       <td className="px-2 py-2">
                         <input type="number" min={0} step="0.01" value={row.parkFeeChildPP || ''}
                           onChange={e => updateRow(i, { parkFeeChildPP: Number(e.target.value) })}
-                          className={`input py-1 text-xs font-mono text-center w-full ${numChildren === 0 ? 'opacity-40' : ''}`}
-                          placeholder="0" disabled={numChildren === 0} />
-                        {numChildren > 0 && <p className="text-gray-400 text-xs text-center">= {fmt2(row.parkFeeChildPP * numChildren)}</p>}
+                          className={`input py-1 text-xs font-mono text-center w-full ${numChildren === 0 ? 'opacity-30 bg-gray-50' : ''}`}
+                          placeholder="0" />
+                        {numChildren > 0 && <p className="text-gray-400 text-xs text-center mt-0.5">={fmt2(childParkDayTotal)}</p>}
                       </td>
 
-                      {/* Transport/pp */}
+                      {/* Transport TOTAL for the day */}
                       <td className="px-2 py-2">
-                        <input type="number" min={0} step="0.01" value={row.transportPP || ''}
-                          onChange={e => updateRow(i, { transportPP: Number(e.target.value) })}
+                        <input type="number" min={0} step="0.01" value={row.transportTotal || ''}
+                          onChange={e => updateRow(i, { transportTotal: Number(e.target.value) })}
                           className="input py-1 text-xs font-mono text-center w-full" placeholder="0" />
-                        <p className="text-gray-400 text-xs text-center">= {fmt2(row.transportPP * numPax)}</p>
+                        {numPax > 0 && row.transportTotal > 0 && (
+                          <p className="text-gray-400 text-xs text-center mt-0.5">{fmt2(row.transportTotal / numPax)}/pp</p>
+                        )}
+                      </td>
+
+                      {/* Flight adult/pp */}
+                      <td className="px-2 py-2">
+                        <input type="number" min={0} step="0.01" value={row.flightAdultPP || ''}
+                          onChange={e => updateRow(i, { flightAdultPP: Number(e.target.value) })}
+                          className="input py-1 text-xs font-mono text-center w-full" placeholder="0" />
+                        {row.flightAdultPP > 0 && <p className="text-gray-400 text-xs text-center mt-0.5">={fmt2(flightAdultTotal)}</p>}
+                      </td>
+
+                      {/* Flight child/pp */}
+                      <td className="px-2 py-2">
+                        <input type="number" min={0} step="0.01" value={row.flightChildPP || ''}
+                          onChange={e => updateRow(i, { flightChildPP: Number(e.target.value) })}
+                          className={`input py-1 text-xs font-mono text-center w-full ${numChildren === 0 ? 'opacity-30 bg-gray-50' : ''}`}
+                          placeholder="0" />
+                        {numChildren > 0 && row.flightChildPP > 0 && <p className="text-gray-400 text-xs text-center mt-0.5">={fmt2(flightChildTotal)}</p>}
                       </td>
 
                       {/* Day total */}
                       <td className="px-2 py-2 text-right">
-                        <p className="font-mono font-semibold text-gray-800 text-xs">{currency} {fmt2(dayTotal)}</p>
-                        {numAdults > 0 && <p className="text-gray-400 text-xs">{fmt2(adultDayTotal / numAdults)}/adult</p>}
-                        {numChildren > 0 && <p className="text-gray-400 text-xs">{fmt2(childDayTotal / numChildren)}/child</p>}
+                        <p className="font-mono font-bold text-gray-800">{currency} {fmt2(dayTotal)}</p>
+                        {numAdults > 0   && <p className="text-gray-400 text-xs">{fmt2(dayTotal / numAdults)}/adult</p>}
+                        {numChildren > 0 && <p className="text-gray-400 text-xs">{fmt2(dayTotal / (numChildren + numAdults))}/child</p>}
                       </td>
                     </tr>
                   );
@@ -601,12 +621,14 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
               {[
                 { label: `Accommodation — Adults (${numAdults}×)`,  value: adultPropertyTotal },
                 ...(numChildren > 0 ? [{ label: `Accommodation — Children (${numChildren}×)`, value: childPropertyTotal }] : []),
-                { label: `Park Fees — Adults`,                        value: adultParkTotal },
-                ...(numChildren > 0 ? [{ label: `Park Fees — Children`,               value: childParkTotal    }] : []),
-                { label: 'Transport (total)',                         value: transportTotal },
-                ...(arrivalTransfer   ? [{ label: 'Arrival Transfer',   value: arrivalTotal   }] : []),
-                ...(departureTransfer ? [{ label: 'Departure Transfer',  value: departureTotal }] : []),
-                ...(includeFlight     ? [{ label: '✈️ Flight',           value: flightTotal    }] : []),
+                { label: `Park Fees — Adults (${numAdults}×)`,       value: adultParkTotal },
+                ...(numChildren > 0 ? [{ label: `Park Fees — Children (${numChildren}×)`,     value: childParkTotal    }] : []),
+                { label: 'Transport (all days total)',                value: transportTotal },
+                ...(dayFlightAdult > 0  ? [{ label: `Day Flights — Adults`,   value: dayFlightAdult  }] : []),
+                ...(dayFlightChild > 0  ? [{ label: `Day Flights — Children`, value: dayFlightChild  }] : []),
+                ...(arrivalTransfer     ? [{ label: 'Arrival Transfer',        value: arrivalTotal    }] : []),
+                ...(departureTransfer   ? [{ label: 'Departure Transfer',      value: departureTotal  }] : []),
+                ...(globalFlightTotal>0 ? [{ label: '✈️ Global Flight',        value: globalFlightTotal }] : []),
                 { label: 'File Handling',                             value: fileHandling },
                 { label: 'Eco Bottle + Water',                        value: ecoBottle },
                 { label: 'Evacuation Insurance',                      value: evacInsurance },
@@ -658,19 +680,33 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
 
             {/* Group size comparison */}
             <div>
-              <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Rate per adult at different group sizes:</p>
+              <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Rate per person at different group sizes (2 → {numPax}):</p>
               <div className="grid grid-cols-4 gap-1">
-                {[2,4,6,8,10,12,numAdults].filter((v,i,a)=>a.indexOf(v)===i && v>0).sort((a,b)=>a-b).map(n => {
-                  const pp = n > 0 ? grandTotal / n : 0;
+                {Array.from({ length: Math.max(0, numPax - 1) }, (_, i) => i + 2).map(n => {
+                  // For each group size n, recalculate what per-person cost would be
+                  // Transport is fixed total, everything else scales with n adults
+                  const scaledAccom   = dayRows.reduce((s, r) => s + r.adultCostPP * n, 0);
+                  const scaledPark    = dayRows.reduce((s, r) => s + r.parkFeeAdultPP * n, 0);
+                  const scaledFlight  = dayRows.reduce((s, r) => s + r.flightAdultPP * n, 0);
+                  const scaledTransport = transportTotal; // fixed total, doesn't scale
+                  const scaledMaasai  = maasaiVillage ? maasaiCost * n : 0;
+                  const scaledExtras  = fileHandling + ecoBottle + evacInsurance + totalExtras +
+                    (arrivalTransfer ? arrivalCostPP * n : 0) +
+                    (departureTransfer ? departureCostPP * n : 0) +
+                    (includeFlight ? flightCostPP * n : 0);
+                  const scaledSub   = scaledAccom + scaledPark + scaledFlight + scaledTransport + scaledMaasai + scaledExtras;
+                  const scaledTotal = scaledSub * (1 + markup / 100);
+                  const ppRate      = n > 0 ? scaledTotal / n : 0;
                   const active = n === numAdults;
                   return (
-                    <div key={n} className={`text-center py-2 rounded-lg text-xs ${active ? 'bg-orange-500 text-white font-bold' : 'bg-gray-50 text-gray-600'}`}>
-                      <div className="font-medium">{n} adults</div>
-                      <div className="font-mono">{currency} {pp.toFixed(0)}</div>
+                    <div key={n} className={`text-center py-2 rounded-lg text-xs transition-all ${active ? 'bg-orange-500 text-white font-bold ring-2 ring-orange-300' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}>
+                      <div className="font-medium">{n} pax</div>
+                      <div className="font-mono text-xs">{currency} {ppRate.toFixed(0)}</div>
                     </div>
                   );
                 })}
               </div>
+              <p className="text-xs text-gray-400 mt-2">* Transport cost is fixed total — divided among group size</p>
             </div>
           </div>
         </div>

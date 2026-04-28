@@ -19,11 +19,22 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
       vouchers: { include: { property: true, vehicle: true, createdBy: { select: { id: true, name: true } } }, orderBy: { createdAt: 'asc' } },
       itinerary: { include: { days: { orderBy: { dayNumber: 'asc' } } } },
       invoices: true,
-      costSheets: { orderBy: { createdAt: 'desc' }, select: { id: true, tourTitle: true, numAdults: true, numChildren: true, currency: true, totalCost: true, perAdultCost: true, createdAt: true } },
     },
   });
 
   if (!booking) notFound();
+
+  // CostSheets loaded separately — gracefully handles case where migration hasn't run yet
+  let costSheets: any[] = [];
+  try {
+    costSheets = await (prisma as any).costSheet.findMany({
+      where: { bookingId: params.id },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, tourTitle: true, numAdults: true, numChildren: true, currency: true, totalCost: true, perAdultCost: true, createdAt: true },
+    });
+  } catch {
+    // Table not yet migrated — silently skip
+  }
 
   const totalDays = Math.ceil(
     (new Date(booking.endDate).getTime() - new Date(booking.startDate).getTime()) / (1000 * 60 * 60 * 24)
@@ -111,10 +122,10 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
         {/* Right: Vouchers + Itinerary */}
         <div className="col-span-2 space-y-4">
           {/* Cost Sheets */}
-          {booking.costSheets && booking.costSheets.length > 0 && (
+          {costSheets.length > 0 && (
             <div className="card p-0 overflow-hidden">
               <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-                <h2 className="font-semibold text-gray-800">Costing Sheets ({booking.costSheets.length})</h2>
+                <h2 className="font-semibold text-gray-800">Costing Sheets ({costSheets.length})</h2>
                 <Link href="/dashboard/rates" className="text-orange-500 text-xs hover:underline">+ New Costing</Link>
               </div>
               <table className="w-full text-sm">
@@ -126,7 +137,7 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {booking.costSheets.map((cs: any) => (
+                  {costSheets.map((cs: any) => (
                     <tr key={cs.id} className="hover:bg-gray-50">
                       <td className="px-4 py-2.5 text-xs font-medium text-gray-800 max-w-xs truncate">{cs.tourTitle}</td>
                       <td className="px-4 py-2.5 text-xs text-gray-600">{cs.numAdults}A{cs.numChildren > 0 ? ` + ${cs.numChildren}C` : ''}</td>
@@ -134,7 +145,7 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
                       <td className="px-4 py-2.5 text-xs font-mono text-orange-600">{cs.currency} {cs.perAdultCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                       <td className="px-4 py-2.5 text-xs text-gray-400">{new Date(cs.createdAt).toLocaleDateString('en-KE')}</td>
                       <td className="px-4 py-2.5">
-                        <Link href={`/dashboard/rates?sheet=${cs.id}`} className="text-orange-500 hover:underline text-xs">View</Link>
+                        <Link href="/dashboard/rates" className="text-orange-500 hover:underline text-xs">View</Link>
                       </td>
                     </tr>
                   ))}
