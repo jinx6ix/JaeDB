@@ -171,7 +171,7 @@ export default function RateCalculator({
     setDayRows(prev => prev.map((r, j) => j === i ? { ...r, ...patch } : r));
   }
 
-  // ── Fetch hotel rates for a row (using the day's date) ──────────────────────
+  // ── Fetch hotel rates for a row ─────────────────────────────────────────────
   const fetchRates = useCallback(async (i: number, hotelId: string, board: string, date?: string) => {
     if (!hotelId) return;
     updateRow(i, { ratesLoading: true, availableRates: [] });
@@ -185,11 +185,28 @@ export default function RateCalculator({
     }
   }, []);
 
-  // ── When a hotel is selected, fetch rates using the correct day date ────────
+  // ── Hotel change: auto‑fill destination, fetch rates with day date ──────────
   function onHotelChange(i: number, hotelId: string) {
-    const h = localHotels.find(h => String(h.id) === hotelId);
+    const hotel = localHotels.find(h => String(h.id) === hotelId);
     const dayDate = startDate ? new Date(new Date(startDate).getTime() + i * 86400000).toISOString().split('T')[0] : undefined;
-    updateRow(i, { hotelId, hotelName: h?.name || '', adultTotal: 0, childTotal: 0 });
+
+    if (hotel && hotel.county) {
+      updateRow(i, {
+        hotelId,
+        hotelName: hotel.name,
+        destinationId: hotel.county.id,
+        adultTotal: 0,
+        childTotal: 0,
+      });
+    } else {
+      updateRow(i, {
+        hotelId,
+        hotelName: hotel?.name || '',
+        adultTotal: 0,
+        childTotal: 0,
+      });
+    }
+
     if (hotelId) fetchRates(i, hotelId, boardBasis, dayDate);
   }
 
@@ -203,7 +220,7 @@ export default function RateCalculator({
     });
   }
 
-  // ── Re‑fetch rates for all rows when startDate or boardBasis changes ────────
+  // ── Re‑fetch rates when startDate or boardBasis changes ─────────────────────
   useEffect(() => {
     if (!startDate) return;
     dayRows.forEach((row, i) => {
@@ -214,37 +231,54 @@ export default function RateCalculator({
     });
   }, [startDate, boardBasis, fetchRates, dayRows.length]);
 
-  // ── Calculations ────────────────────────────────────────────────────────────
-  const adultPropertyTotal = dayRows.reduce((s, r) => s + r.adultTotal, 0);
-  const childPropertyTotal = dayRows.reduce((s, r) => s + r.childTotal, 0);
-  const adultParkTotal     = dayRows.reduce((s, r) => s + r.parkFeeAdultTotal, 0);
-  const childParkTotal     = dayRows.reduce((s, r) => s + r.parkFeeChildTotal, 0);
-  const transportTotal     = dayRows.reduce((s, r) => s + r.transportTotal, 0);
-  const dayFlightAdultTotal = dayRows.reduce((s, r) => s + (r.hasFlight ? r.flightAdultPP * numAdults : 0), 0);
-  const dayFlightChildTotal = dayRows.reduce((s, r) => s + (r.hasFlight ? r.flightChildPP * numChildren : 0), 0);
-  const totalExtras        = extraItems.reduce((s, e) => s + e.cost, 0);
-  const maasaiTotal        = maasaiVillage ? maasaiCost * numPax : 0;
-  const arrivalTotal       = arrivalTransfer   ? arrivalCostPP   * numPax : 0;
-  const departureTotal     = departureTransfer ? departureCostPP * numPax : 0;
+  // ── Cost components (before markup) ─────────────────────────────────────────
+  const adultAccom  = dayRows.reduce((s, r) => s + r.adultTotal, 0);
+  const childAccom  = dayRows.reduce((s, r) => s + r.childTotal, 0);
+  const adultPark   = dayRows.reduce((s, r) => s + r.parkFeeAdultTotal, 0);
+  const childPark   = dayRows.reduce((s, r) => s + r.parkFeeChildTotal, 0);
+  const transport   = dayRows.reduce((s, r) => s + r.transportTotal, 0);
+  const adultFlight = dayRows.reduce((s, r) => s + (r.hasFlight ? r.flightAdultPP * numAdults : 0), 0);
+  const childFlight = dayRows.reduce((s, r) => s + (r.hasFlight ? r.flightChildPP * numChildren : 0), 0);
+  const maasaiTotal = maasaiVillage ? maasaiCost * numPax : 0;
+  const arrivalTotal = arrivalTransfer   ? arrivalCostPP   * numPax : 0;
+  const departureTotal = departureTransfer ? departureCostPP * numPax : 0;
+  const extrasTotal = extraItems.reduce((s, e) => s + e.cost, 0);
 
-  const subtotal = adultPropertyTotal + childPropertyTotal + adultParkTotal + childParkTotal +
-    transportTotal + dayFlightAdultTotal + dayFlightChildTotal +
-    fileHandling + ecoBottle + evacInsurance + totalExtras +
-    maasaiTotal + arrivalTotal + departureTotal;
+  // ── Apply markup to each line item individually ─────────────────────────────
+  const markupFactor = 1 + markup / 100;
+  const adultAccomMarkup   = adultAccom   * markupFactor;
+  const childAccomMarkup   = childAccom   * markupFactor;
+  const adultParkMarkup    = adultPark    * markupFactor;
+  const childParkMarkup    = childPark    * markupFactor;
+  const transportMarkup    = transport    * markupFactor;
+  const adultFlightMarkup  = adultFlight  * markupFactor;
+  const childFlightMarkup  = childFlight  * markupFactor;
+  const fileHandlingMarkup = fileHandling * markupFactor;
+  const ecoBottleMarkup    = ecoBottle    * markupFactor;
+  const evacMarkup         = evacInsurance* markupFactor;
+  const maasaiMarkup       = maasaiTotal  * markupFactor;
+  const arrivalMarkup      = arrivalTotal * markupFactor;
+  const departureMarkup    = departureTotal* markupFactor;
+  const extrasMarkupTotal  = extrasTotal  * markupFactor;
 
-  const markupAmt  = subtotal * (markup / 100);
-  const grandTotal = subtotal + markupAmt;
+  const subtotal = adultAccom + childAccom + adultPark + childPark + transport +
+                   adultFlight + childFlight + fileHandling + ecoBottle + evacInsurance +
+                   maasaiTotal + arrivalTotal + departureTotal + extrasTotal;
+  const grandTotal = adultAccomMarkup + childAccomMarkup + adultParkMarkup + childParkMarkup +
+                     transportMarkup + adultFlightMarkup + childFlightMarkup +
+                     fileHandlingMarkup + ecoBottleMarkup + evacMarkup +
+                     maasaiMarkup + arrivalMarkup + departureMarkup + extrasMarkupTotal;
 
-  const adultUnits  = numAdults + numChildren * 0.5;
-  const perAdult    = adultUnits > 0 ? grandTotal / adultUnits : 0;
-  const perChild    = perAdult * 0.5;
+  const adultUnits = numAdults + numChildren * 0.5;
+  const perAdult = adultUnits > 0 ? grandTotal / adultUnits : 0;
+  const perChild = perAdult * 0.5;
 
   const selectedTour    = tours.find(t => t.id === tourId);
   const selectedClient  = clients.find(c => c.id === clientId);
   const selectedAgent   = agents.find(a => a.id === agentId);
   const selectedBooking = bookings.find(b => b.id === bookingId);
 
-  // ── Refresh hotels & destinations (manual) ──────────────────────────────────
+  // ── Refresh hotels & destinations ───────────────────────────────────────────
   const refreshData = async () => {
     const [h, d] = await Promise.all([
       fetch('/api/safari-rates/hotels').then(r => r.json()),
@@ -284,14 +318,14 @@ export default function RateCalculator({
       fileHandlingFee:   fileHandling,
       ecoBottle,
       evacInsurance,
-      arrivalTransfer:   arrivalTransfer   ? arrivalCostPP   * numPax : 0,
-      departureTransfer: departureTransfer ? departureCostPP * numPax : 0,
+      arrivalTransfer:   arrivalTotal,
+      departureTransfer: departureTotal,
       extras:      extraItems.filter(e => e.cost > 0),
       maasaiVillage,
       maasaiCost,
       subtotal,
       markupPercent: markup,
-      markupAmount:  markupAmt,
+      markupAmount:  grandTotal - subtotal,
       totalCost:     grandTotal,
       perAdultCost:  perAdult,
       perChildCost:  perChild,
@@ -452,7 +486,6 @@ export default function RateCalculator({
                   const dayTotal = row.adultTotal + row.childTotal + row.parkFeeAdultTotal + row.parkFeeChildTotal +
                     row.transportTotal + flightAdultDayTotal + flightChildDayTotal;
 
-                  // Per‑person derived values (for display only)
                   const perAdultAccom   = numAdults > 0 ? row.adultTotal / numAdults : 0;
                   const perChildAccom   = numChildren > 0 ? row.childTotal / numChildren : 0;
                   const perAdultPark    = numAdults > 0 ? row.parkFeeAdultTotal / numAdults : 0;
@@ -461,7 +494,6 @@ export default function RateCalculator({
 
                   return (
                     <tr key={i} className="hover:bg-orange-50/40">
-                      {/* Day badge */}
                       <td className="px-2 py-2">
                         <span className="bg-orange-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">{i+1}</span>
                         {dayDate && <p className="text-gray-400 text-xs mt-0.5 whitespace-nowrap">{new Date(dayDate).toLocaleDateString('en-KE', { day:'numeric', month:'short' })}</p>}
@@ -572,7 +604,6 @@ export default function RateCalculator({
                         <input type="checkbox" checked={row.hasFlight} onChange={e => updateRow(i, { hasFlight: e.target.checked })} className="w-4 h-4" />
                       </td>
 
-                      {/* Flight columns (if enabled) */}
                       {row.hasFlight && (
                         <>
                           <td className="px-2 py-2">
@@ -621,7 +652,7 @@ export default function RateCalculator({
           </div>
         </div>
 
-        {/* ── Section 5: Transfers ── */}
+        {/* ── Section 5: Transfers (per person rates) ── */}
         <div className="border border-orange-100 rounded-xl p-4 mb-5 space-y-3 bg-white">
           <p className="text-sm font-semibold text-gray-700">Transfers</p>
           <div className="flex items-center gap-3 flex-wrap">
@@ -685,39 +716,42 @@ export default function RateCalculator({
           ))}
         </div>
 
-        {/* ── Section 7: Results ── */}
+        {/* ── Section 7: Results with per‑line markup breakdown ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <div className="bg-white rounded-xl p-5 border border-orange-100">
             <p className="font-semibold text-gray-700 mb-4 text-sm">Cost Breakdown — {numAdults} adult{numAdults!==1?'s':''}{numChildren>0?`, ${numChildren} child${numChildren!==1?'ren':''}`:''}  ({numPax} pax)</p>
             <div className="space-y-2 text-sm">
               {[
-                { label: `Accommodation — Adults (${numAdults}×)`,  value: adultPropertyTotal },
-                ...(numChildren > 0 ? [{ label: `Accommodation — Children (${numChildren}×)`, value: childPropertyTotal }] : []),
-                { label: `Park Fees — Adults (${numAdults}×)`,       value: adultParkTotal },
-                ...(numChildren > 0 ? [{ label: `Park Fees — Children (${numChildren}×)`,     value: childParkTotal    }] : []),
-                { label: 'Transport (all days total)',                value: transportTotal },
-                ...(dayFlightAdultTotal > 0  ? [{ label: `Day Flights — Adults`,   value: dayFlightAdultTotal  }] : []),
-                ...(dayFlightChildTotal > 0  ? [{ label: `Day Flights — Children`, value: dayFlightChildTotal  }] : []),
-                ...(arrivalTransfer     ? [{ label: 'Arrival Transfer',        value: arrivalTotal    }] : []),
-                ...(departureTransfer   ? [{ label: 'Departure Transfer',      value: departureTotal  }] : []),
-                { label: 'File Handling',                             value: fileHandling },
-                { label: 'Eco Bottle + Water',                        value: ecoBottle },
-                { label: 'Evacuation Insurance',                      value: evacInsurance },
-                ...(maasaiVillage ? [{ label: 'Maasai Village',       value: maasaiTotal    }] : []),
-                ...extraItems.filter(e => e.cost > 0).map(e => ({ label: e.label || 'Extra', value: e.cost })),
-              ].map(({ label, value }) => (
+                { label: `Accommodation — Adults (${numAdults}×)`, base: adultAccom, markupValue: adultAccomMarkup - adultAccom },
+                ...(numChildren > 0 ? [{ label: `Accommodation — Children (${numChildren}×)`, base: childAccom, markupValue: childAccomMarkup - childAccom }] : []),
+                { label: `Park Fees — Adults (${numAdults}×)`, base: adultPark, markupValue: adultParkMarkup - adultPark },
+                ...(numChildren > 0 ? [{ label: `Park Fees — Children (${numChildren}×)`, base: childPark, markupValue: childParkMarkup - childPark }] : []),
+                { label: 'Transport (all days total)', base: transport, markupValue: transportMarkup - transport },
+                ...(adultFlight > 0 ? [{ label: `Day Flights — Adults`, base: adultFlight, markupValue: adultFlightMarkup - adultFlight }] : []),
+                ...(childFlight > 0 ? [{ label: `Day Flights — Children`, base: childFlight, markupValue: childFlightMarkup - childFlight }] : []),
+                { label: 'File Handling', base: fileHandling, markupValue: fileHandlingMarkup - fileHandling },
+                { label: 'Eco Bottle + Water', base: ecoBottle, markupValue: ecoBottleMarkup - ecoBottle },
+                { label: 'Evacuation Insurance', base: evacInsurance, markupValue: evacMarkup - evacInsurance },
+                ...(arrivalTransfer ? [{ label: 'Arrival Transfer', base: arrivalTotal, markupValue: arrivalMarkup - arrivalTotal }] : []),
+                ...(departureTransfer ? [{ label: 'Departure Transfer', base: departureTotal, markupValue: departureMarkup - departureTotal }] : []),
+                ...(maasaiVillage ? [{ label: 'Maasai Village', base: maasaiTotal, markupValue: maasaiMarkup - maasaiTotal }] : []),
+                ...extraItems.filter(e => e.cost > 0).map(e => ({ label: e.label || 'Extra', base: e.cost, markupValue: e.cost * markupFactor - e.cost })),
+              ].map(({ label, base, markupValue }) => (
                 <div key={label} className="flex justify-between">
                   <span className="text-gray-500">{label}</span>
-                  <span className="font-mono text-gray-700">{currency} {fmt2(value)}</span>
+                  <span className="font-mono text-gray-700">
+                    {currency} {fmt2(base)}
+                    {markupValue !== 0 && <span className="text-orange-500 text-xs ml-1">(+{fmt2(markupValue)})</span>}
+                  </span>
                 </div>
               ))}
               <div className="border-t pt-2 flex justify-between font-semibold">
-                <span>Subtotal</span>
+                <span>Subtotal (excl. markup)</span>
                 <span className="font-mono">{currency} {fmt2(subtotal)}</span>
               </div>
               <div className="flex justify-between text-orange-600">
-                <span>Markup ({markup}%)</span>
-                <span className="font-mono">+ {currency} {fmt2(markupAmt)}</span>
+                <span>Total Markup ({markup}%)</span>
+                <span className="font-mono">+ {currency} {fmt2(grandTotal - subtotal)}</span>
               </div>
               <div className="flex justify-between font-bold text-lg border-t pt-2">
                 <span>Grand Total</span>
@@ -748,17 +782,19 @@ export default function RateCalculator({
               <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Rate per person at different group sizes (2 → {numPax}):</p>
               <div className="grid grid-cols-4 gap-1">
                 {Array.from({ length: Math.max(0, numPax - 1) }, (_, i) => i + 2).map(n => {
-                  const scaledAccom   = dayRows.reduce((s, r) => s + r.adultTotal * (n / Math.max(1, numAdults)), 0);
-                  const scaledPark    = dayRows.reduce((s, r) => s + r.parkFeeAdultTotal * (n / Math.max(1, numAdults)), 0);
-                  const scaledFlight  = dayRows.reduce((s, r) => s + (r.hasFlight ? r.flightAdultPP * n : 0), 0);
-                  const scaledTransport = transportTotal;
+                  // Scale each component linearly with group size ratio
+                  const scale = n / numAdults;
+                  const scaledAccom   = adultAccom * scale;
+                  const scaledPark    = adultPark * scale;
+                  const scaledFlight  = adultFlight * scale;
+                  const scaledTransport = transport; // fixed total cost
                   const scaledMaasai  = maasaiVillage ? maasaiCost * n : 0;
-                  const scaledExtras  = fileHandling + ecoBottle + evacInsurance + totalExtras +
+                  const scaledExtras  = fileHandling + ecoBottle + evacInsurance + extrasTotal +
                     (arrivalTransfer ? arrivalCostPP * n : 0) +
                     (departureTransfer ? departureCostPP * n : 0);
-                  const scaledSub   = scaledAccom + scaledPark + scaledFlight + scaledTransport + scaledMaasai + scaledExtras;
-                  const scaledTotal = scaledSub * (1 + markup / 100);
-                  const ppRate      = n > 0 ? scaledTotal / n : 0;
+                  const scaledSub = scaledAccom + scaledPark + scaledFlight + scaledTransport + scaledMaasai + scaledExtras;
+                  const scaledTotal = scaledSub * markupFactor;
+                  const ppRate = n > 0 ? scaledTotal / n : 0;
                   const active = n === numAdults;
                   return (
                     <div key={n} className={`text-center py-2 rounded-lg text-xs transition-all ${active ? 'bg-orange-500 text-white font-bold ring-2 ring-orange-300' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}>
