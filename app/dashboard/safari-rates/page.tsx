@@ -12,6 +12,9 @@ export default function SeasonsPage() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ hotelId:'', name:'', startDate:'', endDate:'' });
 
+  // Search state
+  const [searchTerm, setSearchTerm] = useState('');
+
   // Editing state
   const [editingSeason, setEditingSeason] = useState<Season | null>(null);
   const [editForm, setEditForm] = useState({ hotelId:'', name:'', startDate:'', endDate:'' });
@@ -29,6 +32,12 @@ export default function SeasonsPage() {
     setSeasons(Array.isArray(s)?s:[]);
   }
   useEffect(()=>{ load(); },[]);
+
+  // Filter seasons based on search term (hotel name or season name)
+  const filteredSeasons = seasons.filter(season =>
+    season.hotel.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    season.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   async function save(e: React.FormEvent) {
     e.preventDefault(); 
@@ -150,7 +159,7 @@ export default function SeasonsPage() {
         </form>
       )}
 
-      {/* Edit Modal / Inline Edit Card */}
+      {/* Edit Modal */}
       {editingSeason && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setEditingSeason(null)}>
           <div className="card max-w-md w-full" onClick={e => e.stopPropagation()}>
@@ -184,6 +193,21 @@ export default function SeasonsPage() {
         </div>
       )}
 
+      {/* Search input */}
+      <div className="flex gap-2 items-center">
+        <label className="label mb-0">Search:</label>
+        <input
+          type="text"
+          placeholder="Hotel or season name..."
+          className="input max-w-sm"
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+        />
+        {searchTerm && (
+          <button onClick={() => setSearchTerm('')} className="text-gray-400 hover:text-gray-600 text-sm">Clear</button>
+        )}
+      </div>
+
       {/* Seasons Table with Edit & Delete buttons */}
       <div className="card p-0 overflow-hidden">
         <table className="w-full text-sm">
@@ -195,10 +219,10 @@ export default function SeasonsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {seasons.length===0&&(
-              <tr><td colSpan={6} className="text-center text-gray-400 py-8">No seasons yet</td></tr>
+            {filteredSeasons.length===0&&(
+              <tr><td colSpan={6} className="text-center text-gray-400 py-8">No matching seasons – try a different search or add one.</td></tr>
             )}
-            {seasons.map(s=>(
+            {filteredSeasons.map(s=>(
               <tr key={s.id} className="hover:bg-gray-50">
                 <td className="px-4 py-2.5 font-medium text-gray-800">{s.hotel.name}</td>
                 <td className="px-4 py-2.5 text-gray-500">{s.hotel.county.name}</td>
