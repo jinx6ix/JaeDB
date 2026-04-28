@@ -23,14 +23,14 @@ export default function PricesPage() {
   // Search filter for hotel in price table
   const [hotelSearch, setHotelSearch] = useState('');
 
-  // Inline add / edit room type
+  // Inline add / edit / delete room type
   const [addingRoom, setAddingRoom] = useState(false);
   const [editingRoom, setEditingRoom] = useState<RoomType | null>(null);
   const [newRoomName, setNewRoomName] = useState('');
   const [newRoomMaxOccupancy, setNewRoomMaxOccupancy] = useState('2');
   const [savingRoom, setSavingRoom] = useState(false);
 
-  // Inline add / edit season
+  // Inline add / edit / delete season
   const [addingSeason, setAddingSeason] = useState(false);
   const [editingSeason, setEditingSeason] = useState<Season | null>(null);
   const [newSeasonName, setNewSeasonName] = useState('');
@@ -118,12 +118,23 @@ export default function PricesPage() {
       const roomsRes = await fetch('/api/safari-rates/room-types');
       const updatedRooms = await roomsRes.json();
       setRooms(Array.isArray(updatedRooms) ? updatedRooms : []);
-      // If the edited room is currently selected in the form, keep it selected (ID unchanged)
       setEditingRoom(null);
       setNewRoomName('');
       setNewRoomMaxOccupancy('2');
     } catch (err: any) { alert(err.message); }
     finally { setSavingRoom(false); }
+  }
+
+  async function handleDeleteRoomType(id: number) {
+    if (!confirm('Delete this room type? This will also delete all associated prices (cascade).')) return;
+    setDeletingRoomId(id);
+    try {
+      const res = await fetch(`/api/safari-rates/room-types?id=${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error((await res.json()).error || 'Delete failed');
+      await load();
+      if (form.roomTypeId === String(id)) setForm(f => ({ ...f, roomTypeId: '' }));
+    } catch (err: any) { alert(err.message); }
+    finally { setDeletingRoomId(null); }
   }
 
   // --- Season handlers ---
@@ -189,20 +200,7 @@ export default function PricesPage() {
     finally { setSavingSeason(false); }
   }
 
-  // --- Delete handlers remain the same as before ---
-  async function deleteRoomType(id: number) {
-    if (!confirm('Delete this room type? This will also delete all associated prices (cascade).')) return;
-    setDeletingRoomId(id);
-    try {
-      const res = await fetch(`/api/safari-rates/room-types?id=${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error((await res.json()).error || 'Delete failed');
-      await load();
-      if (form.roomTypeId === String(id)) setForm(f => ({ ...f, roomTypeId: '' }));
-    } catch (err: any) { alert(err.message); }
-    finally { setDeletingRoomId(null); }
-  }
-
-  async function deleteSeason(id: number) {
+  async function handleDeleteSeason(id: number) {
     if (!confirm('Delete this season? This will also delete all associated prices (cascade).')) return;
     setDeletingSeasonId(id);
     try {
@@ -213,6 +211,10 @@ export default function PricesPage() {
     } catch (err: any) { alert(err.message); }
     finally { setDeletingSeasonId(null); }
   }
+
+  // Delete handlers for management cards (keep as before)
+  async function deleteRoomType(id: number) { return handleDeleteRoomType(id); }
+  async function deleteSeason(id: number) { return handleDeleteSeason(id); }
 
   function handleEdit(p: Price) {
     const room = rooms.find(r => r.name === p.roomType.name && p.roomType.hotel.name);
@@ -238,7 +240,7 @@ export default function PricesPage() {
     setEditingRoom(room);
     setNewRoomName(room.name);
     setNewRoomMaxOccupancy(room.maxOccupancy.toString());
-    setAddingRoom(false); // close add mode if open
+    setAddingRoom(false);
   }
 
   function startEditSeason(season: Season) {
@@ -277,7 +279,7 @@ export default function PricesPage() {
               </select>
             </div>
 
-            {/* Room Type field with Add/Edit */}
+            {/* Room Type field with Add/Edit/Delete */}
             <div>
               <div className="flex justify-between items-center">
                 <label className="label">Room Type *</label>
@@ -286,10 +288,15 @@ export default function PricesPage() {
                     <button type="button" onClick={() => setAddingRoom(true)} className="text-xs text-orange-500 hover:underline">+ New</button>
                   )}
                   {selHotel && form.roomTypeId && !addingRoom && !editingRoom && (
-                    <button type="button" onClick={() => {
-                      const room = rooms.find(r => r.id === Number(form.roomTypeId));
-                      if (room) startEditRoom(room);
-                    }} className="text-xs text-blue-500 hover:underline">✏️ Edit</button>
+                    <>
+                      <button type="button" onClick={() => {
+                        const room = rooms.find(r => r.id === Number(form.roomTypeId));
+                        if (room) startEditRoom(room);
+                      }} className="text-xs text-blue-500 hover:underline">✏️ Edit</button>
+                      <button type="button" onClick={() => handleDeleteRoomType(Number(form.roomTypeId))} disabled={deletingRoomId === Number(form.roomTypeId)} className="text-xs text-red-500 hover:text-red-700">
+                        {deletingRoomId === Number(form.roomTypeId) ? '…' : '🗑️'}
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -313,7 +320,7 @@ export default function PricesPage() {
               )}
             </div>
 
-            {/* Season field with Add/Edit */}
+            {/* Season field with Add/Edit/Delete */}
             <div>
               <div className="flex justify-between items-center">
                 <label className="label">Season *</label>
@@ -322,10 +329,15 @@ export default function PricesPage() {
                     <button type="button" onClick={() => setAddingSeason(true)} className="text-xs text-orange-500 hover:underline">+ New</button>
                   )}
                   {selHotel && form.seasonId && !addingSeason && !editingSeason && (
-                    <button type="button" onClick={() => {
-                      const season = seasons.find(s => s.id === Number(form.seasonId));
-                      if (season) startEditSeason(season);
-                    }} className="text-xs text-blue-500 hover:underline">✏️ Edit</button>
+                    <>
+                      <button type="button" onClick={() => {
+                        const season = seasons.find(s => s.id === Number(form.seasonId));
+                        if (season) startEditSeason(season);
+                      }} className="text-xs text-blue-500 hover:underline">✏️ Edit</button>
+                      <button type="button" onClick={() => handleDeleteSeason(Number(form.seasonId))} disabled={deletingSeasonId === Number(form.seasonId)} className="text-xs text-red-500 hover:text-red-700">
+                        {deletingSeasonId === Number(form.seasonId) ? '…' : '🗑️'}
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -416,7 +428,7 @@ export default function PricesPage() {
         </table>
       </div>
 
-      {/* Management cards (delete only) – moved to bottom as before */}
+      {/* Management cards (delete only) – optional, kept for bulk view */}
       <div className="grid grid-cols-2 gap-5">
         <div className="card">
           <h2 className="font-semibold text-gray-800 mb-2">Manage Room Types</h2>
@@ -431,7 +443,7 @@ export default function PricesPage() {
                       <td className="px-2 py-1">{r.name}</td>
                       <td className="px-2 py-1">{r.maxOccupancy}</td>
                       <td className="px-2 py-1 text-right">
-                        <button onClick={() => deleteRoomType(r.id)} disabled={deletingRoomId === r.id} className="text-red-500 hover:text-red-700">
+                        <button onClick={() => handleDeleteRoomType(r.id)} disabled={deletingRoomId === r.id} className="text-red-500 hover:text-red-700">
                           {deletingRoomId === r.id ? '…' : '🗑️'}
                         </button>
                       </td>
@@ -455,7 +467,7 @@ export default function PricesPage() {
                       <td className="px-2 py-1">{s.name}</td>
                       <td className="px-2 py-1">{new Date(s.startDate).toLocaleDateString()} – {new Date(s.endDate).toLocaleDateString()}</td>
                       <td className="px-2 py-1 text-right">
-                        <button onClick={() => deleteSeason(s.id)} disabled={deletingSeasonId === s.id} className="text-red-500 hover:text-red-700">
+                        <button onClick={() => handleDeleteSeason(s.id)} disabled={deletingSeasonId === s.id} className="text-red-500 hover:text-red-700">
                           {deletingSeasonId === s.id ? '…' : '🗑️'}
                         </button>
                       </td>
