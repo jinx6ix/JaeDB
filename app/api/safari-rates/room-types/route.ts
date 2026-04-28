@@ -10,21 +10,17 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const hotelId = searchParams.get('hotelId');
 
-  if (!hotelId) {
-    // Return empty array instead of crashing
-    return NextResponse.json([]);
-  }
-
   try {
     const rooms = await prisma.sRRoomType.findMany({
-      where: { hotelId: Number(hotelId) },
+      where: hotelId ? { hotelId: Number(hotelId) } : undefined,
       include: { hotel: { include: { county: true } } },
       orderBy: { name: 'asc' },
     });
     return NextResponse.json(rooms);
   } catch (error) {
     console.error('GET /room-types error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    // Return empty array on error to avoid UI crash
+    return NextResponse.json([]);
   }
 }
 
