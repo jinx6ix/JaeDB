@@ -1,7 +1,0 @@
-{
-  "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js",
-  "/api/safari-rates/lookup/route": "app/api/safari-rates/lookup/route.js",
-  "/dashboard/bookings/[id]/page": "app/dashboard/bookings/[id]/page.js",
-  "/dashboard/itineraries/page": "app/dashboard/itineraries/page.js",
-  "/dashboard/costing/page": "app/dashboard/costing/page.js"
-}
