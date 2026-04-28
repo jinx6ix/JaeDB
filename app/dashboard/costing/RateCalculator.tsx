@@ -11,25 +11,47 @@ interface RateCard {
 interface Client { id: string; name: string; agentId?: string|null; agent?: { id: string; name: string; company?: string|null }|null; }
 interface Agent  { id: string; name: string; company?: string|null; }
 interface Booking { id: string; bookingRef: string; clientId: string; client: { name: string }; tourPackageId?: string|null; }
-interface Hotel { id: number; name: string; stars?: number|null; county: { name: string }; }
-interface RoomPrice { id: number; ratePerPersonSharing?: number|null; singleRoomRate?: number|null; childRate?: number|null; currency: string; roomType: { id: number; name: string; maxOccupancy: number }; season: { name: string }; }
-interface Props { tours: Tour[]; rateCards: (RateCard & { tourPackage: Tour })[]; clients?: Client[]; agents?: Agent[]; bookings?: Booking[]; hotels?: Hotel[]; }
+interface Hotel {
+  id: number;
+  name: string;
+  stars?: number|null;
+  county: { id: number; name: string };
+}
+interface RoomPrice {
+  id: number;
+  ratePerPersonSharing?: number|null;
+  singleRoomRate?: number|null;
+  childRate?: number|null;
+  currency: string;
+  roomType: { id: number; name: string; maxOccupancy: number };
+  season: { id: number; name: string; startDate: string; endDate: string };
+}
+interface Destination {
+  id: number;
+  name: string;
+}
+interface Props {
+  tours: Tour[];
+  rateCards: (RateCard & { tourPackage: Tour })[];
+  clients?: Client[];
+  agents?: Agent[];
+  bookings?: Booking[];
+  hotels?: Hotel[];
+  destinations?: Destination[];
+}
 
 interface DayRow {
-  destination: string;
+  destinationId: number | null;
   hotelId: string;
   hotelName: string;
-  // TOTALS for the day (division – entered as total for the whole group)
-  adultTotal: number;          // total accommodation cost for adults
-  childTotal: number;          // total accommodation cost for children
-  parkFeeAdultTotal: number;   // total park fees for adults
-  parkFeeChildTotal: number;   // total park fees for children
-  transportTotal: number;      // transport TOTAL for the day
-  // PER‑PERSON flight costs (multiplication) – optional per day
-  hasFlight: boolean;          // whether flight costs are included for this day
-  flightAdultPP: number;       // flight cost per adult (only used if hasFlight)
-  flightChildPP: number;       // flight cost per child (only used if hasFlight)
-  // Available rates from DB
+  adultTotal: number;
+  childTotal: number;
+  parkFeeAdultTotal: number;
+  parkFeeChildTotal: number;
+  transportTotal: number;
+  hasFlight: boolean;
+  flightAdultPP: number;
+  flightChildPP: number;
   availableRates: RoomPrice[];
   ratesLoading: boolean;
 }
@@ -43,7 +65,9 @@ const BOARD_BASIS = [
 
 function emptyRow(): DayRow {
   return {
-    destination: '', hotelId: '', hotelName: '',
+    destinationId: null,
+    hotelId: '',
+    hotelName: '',
     adultTotal: 0, childTotal: 0,
     parkFeeAdultTotal: 0, parkFeeChildTotal: 0,
     transportTotal: 0,
@@ -55,7 +79,19 @@ function emptyRow(): DayRow {
 
 function fmt2(n: number) { return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
-export default function RateCalculator({ tours, rateCards, clients = [], agents = [], bookings = [], hotels = [] }: Props) {
+export default function RateCalculator({
+  tours,
+  rateCards,
+  clients = [],
+  agents = [],
+  bookings = [],
+  hotels: initialHotels = [],
+  destinations: initialDestinations = [],
+}: Props) {
+  // ── Local state for refreshable data ───────────────────────────────────────
+  const [localHotels, setLocalHotels] = useState<Hotel[]>(initialHotels);
+  const [localDestinations, setLocalDestinations] = useState<Destination[]>(initialDestinations);
+
   // ── Linking fields ──────────────────────────────────────────────────────────
   const [clientId,   setClientId]   = useState('');
   const [agentId,    setAgentId]    = useState('');
@@ -82,7 +118,6 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
   const [extraItems,        setExtraItems]        = useState<{label:string;cost:number}[]>([]);
   const [maasaiVillage,     setMaasaiVillage]     = useState(false);
   const [maasaiCost,        setMaasaiCost]        = useState(30);
-  // Transfers only (global flight removed – handled per day)
   const [arrivalTransfer,   setArrivalTransfer]   = useState(false);
   const [arrivalCostPP,     setArrivalCostPP]     = useState(0);
   const [departureTransfer, setDepartureTransfer] = useState(false);
@@ -136,7 +171,7 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
     setDayRows(prev => prev.map((r, j) => j === i ? { ...r, ...patch } : r));
   }
 
-  // ── Fetch hotel rates for a row ─────────────────────────────────────────────
+  // ── Fetch hotel rates for a row (using the day's date) ──────────────────────
   const fetchRates = useCallback(async (i: number, hotelId: string, board: string, date?: string) => {
     if (!hotelId) return;
     updateRow(i, { ratesLoading: true, availableRates: [] });
@@ -150,8 +185,9 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
     }
   }, []);
 
+  // ── When a hotel is selected, fetch rates using the correct day date ────────
   function onHotelChange(i: number, hotelId: string) {
-    const h = hotels.find(h => String(h.id) === hotelId);
+    const h = localHotels.find(h => String(h.id) === hotelId);
     const dayDate = startDate ? new Date(new Date(startDate).getTime() + i * 86400000).toISOString().split('T')[0] : undefined;
     updateRow(i, { hotelId, hotelName: h?.name || '', adultTotal: 0, childTotal: 0 });
     if (hotelId) fetchRates(i, hotelId, boardBasis, dayDate);
@@ -161,21 +197,29 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
     const row = dayRows[i];
     const price = row.availableRates.find(p => String(p.id) === priceId);
     if (!price) return;
-    // Convert per-person rates to daily totals for the whole group
     updateRow(i, {
       adultTotal: (price.ratePerPersonSharing || 0) * numAdults,
       childTotal: (price.childRate || 0) * numChildren,
     });
   }
 
+  // ── Re‑fetch rates for all rows when startDate or boardBasis changes ────────
+  useEffect(() => {
+    if (!startDate) return;
+    dayRows.forEach((row, i) => {
+      if (row.hotelId) {
+        const dayDate = new Date(new Date(startDate).getTime() + i * 86400000).toISOString().split('T')[0];
+        fetchRates(i, row.hotelId, boardBasis, dayDate);
+      }
+    });
+  }, [startDate, boardBasis, fetchRates, dayRows.length]);
+
   // ── Calculations ────────────────────────────────────────────────────────────
-  // Accommodation & park fees – already totals
   const adultPropertyTotal = dayRows.reduce((s, r) => s + r.adultTotal, 0);
   const childPropertyTotal = dayRows.reduce((s, r) => s + r.childTotal, 0);
   const adultParkTotal     = dayRows.reduce((s, r) => s + r.parkFeeAdultTotal, 0);
   const childParkTotal     = dayRows.reduce((s, r) => s + r.parkFeeChildTotal, 0);
   const transportTotal     = dayRows.reduce((s, r) => s + r.transportTotal, 0);
-  // Flights – per‑person multiplied by group size, but only if hasFlight is true
   const dayFlightAdultTotal = dayRows.reduce((s, r) => s + (r.hasFlight ? r.flightAdultPP * numAdults : 0), 0);
   const dayFlightChildTotal = dayRows.reduce((s, r) => s + (r.hasFlight ? r.flightChildPP * numChildren : 0), 0);
   const totalExtras        = extraItems.reduce((s, e) => s + e.cost, 0);
@@ -191,7 +235,6 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
   const markupAmt  = subtotal * (markup / 100);
   const grandTotal = subtotal + markupAmt;
 
-  // Effective adult units = numAdults + numChildren * 0.5 (children counted as half)
   const adultUnits  = numAdults + numChildren * 0.5;
   const perAdult    = adultUnits > 0 ? grandTotal / adultUnits : 0;
   const perChild    = perAdult * 0.5;
@@ -201,7 +244,17 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
   const selectedAgent   = agents.find(a => a.id === agentId);
   const selectedBooking = bookings.find(b => b.id === bookingId);
 
-  // ── Save ────────────────────────────────────────────────────────────────────
+  // ── Refresh hotels & destinations (manual) ──────────────────────────────────
+  const refreshData = async () => {
+    const [h, d] = await Promise.all([
+      fetch('/api/safari-rates/hotels').then(r => r.json()),
+      fetch('/api/safari-rates/destinations').then(r => r.json()),
+    ]);
+    setLocalHotels(Array.isArray(h) ? h : []);
+    setLocalDestinations(Array.isArray(d) ? d : []);
+  };
+
+  // ── Save costing sheet ──────────────────────────────────────────────────────
   async function handleSave() {
     setSaving(true); setSaved(false); setSaveError('');
     const payload = {
@@ -217,10 +270,10 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
       boardBasis,
       currency,
       dayRows: dayRows.map(r => ({
-        destination:       r.destination,
-        hotelName:         r.hotelName,
-        adultTotal:        r.adultTotal,
-        childTotal:        r.childTotal,
+        destinationId:   r.destinationId,
+        hotelName:       r.hotelName,
+        adultTotal:      r.adultTotal,
+        childTotal:      r.childTotal,
         parkFeeAdultTotal: r.parkFeeAdultTotal,
         parkFeeChildTotal: r.parkFeeChildTotal,
         transportTotal:    r.transportTotal,
@@ -262,10 +315,14 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
             💰 Cost Calculator
             <span className="text-sm font-normal text-gray-500">— linked costing sheet</span>
           </h2>
-          <button onClick={handleSave} disabled={saving}
-            className="btn-primary text-sm px-5">
-            {saving ? 'Saving…' : '💾 Save Costing Sheet'}
-          </button>
+          <div className="flex gap-2">
+            <button type="button" onClick={refreshData} className="text-xs text-blue-500 hover:underline">
+              🔄 Refresh Hotels/Destinations
+            </button>
+            <button onClick={handleSave} disabled={saving} className="btn-primary text-sm px-5">
+              {saving ? 'Saving…' : '💾 Save Costing Sheet'}
+            </button>
+          </div>
         </div>
 
         {saved    && <div className="mb-4 bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-2 text-sm">✓ Costing sheet saved{selectedClient ? ` and linked to ${selectedClient.name}` : ''}.</div>}
@@ -410,19 +467,39 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
                         {dayDate && <p className="text-gray-400 text-xs mt-0.5 whitespace-nowrap">{new Date(dayDate).toLocaleDateString('en-KE', { day:'numeric', month:'short' })}</p>}
                       </td>
 
-                      {/* Destination */}
+                      {/* Destination dropdown */}
                       <td className="px-2 py-2">
-                        <input value={row.destination} onChange={e => updateRow(i, { destination: e.target.value })}
-                          className="input py-1 text-xs w-full" placeholder="e.g. Masai Mara" />
+                        <select
+                          value={row.destinationId ?? ''}
+                          onChange={e => {
+                            const destId = e.target.value ? Number(e.target.value) : null;
+                            updateRow(i, { destinationId: destId, hotelId: '', hotelName: '', availableRates: [] });
+                          }}
+                          className="input py-1 text-xs w-full"
+                        >
+                          <option value="">— Select destination —</option>
+                          {localDestinations.map(d => (
+                            <option key={d.id} value={d.id}>{d.name}</option>
+                          ))}
+                        </select>
                       </td>
 
-                      {/* Hotel picker */}
+                      {/* Hotel dropdown filtered by destination */}
                       <td className="px-2 py-2 min-w-[180px]">
-                        <select className="input py-1 text-xs w-full" value={row.hotelId} onChange={e => onHotelChange(i, e.target.value)}>
+                        <select
+                          className="input py-1 text-xs w-full"
+                          value={row.hotelId}
+                          onChange={e => onHotelChange(i, e.target.value)}
+                        >
                           <option value="">— Select hotel —</option>
-                          {hotels.map(h => (
-                            <option key={h.id} value={h.id}>{h.name} · {h.county.name}{h.stars ? ` ${'★'.repeat(h.stars)}` : ''}</option>
-                          ))}
+                          {localHotels
+                            .filter(h => !row.destinationId || h.county.id === row.destinationId)
+                            .map(h => (
+                              <option key={h.id} value={h.id}>
+                                {h.name} · {h.county.name}
+                                {h.stars ? ` ${'★'.repeat(h.stars)}` : ''}
+                              </option>
+                            ))}
                         </select>
                         {row.ratesLoading && (
                           <p className="text-orange-400 text-xs mt-1 flex items-center gap-1">
@@ -490,12 +567,12 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
                         )}
                       </td>
 
-                      {/* Flight toggle (✈️) */}
+                      {/* Flight toggle */}
                       <td className="px-2 py-2 text-center">
                         <input type="checkbox" checked={row.hasFlight} onChange={e => updateRow(i, { hasFlight: e.target.checked })} className="w-4 h-4" />
                       </td>
 
-                      {/* Flight columns – only shown if this row has flight enabled */}
+                      {/* Flight columns (if enabled) */}
                       {row.hasFlight && (
                         <>
                           <td className="px-2 py-2">
@@ -528,7 +605,7 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
           </div>
         </div>
 
-        {/* ── Section 4: Global extras (file handling, water, insurance) ── */}
+        {/* ── Section 4: Global extras ── */}
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
           <div>
             <label className="label">File Handling Fees ({currency})</label>
@@ -544,10 +621,9 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
           </div>
         </div>
 
-        {/* ── Section 5: Transfers only (global flight removed) ── */}
+        {/* ── Section 5: Transfers ── */}
         <div className="border border-orange-100 rounded-xl p-4 mb-5 space-y-3 bg-white">
           <p className="text-sm font-semibold text-gray-700">Transfers</p>
-
           <div className="flex items-center gap-3 flex-wrap">
             <label className="flex items-center gap-2 cursor-pointer min-w-[200px]">
               <input type="checkbox" checked={arrivalTransfer} onChange={e => setArrivalTransfer(e.target.checked)} className="rounded" />
@@ -562,7 +638,6 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
               </div>
             )}
           </div>
-
           <div className="flex items-center gap-3 flex-wrap">
             <label className="flex items-center gap-2 cursor-pointer min-w-[200px]">
               <input type="checkbox" checked={departureTransfer} onChange={e => setDepartureTransfer(e.target.checked)} className="rounded" />
@@ -579,7 +654,7 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
           </div>
         </div>
 
-        {/* ── Section 6: Optional extras (Maasai village + custom items) ── */}
+        {/* ── Section 6: Extras (Maasai + custom) ── */}
         <div className="flex items-center gap-4 mb-4 p-3 bg-white rounded-lg border border-orange-100">
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
             <input type="checkbox" checked={maasaiVillage} onChange={e => setMaasaiVillage(e.target.checked)} className="rounded" />
@@ -594,26 +669,24 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
             </div>
           )}
         </div>
-
         <div className="mb-5">
           <div className="flex items-center justify-between mb-2">
             <label className="text-sm font-medium text-gray-700">Additional Extras</label>
             <button type="button" onClick={() => setExtraItems(p => [...p, {label:'',cost:0}])} className="text-orange-500 text-xs hover:underline">+ Add Item</button>
           </div>
-          {extraItems.map((ex, i) => (
-            <div key={i} className="flex gap-2 mb-2">
-              <input value={ex.label} onChange={e => setExtraItems(p => p.map((x,j) => j===i ? {...x,label:e.target.value} : x))}
+          {extraItems.map((ex, idx) => (
+            <div key={idx} className="flex gap-2 mb-2">
+              <input value={ex.label} onChange={e => setExtraItems(p => p.map((x,j) => j===idx ? {...x,label:e.target.value} : x))}
                 className="input flex-1 text-sm" placeholder="Description" />
-              <input type="number" min={0} value={ex.cost||''} onChange={e => setExtraItems(p => p.map((x,j) => j===i ? {...x,cost:Number(e.target.value)} : x))}
+              <input type="number" min={0} value={ex.cost||''} onChange={e => setExtraItems(p => p.map((x,j) => j===idx ? {...x,cost:Number(e.target.value)} : x))}
                 className="input w-32 font-mono text-sm" placeholder={currency} />
-              <button type="button" onClick={() => setExtraItems(p => p.filter((_,j) => j!==i))} className="text-red-400 hover:text-red-600 text-lg px-2">×</button>
+              <button type="button" onClick={() => setExtraItems(p => p.filter((_,j) => j!==idx))} className="text-red-400 hover:text-red-600 text-lg px-2">×</button>
             </div>
           ))}
         </div>
 
         {/* ── Section 7: Results ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {/* Breakdown */}
           <div className="bg-white rounded-xl p-5 border border-orange-100">
             <p className="font-semibold text-gray-700 mb-4 text-sm">Cost Breakdown — {numAdults} adult{numAdults!==1?'s':''}{numChildren>0?`, ${numChildren} child${numChildren!==1?'ren':''}`:''}  ({numPax} pax)</p>
             <div className="space-y-2 text-sm">
@@ -652,17 +725,13 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
               </div>
             </div>
           </div>
-
-          {/* Per-person summary */}
           <div className="bg-white rounded-xl p-5 border border-orange-100 space-y-4">
             <p className="font-semibold text-gray-700 text-sm">Charge to Client</p>
             {selectedTour && <p className="text-xs text-gray-500">{selectedTour.durationDays}D / {selectedTour.durationNights}N · {boardBasis}</p>}
-
             <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
               <p className="text-xs text-green-600 mb-1">Grand Total ({numPax} pax)</p>
               <p className="text-3xl font-bold text-green-700">{currency} {fmt2(grandTotal)}</p>
             </div>
-
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-center">
                 <p className="text-xs text-orange-600 mb-0.5">Per Adult</p>
@@ -675,13 +744,10 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
                 </div>
               )}
             </div>
-
-            {/* Group size comparison */}
             <div>
               <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Rate per person at different group sizes (2 → {numPax}):</p>
               <div className="grid grid-cols-4 gap-1">
                 {Array.from({ length: Math.max(0, numPax - 1) }, (_, i) => i + 2).map(n => {
-                  // For each group size n: accommodation & park totals scale with n, flight also scales if any row has flight
                   const scaledAccom   = dayRows.reduce((s, r) => s + r.adultTotal * (n / Math.max(1, numAdults)), 0);
                   const scaledPark    = dayRows.reduce((s, r) => s + r.parkFeeAdultTotal * (n / Math.max(1, numAdults)), 0);
                   const scaledFlight  = dayRows.reduce((s, r) => s + (r.hasFlight ? r.flightAdultPP * n : 0), 0);

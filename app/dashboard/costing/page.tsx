@@ -4,7 +4,7 @@ import Link from 'next/link';
 import RateCalculator from './RateCalculator';
 
 export default async function RatesPage() {
-  const [tours, rateCards, clients, agents, bookings, hotels] = await Promise.all([
+  const [tours, rateCards, clients, agents, bookings, hotels, destinations] = await Promise.all([
     prisma.tourPackage.findMany({ where: { isActive: true }, orderBy: { title: 'asc' } }),
     prisma.rateCard.findMany({ orderBy: { createdAt: 'desc' }, include: { tourPackage: true } }),
     prisma.client.findMany({
@@ -18,8 +18,9 @@ export default async function RatesPage() {
     }),
     prisma.sRHotel.findMany({
       orderBy: [{ county: { name: 'asc' } }, { stars: 'desc' }, { name: 'asc' }],
-      include: { county: { select: { name: true } } },
+      include: { county: { select: { id: true, name: true } } },   // ← include county.id too
     }),
+    prisma.sRCounty.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } }), // ← fetch destinations
   ]);
 
   return (
@@ -40,9 +41,10 @@ export default async function RatesPage() {
         agents={agents as any[]}
         bookings={bookings as any[]}
         hotels={hotels as any[]}
+        destinations={destinations as any[]}   // ← new prop
       />
 
-      {/* Rate Cards Table */}
+      {/* Rate Cards Table (unchanged) */}
       <div className="card p-0 overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100">
           <h2 className="font-semibold text-gray-800">Rate Cards</h2>
