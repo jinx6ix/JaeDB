@@ -78,3 +78,21 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to delete room type' }, { status: 500 });
   }
 }
+
+export async function PUT(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if ((session.user as any)?.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  const body = await req.json();
+  const { id, name, maxOccupancy } = body;
+  if (!id || !name) {
+    return NextResponse.json({ error: 'id and name are required' }, { status: 400 });
+  }
+
+  const updated = await prisma.sRRoomType.update({
+    where: { id: Number(id) },
+    data: { name: name.trim(), maxOccupancy: maxOccupancy ? Number(maxOccupancy) : undefined },
+  });
+  return NextResponse.json(updated);
+}
