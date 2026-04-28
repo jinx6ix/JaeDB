@@ -43,6 +43,37 @@ export default function EditItineraryPage() {
     </div>
   );
 
+  function addDay() {
+    const days = itinerary.days;
+    const last = days[days.length - 1];
+    const nextDate = last?.date
+      ? new Date(new Date(last.date).getTime() + 86400000).toISOString().split('T')[0]
+      : '';
+    setItinerary((prev: any) => ({
+      ...prev,
+      days: [...prev.days, {
+        id: `new-${Date.now()}`,
+        dayNumber: prev.days.length + 1,
+        date: nextDate,
+        destination: '',
+        accommodation: '',
+        mealPlan: { breakfast: false, lunch: false, dinner: false, note: '' },
+        activities: '',
+        notes: '',
+        images: [],
+      }],
+    }));
+  }
+
+  function removeDay(i: number) {
+    setItinerary((prev: any) => ({
+      ...prev,
+      days: prev.days
+        .filter((_: any, j: number) => j !== i)
+        .map((d: any, j: number) => ({ ...d, dayNumber: j + 1 })),
+    }));
+  }
+
   function updateDay(i: number, field: string, value: any) {
     setItinerary((prev: any) => ({
       ...prev,
@@ -114,11 +145,20 @@ export default function EditItineraryPage() {
         </div>
 
         <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-gray-800">Day by Day ({itinerary.days.length} day{itinerary.days.length !== 1 ? 's' : ''})</h2>
+            <button type="button" onClick={addDay} className="btn-secondary text-sm">+ Add Day</button>
+          </div>
           {itinerary.days.map((day: any, i: number) => (
             <div key={day.id} className="card space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="bg-orange-500 text-white text-xs font-bold px-3 py-1.5 rounded-full">Day {day.dayNumber}</span>
-                <input type="date" value={day.date} onChange={e => updateDay(i, 'date', e.target.value)} className="input w-40 text-sm" />
+              <div className="flex items-center gap-2 justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="bg-orange-500 text-white text-xs font-bold px-3 py-1.5 rounded-full">Day {day.dayNumber}</span>
+                  <input type="date" value={day.date} onChange={e => updateDay(i, 'date', e.target.value)} className="input w-40 text-sm" />
+                </div>
+                {itinerary.days.length > 1 && (
+                  <button type="button" onClick={() => removeDay(i)} className="text-red-400 hover:text-red-600 text-xs font-medium">✕ Remove Day</button>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

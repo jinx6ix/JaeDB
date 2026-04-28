@@ -40,6 +40,7 @@ model Agent {
   updatedAt DateTime  @updatedAt
   clients   Client[]
   vouchers  Voucher[]
+  costSheets CostSheet[]
 }
 
 // ─── CLIENTS ─────────────────────────────────────────────────────────────────
@@ -59,6 +60,7 @@ model Client {
   updatedAt   DateTime  @updatedAt
   bookings    Booking[]
   vouchers    Voucher[]
+  costSheets  CostSheet[]
 }
 
 // ─── DESTINATIONS ────────────────────────────────────────────────────────────
@@ -192,6 +194,7 @@ model Booking {
   vouchers            Voucher[]
   itinerary           Itinerary?
   invoices            Invoice[]
+  costSheets          CostSheet[]
 }
 
 // ─── ITINERARY ───────────────────────────────────────────────────────────────
@@ -314,24 +317,41 @@ model Invoice {
 
 model CostSheet {
   id              String   @id @default(cuid())
+  // Links
+  bookingId       String?
+  booking         Booking? @relation(fields: [bookingId], references: [id])
+  clientId        String?
+  client          Client?  @relation(fields: [clientId], references: [id])
+  agentId         String?
+  agent           Agent?   @relation(fields: [agentId], references: [id])
+  // Tour info
   bookingRef      String?
   tourTitle       String
   days            Int
-  numPax          Int
-  propertyName    String?
-  propertyCost    Float    @default(0)
-  parkFees        Float    @default(0)
-  transport       Float    @default(0)
-  extras          String?
+  numAdults       Int      @default(1)
+  numChildren     Int      @default(0)
+  numPax          Int      // total = adults + children
+  boardBasis      String   @default("FB")
+  currency        String   @default("USD")
+  // Per-day data stored as JSON array
+  dayRows         String   @default("[]")
+  // Extras
   fileHandlingFee Float    @default(0)
   ecoBottle       Float    @default(0)
   evacInsurance   Float    @default(0)
+  arrivalTransfer Float    @default(0)
+  departureTransfer Float  @default(0)
+  flightCostPP    Float    @default(0)
+  extras          String?
+  maasaiVillage   Boolean  @default(false)
+  maasaiCost      Float    @default(0)
+  // Totals
   subtotal        Float
   markupPercent   Float    @default(10)
   markupAmount    Float
   totalCost       Float
-  perPersonCost   Float
-  currency        String   @default("USD")
+  perAdultCost    Float
+  perChildCost    Float    @default(0)
   notes           String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

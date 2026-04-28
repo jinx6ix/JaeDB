@@ -13,12 +13,13 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
   const booking = await prisma.booking.findUnique({
     where: { id: params.id },
     include: {
-      client: true,
+      client: { include: { agent: true } },
       tourPackage: { include: { days: { orderBy: { dayNumber: 'asc' } } } },
       assignedTo: true,
-      vouchers: { include: { property: true, vehicle: true } },
+      vouchers: { include: { property: true, vehicle: true, createdBy: { select: { id: true, name: true } } }, orderBy: { createdAt: 'asc' } },
       itinerary: { include: { days: { orderBy: { dayNumber: 'asc' } } } },
       invoices: true,
+      costSheets: { orderBy: { createdAt: 'desc' }, select: { id: true, tourTitle: true, numAdults: true, numChildren: true, currency: true, totalCost: true, perAdultCost: true, createdAt: true } },
     },
   });
 
@@ -60,6 +61,7 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
             <h2 className="font-semibold text-gray-800">Booking Info</h2>
             {[
               { label: 'Client', value: booking.client.name },
+              { label: 'Agent', value: booking.client.agent ? `${booking.client.agent.name}${booking.client.agent.company ? ` (${booking.client.agent.company})` : ''}` : '— Direct —' },
               { label: 'Tour', value: booking.tourPackage?.title || 'Custom Tour' },
               { label: 'Start', value: new Date(booking.startDate).toLocaleDateString('en-KE', { dateStyle: 'long' }) },
               { label: 'End', value: new Date(booking.endDate).toLocaleDateString('en-KE', { dateStyle: 'long' }) },
@@ -108,6 +110,39 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
 
         {/* Right: Vouchers + Itinerary */}
         <div className="col-span-2 space-y-4">
+          {/* Cost Sheets */}
+          {booking.costSheets && booking.costSheets.length > 0 && (
+            <div className="card p-0 overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                <h2 className="font-semibold text-gray-800">Costing Sheets ({booking.costSheets.length})</h2>
+                <Link href="/dashboard/rates" className="text-orange-500 text-xs hover:underline">+ New Costing</Link>
+              </div>
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    {['Tour', 'Pax', 'Total Cost', 'Per Adult', 'Date', ''].map(h => (
+                      <th key={h} className="text-left px-4 py-2 font-medium text-gray-600 text-xs">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {booking.costSheets.map((cs: any) => (
+                    <tr key={cs.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-2.5 text-xs font-medium text-gray-800 max-w-xs truncate">{cs.tourTitle}</td>
+                      <td className="px-4 py-2.5 text-xs text-gray-600">{cs.numAdults}A{cs.numChildren > 0 ? ` + ${cs.numChildren}C` : ''}</td>
+                      <td className="px-4 py-2.5 text-xs font-mono font-bold text-gray-900">{cs.currency} {cs.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                      <td className="px-4 py-2.5 text-xs font-mono text-orange-600">{cs.currency} {cs.perAdultCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                      <td className="px-4 py-2.5 text-xs text-gray-400">{new Date(cs.createdAt).toLocaleDateString('en-KE')}</td>
+                      <td className="px-4 py-2.5">
+                        <Link href={`/dashboard/rates?sheet=${cs.id}`} className="text-orange-500 hover:underline text-xs">View</Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
           {/* Vouchers */}
           <div className="card p-0 overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -133,21 +168,23 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
                     <tr key={v.id} className="hover:bg-gray-50">
                       <td className="px-4 py-2.5 font-mono text-xs">{v.voucherNo}</td>
                       <td className="px-4 py-2.5">
-                        <span className={`px-1.5 py-0.5 rounded text-xs ${v.type === 'HOTEL' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                        <span className={`px-1.5 py-0.5 rounded text-xs ${v.type === 'HOTEL' ? 'bg-blue-100 text-blue-700' : v.type === 'VEHICLE' ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'}`}>
                           {v.type}
                         </span>
                       </td>
                       <td className="px-4 py-2.5 text-xs text-gray-600">
-                        {v.property?.name || v.vehicle?.name || v.vehicleType || '—'}
+                        {v.hotelName || v.property?.name || v.vehicleName || v.vehicle?.name || v.flightName || v.vehicleType || '—'}
                         {v.roomType && ` · ${v.roomType}`}
                       </td>
                       <td className="px-4 py-2.5 text-xs text-gray-500">
                         {v.checkIn && new Date(v.checkIn).toLocaleDateString('en-KE', { day: '2-digit', month: 'short' })}
                         {v.checkOut && ` – ${new Date(v.checkOut).toLocaleDateString('en-KE', { day: '2-digit', month: 'short' })}`}
                         {v.pickupDate && new Date(v.pickupDate).toLocaleDateString('en-KE')}
+                        {v.departureDate && new Date(v.departureDate).toLocaleDateString('en-KE')}
                       </td>
-                      <td className="px-4 py-2.5">
-                        <Link href={`/dashboard/vouchers/${v.id}`} className="text-orange-500 hover:underline text-xs">View / PDF</Link>
+                      <td className="px-4 py-2.5 flex gap-3 items-center">
+                        <a href={`/dashboard/vouchers/${v.id}`} className="text-orange-500 hover:underline text-xs">View</a>
+                        <a href={`/dashboard/vouchers/${v.id}/edit`} className="text-gray-500 hover:underline text-xs">Edit</a>
                       </td>
                     </tr>
                   ))}

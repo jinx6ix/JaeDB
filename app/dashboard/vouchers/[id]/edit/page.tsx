@@ -7,16 +7,67 @@ export default function EditVoucherPage() {
   const router = useRouter();
   const { id } = useParams() as { id: string };
   const [voucher, setVoucher] = useState<any>(null);
-  const [properties, setProperties] = useState<any[]>([]);
+  const [hotels, setHotels] = useState<any[]>([]);
+  const [roomTypes, setRoomTypes] = useState<any[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [selHotelId, setSelHotelId] = useState('');
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
+  const [f, setF] = useState<any>({});
 
   useEffect(() => {
-    fetch(`/api/vouchers/${id}`).then(r => r.json()).then(setVoucher);
-    fetch('/api/properties').then(r => r.json()).then(setProperties);
-    fetch('/api/vehicles').then(r => r.json()).then(setVehicles);
+    fetch(`/api/vouchers/${id}`).then(r => r.json()).then(v => {
+      setVoucher(v);
+      setF({
+        status: v.status || 'ACTIVE',
+        bookingStatus: v.bookingStatus || 'book',
+        clientName: v.clientName || '',
+        clientId: v.clientId || '',
+        bookingId: v.bookingId || '',
+        remarks: v.remarks || '',
+        hotelName: v.hotelName || v.property?.name || '',
+        propertyId: v.propertyId || '',
+        roomType: v.roomType || '',
+        checkIn: v.checkIn ? new Date(v.checkIn).toISOString().split('T')[0] : '',
+        checkOut: v.checkOut ? new Date(v.checkOut).toISOString().split('T')[0] : '',
+        numNights: v.numNights || 1,
+        numAdults: v.numAdults || 1,
+        numChildren: v.numChildren || 0,
+        numTwins: v.numTwins || 0,
+        numDoubles: v.numDoubles || 0,
+        numSingles: v.numSingles || 0,
+        numTriples: v.numTriples || 0,
+        vehicleId: v.vehicleId || '',
+        vehicleName: v.vehicleName || '',
+        vehicleType: v.vehicleType || '',
+        pickupDate: v.pickupDate ? new Date(v.pickupDate).toISOString().split('T')[0] : '',
+        dropoffDate: v.dropoffDate ? new Date(v.dropoffDate).toISOString().split('T')[0] : '',
+        pickupLocation: v.pickupLocation || '',
+        route: v.route || '',
+        rateKES: v.rateKES || '',
+        flightName: v.flightName || '',
+        flightSchedule: v.flightSchedule || '',
+        departureDate: v.departureDate ? new Date(v.departureDate).toISOString().split('T')[0] : '',
+        returnDate: v.returnDate ? new Date(v.returnDate).toISOString().split('T')[0] : '',
+        numDays: v.numDays || 1,
+      });
+      if (v.propertyId) setSelHotelId(String(v.propertyId));
+    });
+    fetch('/api/safari-rates/hotels').then(r => r.json()).then(d => setHotels(Array.isArray(d) ? d : []));
+    fetch('/api/vehicles').then(r => r.json()).then(d => setVehicles(Array.isArray(d) ? d : []));
+    fetch('/api/clients').then(r => r.json()).then(d => setClients(Array.isArray(d) ? d : []));
+    fetch('/api/bookings?all=1').then(r => r.json()).then(d => setBookings(Array.isArray(d) ? d : []));
   }, [id]);
+
+  useEffect(() => {
+    if (selHotelId) {
+      fetch(`/api/safari-rates/room-types?hotelId=${selHotelId}`)
+        .then(r => r.json()).then(d => setRoomTypes(Array.isArray(d) ? d : []));
+    }
+  }, [selHotelId]);
 
   if (!voucher) return (
     <div className="flex items-center justify-center py-20">
@@ -24,180 +75,180 @@ export default function EditVoucherPage() {
     </div>
   );
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setSaving(true);
-    setError('');
-    const fd = new FormData(e.currentTarget);
+  function set(k: string, v: any) { setF((p: any) => ({ ...p, [k]: v })); }
 
-    const body: Record<string, any> = {
-      status: fd.get('status'),
-      clientName: fd.get('clientName'),
-      remarks: fd.get('remarks') || null,
-    };
-
-    if (voucher.type === 'HOTEL') {
-      Object.assign(body, {
-        propertyId: fd.get('propertyId') || null,
-        roomType: fd.get('roomType'),
-        checkIn: fd.get('checkIn'),
-        checkOut: fd.get('checkOut'),
-        numNights: Number(fd.get('numNights')),
-        numAdults: Number(fd.get('numAdults')),
-        numChildren: Number(fd.get('numChildren') || 0),
-        numTwins: Number(fd.get('numTwins') || 0),
-        numDoubles: Number(fd.get('numDoubles') || 0),
-        numSingles: Number(fd.get('numSingles') || 0),
-        numTriples: Number(fd.get('numTriples') || 0),
-      });
-    } else {
-      Object.assign(body, {
-        vehicleId: fd.get('vehicleId') || null,
-        vehicleType: fd.get('vehicleType'),
-        pickupDate: fd.get('pickupDate'),
-        dropoffDate: fd.get('dropoffDate'),
-        pickupLocation: fd.get('pickupLocation'),
-        route: fd.get('route') || null,
-        rateKES: fd.get('rateKES') ? Number(fd.get('rateKES')) : null,
-        numAdults: Number(fd.get('numAdults')),
-      });
-    }
-
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true); setError('');
     const res = await fetch(`/api/vouchers/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...f, type: voucher.type }),
     });
-
-    if (res.ok) {
-      router.push(`/dashboard/vouchers/${id}`);
-    } else {
-      const d = await res.json();
-      setError(d.error || 'Failed');
-      setSaving(false);
-    }
+    if (res.ok) { router.push(`/dashboard/vouchers/${id}`); }
+    else { const d = await res.json(); setError(d.error || 'Failed'); setSaving(false); }
   }
 
-  const fmt = (d: string | null) => d ? new Date(d).toISOString().split('T')[0] : '';
+  async function handleDelete() {
+    if (!confirm('Delete this voucher? This cannot be undone.')) return;
+    setDeleting(true);
+    const res = await fetch(`/api/vouchers/${id}`, { method: 'DELETE' });
+    if (res.ok) { router.push('/dashboard/vouchers'); }
+    else { const d = await res.json(); setError(d.error || 'Failed to delete'); setDeleting(false); }
+  }
+
+  const typeColor = voucher.type === 'HOTEL' ? 'bg-blue-100 text-blue-700'
+    : voucher.type === 'VEHICLE' ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700';
 
   return (
     <div className="max-w-2xl space-y-5">
-      <div className="flex items-center gap-3">
-        <Link href={`/dashboard/vouchers/${id}`} className="text-gray-400 hover:text-gray-600 text-sm">← Voucher</Link>
-        <h1 className="text-2xl font-bold text-gray-900">Edit Voucher {voucher.voucherNo}</h1>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Link href={`/dashboard/vouchers/${id}`} className="text-gray-400 hover:text-gray-600 text-sm">← Voucher</Link>
+          <h1 className="text-2xl font-bold text-gray-900">Edit {voucher.voucherNo}</h1>
+          <span className={`text-xs font-bold px-2 py-0.5 rounded ${typeColor}`}>{voucher.type}</span>
+        </div>
+        <button type="button" onClick={handleDelete} disabled={deleting}
+          className="text-red-500 hover:text-red-700 text-sm font-medium border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50">
+          {deleting ? 'Deleting…' : '🗑 Delete'}
+        </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="card space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
         {error && <div className="bg-red-50 text-red-700 border border-red-200 rounded-lg p-3 text-sm">{error}</div>}
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="label">Status</label>
-            <select name="status" className="input" defaultValue={voucher.status}>
-              <option value="ACTIVE">Active</option>
-              <option value="USED">Used</option>
-              <option value="CANCELLED">Cancelled</option>
-            </select>
-          </div>
-          <div>
-            <label className="label">Client Name *</label>
-            <input name="clientName" required className="input" defaultValue={voucher.clientName || ''} />
-          </div>
-
-          {voucher.type === 'HOTEL' ? (
-            <>
-              <div>
-                <label className="label">Hotel / Camp</label>
-                <select name="propertyId" className="input" defaultValue={voucher.propertyId || ''}>
-                  <option value="">— Select —</option>
-                  {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="label">Room Type</label>
-                <input name="roomType" className="input" defaultValue={voucher.roomType || ''} />
-              </div>
-              <div>
-                <label className="label">Check-in</label>
-                <input name="checkIn" type="date" className="input" defaultValue={fmt(voucher.checkIn)} />
-              </div>
-              <div>
-                <label className="label">Check-out</label>
-                <input name="checkOut" type="date" className="input" defaultValue={fmt(voucher.checkOut)} />
-              </div>
-              <div>
-                <label className="label">Nights</label>
-                <input name="numNights" type="number" min={1} className="input" defaultValue={voucher.numNights || 1} />
-              </div>
-              <div>
-                <label className="label">Adults</label>
-                <input name="numAdults" type="number" min={1} className="input" defaultValue={voucher.numAdults || 1} />
-              </div>
-              <div>
-                <label className="label">Children</label>
-                <input name="numChildren" type="number" min={0} className="input" defaultValue={voucher.numChildren || 0} />
-              </div>
-              <div />
-              <div className="col-span-2">
-                <label className="label">Room Configuration</label>
-                <div className="grid grid-cols-4 gap-3">
-                  {['Twins', 'Doubles', 'Singles', 'Triples'].map(type => (
-                    <div key={type}>
-                      <p className="text-xs text-gray-500 mb-1">{type}</p>
-                      <input name={`num${type}`} type="number" min={0} className="input text-center"
-                        defaultValue={(voucher as any)[`num${type}`] || 0} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div>
-                <label className="label">Vehicle</label>
-                <select name="vehicleId" className="input" defaultValue={voucher.vehicleId || ''}>
-                  <option value="">— Select —</option>
-                  {vehicles.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="label">Vehicle Type</label>
-                <input name="vehicleType" className="input" defaultValue={voucher.vehicleType || ''} />
-              </div>
-              <div>
-                <label className="label">Pickup Date</label>
-                <input name="pickupDate" type="date" className="input" defaultValue={fmt(voucher.pickupDate)} />
-              </div>
-              <div>
-                <label className="label">Drop-off Date</label>
-                <input name="dropoffDate" type="date" className="input" defaultValue={fmt(voucher.dropoffDate)} />
-              </div>
-              <div>
-                <label className="label">Pickup Location</label>
-                <input name="pickupLocation" className="input" defaultValue={voucher.pickupLocation || ''} />
-              </div>
-              <div>
-                <label className="label">Passengers</label>
-                <input name="numAdults" type="number" min={1} className="input" defaultValue={voucher.numAdults || 1} />
-              </div>
-              <div>
-                <label className="label">Route</label>
-                <input name="route" className="input" defaultValue={voucher.route || ''} />
-              </div>
-              <div>
-                <label className="label">Rate (KES)</label>
-                <input name="rateKES" type="number" className="input" defaultValue={voucher.rateKES || ''} />
-              </div>
-            </>
-          )}
-
-          <div className="col-span-2">
-            <label className="label">Remarks</label>
-            <textarea name="remarks" rows={3} className="input resize-none" defaultValue={voucher.remarks || ''} />
+        <div className="card space-y-4">
+          <h2 className="font-semibold text-gray-800">General</h2>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Status</label>
+              <select className="input" value={f.status} onChange={e => set('status', e.target.value)}>
+                <option value="ACTIVE">Active</option>
+                <option value="USED">Used</option>
+                <option value="CANCELLED">Cancelled</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">Booking Status</label>
+              <select className="input" value={f.bookingStatus} onChange={e => set('bookingStatus', e.target.value)}>
+                <option value="book">Book</option>
+                <option value="amend">Amend</option>
+                <option value="cancel">Cancel</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">Link to Client</label>
+              <select className="input" value={f.clientId} onChange={e => {
+                set('clientId', e.target.value);
+                const c = clients.find((c: any) => c.id === e.target.value);
+                if (c) set('clientName', c.name);
+              }}>
+                <option value="">— No client —</option>
+                {clients.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">Link to Booking</label>
+              <select className="input" value={f.bookingId} onChange={e => set('bookingId', e.target.value)}>
+                <option value="">— Standalone —</option>
+                {bookings.map((b: any) => <option key={b.id} value={b.id}>{b.bookingRef} · {b.client.name}</option>)}
+              </select>
+            </div>
+            <div className="col-span-2">
+              <label className="label">Client Name (on voucher)</label>
+              <input className="input" value={f.clientName} onChange={e => set('clientName', e.target.value)} />
+            </div>
+            <div className="col-span-2">
+              <label className="label">Remarks</label>
+              <textarea className="input resize-none h-16" value={f.remarks} onChange={e => set('remarks', e.target.value)} />
+            </div>
           </div>
         </div>
 
-        <div className="flex gap-3 pt-2">
+        {voucher.type === 'HOTEL' && (
+          <div className="card space-y-4">
+            <h2 className="font-semibold text-gray-800">🏨 Hotel / Accommodation</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <label className="label">Select Hotel from Database</label>
+                <select className="input" value={selHotelId} onChange={e => {
+                  setSelHotelId(e.target.value);
+                  const h = hotels.find((h: any) => String(h.id) === e.target.value);
+                  if (h) set('hotelName', h.name);
+                }}>
+                  <option value="">— Search hotel —</option>
+                  {hotels.map((h: any) => (
+                    <option key={h.id} value={h.id}>{h.name} · {h.county?.name}{h.stars ? ` · ${'★'.repeat(h.stars)}` : ''}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-span-2">
+                <label className="label">Hotel Name (on voucher)</label>
+                <input className="input" value={f.hotelName} onChange={e => set('hotelName', e.target.value)} placeholder="Or type custom hotel name" />
+              </div>
+              <div className="col-span-2">
+                <label className="label">Room Type</label>
+                {roomTypes.length > 0 ? (
+                  <select className="input" value={f.roomType} onChange={e => set('roomType', e.target.value)}>
+                    <option value="">— Select room type —</option>
+                    {roomTypes.map((r: any) => <option key={r.id} value={r.name}>{r.name}</option>)}
+                  </select>
+                ) : (
+                  <input className="input" value={f.roomType} onChange={e => set('roomType', e.target.value)} placeholder="e.g. Standard Double" />
+                )}
+              </div>
+              <div><label className="label">Check In</label><input type="date" className="input" value={f.checkIn} onChange={e => set('checkIn', e.target.value)} /></div>
+              <div><label className="label">Check Out</label><input type="date" className="input" value={f.checkOut} onChange={e => set('checkOut', e.target.value)} /></div>
+              <div><label className="label">Nights</label><input type="number" min={1} className="input" value={f.numNights} onChange={e => set('numNights', Number(e.target.value))} /></div>
+              <div><label className="label">Adults</label><input type="number" min={1} className="input" value={f.numAdults} onChange={e => set('numAdults', Number(e.target.value))} /></div>
+              <div><label className="label">Children</label><input type="number" min={0} className="input" value={f.numChildren} onChange={e => set('numChildren', Number(e.target.value))} /></div>
+              <div><label className="label">Twins</label><input type="number" min={0} className="input" value={f.numTwins} onChange={e => set('numTwins', Number(e.target.value))} /></div>
+              <div><label className="label">Doubles</label><input type="number" min={0} className="input" value={f.numDoubles} onChange={e => set('numDoubles', Number(e.target.value))} /></div>
+              <div><label className="label">Singles</label><input type="number" min={0} className="input" value={f.numSingles} onChange={e => set('numSingles', Number(e.target.value))} /></div>
+            </div>
+          </div>
+        )}
+
+        {voucher.type === 'VEHICLE' && (
+          <div className="card space-y-4">
+            <h2 className="font-semibold text-gray-800">🚐 Vehicle / Transfer</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <label className="label">Select Vehicle</label>
+                <select className="input" value={f.vehicleId} onChange={e => {
+                  set('vehicleId', e.target.value);
+                  const v = vehicles.find((v: any) => v.id === e.target.value);
+                  if (v) { set('vehicleName', v.name); set('vehicleType', v.type); }
+                }}>
+                  <option value="">— Custom —</option>
+                  {vehicles.map((v: any) => <option key={v.id} value={v.id}>{v.name} · {v.seats} seats</option>)}
+                </select>
+              </div>
+              <div><label className="label">Vehicle Name</label><input className="input" value={f.vehicleName} onChange={e => set('vehicleName', e.target.value)} /></div>
+              <div><label className="label">Vehicle Type</label><input className="input" value={f.vehicleType} onChange={e => set('vehicleType', e.target.value)} /></div>
+              <div><label className="label">Pickup Date</label><input type="date" className="input" value={f.pickupDate} onChange={e => set('pickupDate', e.target.value)} /></div>
+              <div><label className="label">Dropoff Date</label><input type="date" className="input" value={f.dropoffDate} onChange={e => set('dropoffDate', e.target.value)} /></div>
+              <div className="col-span-2"><label className="label">Pickup Location</label><input className="input" value={f.pickupLocation} onChange={e => set('pickupLocation', e.target.value)} /></div>
+              <div className="col-span-2"><label className="label">Route</label><input className="input" value={f.route} onChange={e => set('route', e.target.value)} /></div>
+              <div><label className="label">Rate (KES)</label><input type="number" min={0} className="input" value={f.rateKES} onChange={e => set('rateKES', e.target.value)} /></div>
+              <div><label className="label">Adults</label><input type="number" min={1} className="input" value={f.numAdults} onChange={e => set('numAdults', Number(e.target.value))} /></div>
+            </div>
+          </div>
+        )}
+
+        {voucher.type === 'FLIGHT' && (
+          <div className="card space-y-4">
+            <h2 className="font-semibold text-gray-800">✈️ Flight</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2"><label className="label">Airline / Flight Name</label><input className="input" value={f.flightName} onChange={e => set('flightName', e.target.value)} placeholder="e.g. Kenya Airways KQ101" /></div>
+              <div className="col-span-2"><label className="label">Schedule / Route</label><input className="input" value={f.flightSchedule} onChange={e => set('flightSchedule', e.target.value)} placeholder="e.g. NBO → MRE 07:00 – 08:00" /></div>
+              <div><label className="label">Departure Date</label><input type="date" className="input" value={f.departureDate} onChange={e => set('departureDate', e.target.value)} /></div>
+              <div><label className="label">Return Date</label><input type="date" className="input" value={f.returnDate} onChange={e => set('returnDate', e.target.value)} /></div>
+              <div><label className="label">Adults</label><input type="number" min={1} className="input" value={f.numAdults} onChange={e => set('numAdults', Number(e.target.value))} /></div>
+              <div><label className="label">Children</label><input type="number" min={0} className="input" value={f.numChildren} onChange={e => set('numChildren', Number(e.target.value))} /></div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-3">
           <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving…' : 'Save Changes'}</button>
           <Link href={`/dashboard/vouchers/${id}`} className="btn-secondary">Cancel</Link>
         </div>

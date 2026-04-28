@@ -7,9 +7,9 @@ import { redirect } from 'next/navigation';
 
 const nav = [
   { label: 'Dashboard', href: '/dashboard', icon: '⊞', adminOnly: false },
-  { label: 'Bookings', href: '/dashboard/bookings', icon: '📋', adminOnly: false },
-  { label: 'Clients', href: '/dashboard/clients', icon: '👥', adminOnly: false },
   { label: 'Agents', href: '/dashboard/agents', icon: '🤝', adminOnly: false },
+  { label: 'Clients', href: '/dashboard/clients', icon: '👥', adminOnly: false },
+  { label: 'Bookings', href: '/dashboard/bookings', icon: '📋', adminOnly: false },
   { label: 'Vouchers', href: '/dashboard/vouchers', icon: '🎫', adminOnly: false },
   { label: 'Itineraries', href: '/dashboard/itineraries', icon: '🗺️', adminOnly: false },
   { label: 'Tours', href: '/dashboard/tours', icon: '🦁', adminOnly: false },

@@ -1,10 +1,7 @@
 {
   "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js",
-  "/api/itineraries/[id]/route": "app/api/itineraries/[id]/route.js",
+  "/api/safari-rates/lookup/route": "app/api/safari-rates/lookup/route.js",
+  "/dashboard/bookings/[id]/page": "app/dashboard/bookings/[id]/page.js",
   "/dashboard/itineraries/page": "app/dashboard/itineraries/page.js",
-  "/dashboard/itineraries/[id]/page": "app/dashboard/itineraries/[id]/page.js",
-  "/dashboard/agents/new/page": "app/dashboard/agents/new/page.js",
-  "/dashboard/clients/page": "app/dashboard/clients/page.js",
-  "/dashboard/clients/[id]/edit/page": "app/dashboard/clients/[id]/edit/page.js",
-  "/dashboard/itineraries/[id]/edit/page": "app/dashboard/itineraries/[id]/edit/page.js"
+  "/dashboard/costing/page": "app/dashboard/costing/page.js"
 }

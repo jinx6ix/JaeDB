@@ -806,6 +806,9 @@ video {
 .h-4 {
   height: 1rem;
 }
+.h-6 {
+  height: 1.5rem;
+}
 .h-7 {
   height: 1.75rem;
 }
@@ -826,6 +829,9 @@ video {
 }
 .w-16 {
   width: 4rem;
+}
+.w-20 {
+  width: 5rem;
 }
 .w-24 {
   width: 6rem;
@@ -851,6 +857,9 @@ video {
 .w-56 {
   width: 14rem;
 }
+.w-6 {
+  width: 1.5rem;
+}
 .w-60 {
   width: 15rem;
 }
@@ -865,6 +874,9 @@ video {
 }
 .min-w-0 {
   min-width: 0px;
+}
+.min-w-\[200px\] {
+  min-width: 200px;
 }
 .min-w-\[80px\] {
   min-width: 80px;
@@ -1236,6 +1248,10 @@ video {
 .bg-orange-500\/30 {
   background-color: rgb(249 115 22 / 0.3);
 }
+.bg-purple-100 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(243 232 255 / var(--tw-bg-opacity, 1));
+}
 .bg-purple-50 {
   --tw-bg-opacity: 1;
   background-color: rgb(250 245 255 / var(--tw-bg-opacity, 1));
@@ -1517,6 +1533,10 @@ video {
 .tracking-wider {
   letter-spacing: 0.05em;
 }
+.text-blue-600 {
+  --tw-text-opacity: 1;
+  color: rgb(37 99 235 / var(--tw-text-opacity, 1));
+}
 .text-blue-700 {
   --tw-text-opacity: 1;
   color: rgb(29 78 216 / var(--tw-text-opacity, 1));
@@ -1639,6 +1659,9 @@ video {
 .opacity-0 {
   opacity: 0;
 }
+.opacity-40 {
+  opacity: 0.4;
+}
 .opacity-60 {
   opacity: 0.6;
 }
@@ -1730,12 +1753,19 @@ video {
   --tw-bg-opacity: 1;
   background-color: rgb(255 247 237 / var(--tw-bg-opacity, 1));
 }
+.hover\:bg-orange-50\/40:hover {
+  background-color: rgb(255 247 237 / 0.4);
+}
 .hover\:bg-orange-50\/50:hover {
   background-color: rgb(255 247 237 / 0.5);
 }
 .hover\:bg-orange-600:hover {
   --tw-bg-opacity: 1;
   background-color: rgb(234 88 12 / var(--tw-bg-opacity, 1));
+}
+.hover\:bg-red-50:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(254 242 242 / var(--tw-bg-opacity, 1));
 }
 .hover\:bg-red-700:hover {
   --tw-bg-opacity: 1;
@@ -1755,6 +1785,10 @@ video {
 .hover\:text-red-600:hover {
   --tw-text-opacity: 1;
   color: rgb(220 38 38 / var(--tw-text-opacity, 1));
+}
+.hover\:text-red-700:hover {
+  --tw-text-opacity: 1;
+  color: rgb(185 28 28 / var(--tw-text-opacity, 1));
 }
 .hover\:text-white:hover {
   --tw-text-opacity: 1;
@@ -1786,10 +1820,6 @@ video {
 
   .lg\:grid-cols-4 {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  .lg\:grid-cols-5 {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .lg\:grid-cols-6 {

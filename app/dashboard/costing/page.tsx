@@ -4,11 +4,21 @@ import Link from 'next/link';
 import RateCalculator from './RateCalculator';
 
 export default async function RatesPage() {
-  const [tours, rateCards] = await Promise.all([
+  const [tours, rateCards, clients, agents, bookings, hotels] = await Promise.all([
     prisma.tourPackage.findMany({ where: { isActive: true }, orderBy: { title: 'asc' } }),
-    prisma.rateCard.findMany({
+    prisma.rateCard.findMany({ orderBy: { createdAt: 'desc' }, include: { tourPackage: true } }),
+    prisma.client.findMany({
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, agentId: true, agent: { select: { id: true, name: true, company: true } } },
+    }),
+    prisma.agent.findMany({ where: { isActive: true }, orderBy: { name: 'asc' }, select: { id: true, name: true, company: true } }),
+    prisma.booking.findMany({
       orderBy: { createdAt: 'desc' },
-      include: { tourPackage: true },
+      select: { id: true, bookingRef: true, clientId: true, tourPackageId: true, client: { select: { name: true } } },
+    }),
+    prisma.sRHotel.findMany({
+      orderBy: [{ county: { name: 'asc' } }, { stars: 'desc' }, { name: 'asc' }],
+      include: { county: { select: { name: true } } },
     }),
   ]);
 
@@ -17,13 +27,20 @@ export default async function RatesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Rates & Costing</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Manage rate cards and calculate tour costs</p>
+          <p className="text-gray-500 text-sm mt-0.5">Build a linked costing sheet for any client</p>
         </div>
-        <Link href="/dashboard/costing/new" className="btn-primary">+ New Rate Card</Link>
+        <Link href="/dashboard/rates/new" className="btn-primary">+ New Rate Card</Link>
       </div>
 
       {/* Interactive Cost Calculator */}
-      <RateCalculator tours={tours as any[]} rateCards={rateCards as any[]} />
+      <RateCalculator
+        tours={tours as any[]}
+        rateCards={rateCards as any[]}
+        clients={clients as any[]}
+        agents={agents as any[]}
+        bookings={bookings as any[]}
+        hotels={hotels as any[]}
+      />
 
       {/* Rate Cards Table */}
       <div className="card p-0 overflow-hidden">
@@ -65,7 +82,7 @@ export default async function RatesPage() {
                 <td className="px-4 py-3 text-gray-600">{rc.currency}</td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
-                    <Link href={`/dashboard/costing/${rc.id}/edit`} className="text-orange-500 hover:underline text-xs">Edit</Link>
+                    <Link href={`/dashboard/rates/${rc.id}/edit`} className="text-orange-500 hover:underline text-xs">Edit</Link>
                   </div>
                 </td>
               </tr>
