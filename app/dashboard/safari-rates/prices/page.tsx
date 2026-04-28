@@ -20,8 +20,12 @@ export default function PricesPage() {
   const [editingId, setEditingId] = useState<number|null>(null);
   const [form, setForm] = useState({ roomTypeId:'', seasonId:'', boardBasis:'FB', ratePerPersonSharing:'', singleRoomRate:'', childRate:'', currency:'USD' });
 
-  // Search filter for hotel in price table
-  const [hotelSearch, setHotelSearch] = useState('');
+  // Global search filter (applies to price table + management cards)
+  const [globalHotelSearch, setGlobalHotelSearch] = useState('');
+
+  // Optional extra filters inside each card (applied after global search)
+  const [roomTypeSearch, setRoomTypeSearch] = useState('');
+  const [seasonSearch, setSeasonSearch] = useState('');
 
   // Inline add / edit / delete room type
   const [addingRoom, setAddingRoom] = useState(false);
@@ -60,9 +64,30 @@ export default function PricesPage() {
   const filtRooms   = rooms.filter(r=>!selHotel||r.hotelId===Number(selHotel));
   const filtSeasons = seasons.filter(s=>!selHotel||s.hotelId===Number(selHotel));
 
+  // Filter price table by global hotel search
   const filteredPrices = prices.filter(p =>
-    p.roomType.hotel.name.toLowerCase().includes(hotelSearch.toLowerCase())
+    p.roomType.hotel.name.toLowerCase().includes(globalHotelSearch.toLowerCase())
   );
+
+  // Filter room types: first by global hotel search, then by card‑specific search
+  const filteredRoomTypes = rooms.filter(rt => {
+    const matchesGlobal = !globalHotelSearch ||
+      (rt.hotel?.name?.toLowerCase() || '').includes(globalHotelSearch.toLowerCase());
+    const matchesLocal = !roomTypeSearch ||
+      (rt.hotel?.name?.toLowerCase() || '').includes(roomTypeSearch.toLowerCase()) ||
+      rt.name.toLowerCase().includes(roomTypeSearch.toLowerCase());
+    return matchesGlobal && matchesLocal;
+  });
+
+  // Filter seasons: first by global hotel search, then by card‑specific search
+  const filteredSeasons = seasons.filter(s => {
+    const matchesGlobal = !globalHotelSearch ||
+      (s.hotel?.name?.toLowerCase() || '').includes(globalHotelSearch.toLowerCase());
+    const matchesLocal = !seasonSearch ||
+      (s.hotel?.name?.toLowerCase() || '').includes(seasonSearch.toLowerCase()) ||
+      s.name.toLowerCase().includes(seasonSearch.toLowerCase());
+    return matchesGlobal && matchesLocal;
+  });
 
   async function save(e: React.FormEvent) {
     e.preventDefault(); setSaving(true);
@@ -212,7 +237,7 @@ export default function PricesPage() {
     finally { setDeletingSeasonId(null); }
   }
 
-  // Delete handlers for management cards (keep as before)
+  // Delete handlers for management cards (alias)
   async function deleteRoomType(id: number) { return handleDeleteRoomType(id); }
   async function deleteSeason(id: number) { return handleDeleteSeason(id); }
 
@@ -235,7 +260,6 @@ export default function PricesPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  // Helper to open edit mode for a room type
   function startEditRoom(room: RoomType) {
     setEditingRoom(room);
     setNewRoomName(room.name);
@@ -388,11 +412,19 @@ export default function PricesPage() {
         </form>
       )}
 
-      {/* Hotel search filter */}
+      {/* Global search input (filters price table + management cards) */}
       <div className="flex gap-2 items-center">
         <label className="label mb-0">Filter by Hotel:</label>
-        <input type="text" placeholder="Type hotel name..." className="input max-w-sm" value={hotelSearch} onChange={e => setHotelSearch(e.target.value)} />
-        {hotelSearch && <button onClick={() => setHotelSearch('')} className="text-gray-400 hover:text-gray-600 text-sm">Clear</button>}
+        <input
+          type="text"
+          placeholder="Type hotel name..."
+          className="input max-w-sm"
+          value={globalHotelSearch}
+          onChange={e => setGlobalHotelSearch(e.target.value)}
+        />
+        {globalHotelSearch && (
+          <button onClick={() => setGlobalHotelSearch('')} className="text-gray-400 hover:text-gray-600 text-sm">Clear</button>
+        )}
       </div>
 
       {/* Price Table */}
@@ -428,16 +460,35 @@ export default function PricesPage() {
         </table>
       </div>
 
-      {/* Management cards (delete only) – optional, kept for bulk view */}
+      {/* Management cards – filtered by global hotel search + optional card‑specific search */}
       <div className="grid grid-cols-2 gap-5">
+        {/* Manage Room Types */}
         <div className="card">
-          <h2 className="font-semibold text-gray-800 mb-2">Manage Room Types</h2>
-          {rooms.length === 0 ? <p className="text-gray-400 text-sm">No room types yet.</p> : (
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="font-semibold text-gray-800">Manage Room Types</h2>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Search within results..."
+                className="input text-sm py-1 w-40"
+                value={roomTypeSearch}
+                onChange={e=>setRoomTypeSearch(e.target.value)}
+              />
+              {roomTypeSearch && (
+                <button onClick={()=>setRoomTypeSearch('')} className="text-gray-400 hover:text-gray-600 text-xs">Clear</button>
+              )}
+            </div>
+          </div>
+          {filteredRoomTypes.length === 0 ? (
+            <p className="text-gray-400 text-sm">No room types match.</p>
+          ) : (
             <div className="max-h-64 overflow-y-auto border rounded">
               <table className="w-full text-xs">
-                <thead className="bg-gray-50 sticky top-0"><tr><th className="text-left px-2 py-1">Hotel</th><th className="text-left px-2 py-1">Room Type</th><th className="text-left px-2 py-1">Max</th><th></th></tr></thead>
+                <thead className="bg-gray-50 sticky top-0">
+                  <tr><th className="text-left px-2 py-1">Hotel</th><th className="text-left px-2 py-1">Room Type</th><th className="text-left px-2 py-1">Max</th><th></th></tr>
+                </thead>
                 <tbody className="divide-y">
-                  {rooms.map(r => (
+                  {filteredRoomTypes.map(r => (
                     <tr key={r.id}>
                       <td className="px-2 py-1 truncate max-w-[100px]">{r.hotel?.name || '?'}</td>
                       <td className="px-2 py-1">{r.name}</td>
@@ -454,14 +505,34 @@ export default function PricesPage() {
             </div>
           )}
         </div>
+
+        {/* Manage Seasons */}
         <div className="card">
-          <h2 className="font-semibold text-gray-800 mb-2">Manage Seasons</h2>
-          {seasons.length === 0 ? <p className="text-gray-400 text-sm">No seasons yet.</p> : (
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="font-semibold text-gray-800">Manage Seasons</h2>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Search within results..."
+                className="input text-sm py-1 w-40"
+                value={seasonSearch}
+                onChange={e=>setSeasonSearch(e.target.value)}
+              />
+              {seasonSearch && (
+                <button onClick={()=>setSeasonSearch('')} className="text-gray-400 hover:text-gray-600 text-xs">Clear</button>
+              )}
+            </div>
+          </div>
+          {filteredSeasons.length === 0 ? (
+            <p className="text-gray-400 text-sm">No seasons match.</p>
+          ) : (
             <div className="max-h-64 overflow-y-auto border rounded">
               <table className="w-full text-xs">
-                <thead className="bg-gray-50 sticky top-0"><tr><th className="text-left px-2 py-1">Hotel</th><th className="text-left px-2 py-1">Season</th><th className="text-left px-2 py-1">Period</th><th></th></tr></thead>
+                <thead className="bg-gray-50 sticky top-0">
+                  <tr><th className="text-left px-2 py-1">Hotel</th><th className="text-left px-2 py-1">Season</th><th className="text-left px-2 py-1">Period</th><th></th></tr>
+                </thead>
                 <tbody className="divide-y">
-                  {seasons.map(s => (
+                  {filteredSeasons.map(s => (
                     <tr key={s.id}>
                       <td className="px-2 py-1 truncate max-w-[100px]">{s.hotel?.name || '?'}</td>
                       <td className="px-2 py-1">{s.name}</td>
