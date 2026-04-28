@@ -105,6 +105,7 @@ yarn-debug.log*
 yarn-error.log*
 .next
 .pnpm-debug.log*
+.next
 
 # --- Go specific ---
 /vendor/
