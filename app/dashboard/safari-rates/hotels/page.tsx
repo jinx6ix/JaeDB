@@ -43,15 +43,44 @@ export default function HotelsPage() {
     setSaving(false); setShowForm(false); setForm({countyId:'',name:'',stars:'',category:'Lodge'});
     load();
   }
-
   async function saveRoom(e: React.FormEvent, hotelId: number) {
-    e.preventDefault(); setSavingRoom(true);
-    await fetch('/api/safari-rates/room-types', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ hotelId, name: roomForm.name, maxOccupancy: Number(roomForm.maxOccupancy) }),
-    });
-    setSavingRoom(false); setShowRoomForm(null); setRoomForm({ name: '', maxOccupancy: '2' });
-    loadRooms(hotelId); load();
+    e.preventDefault();
+    if (!roomForm.name.trim()) {
+      alert("Room type name is required");
+      return;
+    }
+    setSavingRoom(true);
+    try {
+      const res = await fetch('/api/safari-rates/room-types', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hotelId,
+          name: roomForm.name,
+          maxOccupancy: Number(roomForm.maxOccupancy) || 2,
+        }),
+      });
+  
+      if (!res.ok) {
+        let errorMsg = `Server error: ${res.status}`;
+        try {
+          const errorData = await res.json();
+          errorMsg = errorData.error || errorMsg;
+        } catch (_) {}
+        throw new Error(errorMsg);
+      }
+  
+      // Success
+      setShowRoomForm(null);
+      setRoomForm({ name: '', maxOccupancy: '2' });
+      await loadRooms(hotelId);
+      await load(); // update room type count in the hotels table
+    } catch (err: any) {
+      console.error("Failed to add room type:", err);
+      alert(err.message); // shows "Room type already exists for this hotel" in case of 409
+    } finally {
+      setSavingRoom(false);
+    }
   }
 
   async function toggleHotel(hotelId: number) {
