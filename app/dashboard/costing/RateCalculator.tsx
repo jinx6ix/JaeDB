@@ -17,17 +17,18 @@ interface Props { tours: Tour[]; rateCards: (RateCard & { tourPackage: Tour })[]
 
 interface DayRow {
   destination: string;
-  // Hotel
   hotelId: string;
   hotelName: string;
-  // Rate fields — auto-filled from DB or manual entry
-  adultCostPP: number;       // accommodation per adult
-  childCostPP: number;       // accommodation per child
-  parkFeeAdultPP: number;    // park fee per adult
-  parkFeeChildPP: number;    // park fee per child
-  transportTotal: number;    // transport TOTAL for the day (not per person)
-  flightAdultPP: number;     // flight per adult (optional per-day flight)
-  flightChildPP: number;     // flight per child
+  // TOTALS for the day (division – entered as total for the whole group)
+  adultTotal: number;          // total accommodation cost for adults
+  childTotal: number;          // total accommodation cost for children
+  parkFeeAdultTotal: number;   // total park fees for adults
+  parkFeeChildTotal: number;   // total park fees for children
+  transportTotal: number;      // transport TOTAL for the day
+  // PER‑PERSON flight costs (multiplication) – optional per day
+  hasFlight: boolean;          // whether flight costs are included for this day
+  flightAdultPP: number;       // flight cost per adult (only used if hasFlight)
+  flightChildPP: number;       // flight cost per child (only used if hasFlight)
   // Available rates from DB
   availableRates: RoomPrice[];
   ratesLoading: boolean;
@@ -43,9 +44,10 @@ const BOARD_BASIS = [
 function emptyRow(): DayRow {
   return {
     destination: '', hotelId: '', hotelName: '',
-    adultCostPP: 0, childCostPP: 0,
-    parkFeeAdultPP: 0, parkFeeChildPP: 0,
+    adultTotal: 0, childTotal: 0,
+    parkFeeAdultTotal: 0, parkFeeChildTotal: 0,
     transportTotal: 0,
+    hasFlight: false,
     flightAdultPP: 0, flightChildPP: 0,
     availableRates: [], ratesLoading: false,
   };
@@ -80,13 +82,11 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
   const [extraItems,        setExtraItems]        = useState<{label:string;cost:number}[]>([]);
   const [maasaiVillage,     setMaasaiVillage]     = useState(false);
   const [maasaiCost,        setMaasaiCost]        = useState(30);
-  // Transfers & flight
+  // Transfers only (global flight removed – handled per day)
   const [arrivalTransfer,   setArrivalTransfer]   = useState(false);
   const [arrivalCostPP,     setArrivalCostPP]     = useState(0);
   const [departureTransfer, setDepartureTransfer] = useState(false);
   const [departureCostPP,   setDepartureCostPP]   = useState(0);
-  const [includeFlight,     setIncludeFlight]     = useState(false);
-  const [flightCostPP,      setFlightCostPP]      = useState(0);
 
   // ── UI state ────────────────────────────────────────────────────────────────
   const [saving, setSaving] = useState(false);
@@ -153,7 +153,7 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
   function onHotelChange(i: number, hotelId: string) {
     const h = hotels.find(h => String(h.id) === hotelId);
     const dayDate = startDate ? new Date(new Date(startDate).getTime() + i * 86400000).toISOString().split('T')[0] : undefined;
-    updateRow(i, { hotelId, hotelName: h?.name || '', adultCostPP: 0, childCostPP: 0 });
+    updateRow(i, { hotelId, hotelName: h?.name || '', adultTotal: 0, childTotal: 0 });
     if (hotelId) fetchRates(i, hotelId, boardBasis, dayDate);
   }
 
@@ -161,37 +161,37 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
     const row = dayRows[i];
     const price = row.availableRates.find(p => String(p.id) === priceId);
     if (!price) return;
+    // Convert per-person rates to daily totals for the whole group
     updateRow(i, {
-      adultCostPP: price.ratePerPersonSharing || 0,
-      childCostPP: price.childRate || 0,
+      adultTotal: (price.ratePerPersonSharing || 0) * numAdults,
+      childTotal: (price.childRate || 0) * numChildren,
     });
   }
 
   // ── Calculations ────────────────────────────────────────────────────────────
-  const adultPropertyTotal = dayRows.reduce((s, r) => s + r.adultCostPP * numAdults, 0);
-  const childPropertyTotal = dayRows.reduce((s, r) => s + r.childCostPP * numChildren, 0);
-  const adultParkTotal     = dayRows.reduce((s, r) => s + r.parkFeeAdultPP * numAdults, 0);
-  const childParkTotal     = dayRows.reduce((s, r) => s + r.parkFeeChildPP * numChildren, 0);
-  const transportTotal     = dayRows.reduce((s, r) => s + r.transportTotal, 0);  // already a total
-  const dayFlightAdult     = dayRows.reduce((s, r) => s + r.flightAdultPP * numAdults, 0);
-  const dayFlightChild     = dayRows.reduce((s, r) => s + r.flightChildPP * numChildren, 0);
+  // Accommodation & park fees – already totals
+  const adultPropertyTotal = dayRows.reduce((s, r) => s + r.adultTotal, 0);
+  const childPropertyTotal = dayRows.reduce((s, r) => s + r.childTotal, 0);
+  const adultParkTotal     = dayRows.reduce((s, r) => s + r.parkFeeAdultTotal, 0);
+  const childParkTotal     = dayRows.reduce((s, r) => s + r.parkFeeChildTotal, 0);
+  const transportTotal     = dayRows.reduce((s, r) => s + r.transportTotal, 0);
+  // Flights – per‑person multiplied by group size, but only if hasFlight is true
+  const dayFlightAdultTotal = dayRows.reduce((s, r) => s + (r.hasFlight ? r.flightAdultPP * numAdults : 0), 0);
+  const dayFlightChildTotal = dayRows.reduce((s, r) => s + (r.hasFlight ? r.flightChildPP * numChildren : 0), 0);
   const totalExtras        = extraItems.reduce((s, e) => s + e.cost, 0);
   const maasaiTotal        = maasaiVillage ? maasaiCost * numPax : 0;
   const arrivalTotal       = arrivalTransfer   ? arrivalCostPP   * numPax : 0;
   const departureTotal     = departureTransfer ? departureCostPP * numPax : 0;
-  const globalFlightTotal  = includeFlight     ? flightCostPP    * numPax : 0;
 
   const subtotal = adultPropertyTotal + childPropertyTotal + adultParkTotal + childParkTotal +
-    transportTotal + dayFlightAdult + dayFlightChild +
+    transportTotal + dayFlightAdultTotal + dayFlightChildTotal +
     fileHandling + ecoBottle + evacInsurance + totalExtras +
-    maasaiTotal + arrivalTotal + departureTotal + globalFlightTotal;
+    maasaiTotal + arrivalTotal + departureTotal;
 
   const markupAmt  = subtotal * (markup / 100);
   const grandTotal = subtotal + markupAmt;
 
-  // Per person = grand total divided by that group size
-  // For the current group: split evenly among adults, children at 50%
-  // Effective adult units = numAdults + numChildren * 0.5
+  // Effective adult units = numAdults + numChildren * 0.5 (children counted as half)
   const adultUnits  = numAdults + numChildren * 0.5;
   const perAdult    = adultUnits > 0 ? grandTotal / adultUnits : 0;
   const perChild    = perAdult * 0.5;
@@ -217,22 +217,22 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
       boardBasis,
       currency,
       dayRows: dayRows.map(r => ({
-        destination:    r.destination,
-        hotelName:      r.hotelName,
-        adultCostPP:    r.adultCostPP,
-        childCostPP:    r.childCostPP,
-        parkFeeAdultPP: r.parkFeeAdultPP,
-        parkFeeChildPP: r.parkFeeChildPP,
-        transportTotal: r.transportTotal,
-        flightAdultPP:  r.flightAdultPP,
-        flightChildPP:  r.flightChildPP,
+        destination:       r.destination,
+        hotelName:         r.hotelName,
+        adultTotal:        r.adultTotal,
+        childTotal:        r.childTotal,
+        parkFeeAdultTotal: r.parkFeeAdultTotal,
+        parkFeeChildTotal: r.parkFeeChildTotal,
+        transportTotal:    r.transportTotal,
+        hasFlight:         r.hasFlight,
+        flightAdultPP:     r.flightAdultPP,
+        flightChildPP:     r.flightChildPP,
       })),
       fileHandlingFee:   fileHandling,
       ecoBottle,
       evacInsurance,
       arrivalTransfer:   arrivalTransfer   ? arrivalCostPP   * numPax : 0,
       departureTransfer: departureTransfer ? departureCostPP * numPax : 0,
-      flightCostPP:      includeFlight ? flightCostPP : 0,
       extras:      extraItems.filter(e => e.cost > 0),
       maasaiVillage,
       maasaiCost,
@@ -363,7 +363,7 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
         <div className="mb-5">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold text-gray-700 text-sm">🏕 Properties & Costs — Day by Day</h3>
-            <p className="text-xs text-gray-400">Select hotel to auto-fill rates · Transport = full day total</p>
+            <p className="text-xs text-gray-400">Accom / Park / Transport = day total · Flight optional per day (✔️ to enable)</p>
           </div>
           <div className="overflow-x-auto rounded-xl border border-orange-100">
             <table className="w-full text-xs">
@@ -372,30 +372,38 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
                   <th className="px-2 py-2 text-left font-semibold text-gray-600 w-14">Day</th>
                   <th className="px-2 py-2 text-left font-semibold text-gray-600 w-28">Destination</th>
                   <th className="px-2 py-2 text-left font-semibold text-gray-600">Hotel / Accommodation</th>
-                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-24">Adult/pp<br/><span className="text-gray-400 font-normal">accom ({currency})</span></th>
-                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-24">Child/pp<br/><span className="text-gray-400 font-normal">accom ({currency})</span></th>
-                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-24">Park Fee<br/><span className="text-gray-400 font-normal">Adult ({currency})</span></th>
-                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-24">Park Fee<br/><span className="text-gray-400 font-normal">Child ({currency})</span></th>
-                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-24">Transport<br/><span className="text-gray-400 font-normal">total ({currency})</span></th>
-                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-24">Flight Adult/pp<br/><span className="text-gray-400 font-normal">({currency})</span></th>
-                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-24">Flight Child/pp<br/><span className="text-gray-400 font-normal">({currency})</span></th>
+                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Accom Total<br/><span className="text-gray-400 font-normal">Adults ({currency})</span></th>
+                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Accom Total<br/><span className="text-gray-400 font-normal">Children ({currency})</span></th>
+                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Park Fees Total<br/><span className="text-gray-400 font-normal">Adults ({currency})</span></th>
+                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Park Fees Total<br/><span className="text-gray-400 font-normal">Children ({currency})</span></th>
+                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Transport<br/><span className="text-gray-400 font-normal">total ({currency})</span></th>
+                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-20">✈️</th>
+                  {dayRows.some(r => r.hasFlight) && (
+                    <>
+                      <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Flight<br/><span className="text-gray-400 font-normal">Adult/pp</span></th>
+                      <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Flight<br/><span className="text-gray-400 font-normal">Child/pp</span></th>
+                    </>
+                  )}
                   <th className="px-2 py-2 text-right font-semibold text-gray-600 w-28">Day Total</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-orange-50">
                 {dayRows.map((row, i) => {
                   const dayDate = startDate ? new Date(new Date(startDate).getTime() + i * 86400000).toISOString().split('T')[0] : undefined;
-                  const adultAccomTotal    = row.adultCostPP    * numAdults;
-                  const childAccomTotal    = row.childCostPP    * numChildren;
-                  const adultParkDayTotal  = row.parkFeeAdultPP * numAdults;
-                  const childParkDayTotal  = row.parkFeeChildPP * numChildren;
-                  const flightAdultTotal   = row.flightAdultPP  * numAdults;
-                  const flightChildTotal   = row.flightChildPP  * numChildren;
-                  const dayTotal = adultAccomTotal + childAccomTotal + adultParkDayTotal + childParkDayTotal + row.transportTotal + flightAdultTotal + flightChildTotal;
+                  const flightAdultDayTotal = row.hasFlight ? row.flightAdultPP * numAdults : 0;
+                  const flightChildDayTotal = row.hasFlight ? row.flightChildPP * numChildren : 0;
+                  const dayTotal = row.adultTotal + row.childTotal + row.parkFeeAdultTotal + row.parkFeeChildTotal +
+                    row.transportTotal + flightAdultDayTotal + flightChildDayTotal;
+
+                  // Per‑person derived values (for display only)
+                  const perAdultAccom   = numAdults > 0 ? row.adultTotal / numAdults : 0;
+                  const perChildAccom   = numChildren > 0 ? row.childTotal / numChildren : 0;
+                  const perAdultPark    = numAdults > 0 ? row.parkFeeAdultTotal / numAdults : 0;
+                  const perChildPark    = numChildren > 0 ? row.parkFeeChildTotal / numChildren : 0;
+                  const perPaxTransport = numPax > 0 && row.transportTotal > 0 ? row.transportTotal / numPax : 0;
 
                   return (
                     <tr key={i} className="hover:bg-orange-50/40">
-
                       {/* Day badge */}
                       <td className="px-2 py-2">
                         <span className="bg-orange-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">{i+1}</span>
@@ -416,7 +424,6 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
                             <option key={h.id} value={h.id}>{h.name} · {h.county.name}{h.stars ? ` ${'★'.repeat(h.stars)}` : ''}</option>
                           ))}
                         </select>
-                        {/* Rate picker appears once hotel is selected */}
                         {row.ratesLoading && (
                           <p className="text-orange-400 text-xs mt-1 flex items-center gap-1">
                             <span className="inline-block w-2.5 h-2.5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" /> Loading rates…
@@ -425,10 +432,10 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
                         {!row.ratesLoading && row.availableRates.length > 0 && (
                           <select className="input py-1 text-xs w-full mt-1 border-orange-200 bg-orange-50"
                             onChange={e => onRoomPriceSelect(i, e.target.value)} defaultValue="">
-                            <option value="">↑ Pick rate to auto-fill →</option>
+                            <option value="">↑ Pick rate → auto‑fills totals</option>
                             {row.availableRates.map(p => (
                               <option key={p.id} value={p.id}>
-                                {p.roomType.name}: {p.ratePerPersonSharing ?? '?'}/adult{p.childRate ? ` · ${p.childRate}/child` : ''} ({p.season?.name})
+                                {p.roomType.name}: {p.ratePerPersonSharing ?? '?'}/adult · {p.childRate ?? '?'}/child ({p.season?.name})
                               </option>
                             ))}
                           </select>
@@ -439,72 +446,79 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
                         )}
                       </td>
 
-                      {/* Adult accom/pp */}
+                      {/* Adult Total Accom */}
                       <td className="px-2 py-2">
-                        <input type="number" min={0} step="0.01" value={row.adultCostPP || ''}
-                          onChange={e => updateRow(i, { adultCostPP: Number(e.target.value) })}
+                        <input type="number" min={0} step="0.01" value={row.adultTotal || ''}
+                          onChange={e => updateRow(i, { adultTotal: Number(e.target.value) })}
                           className="input py-1 text-xs font-mono text-center w-full" placeholder="0" />
-                        <p className="text-gray-400 text-xs text-center mt-0.5">={fmt2(adultAccomTotal)}</p>
+                        <p className="text-gray-400 text-xs text-center mt-0.5">{fmt2(perAdultAccom)}/adult</p>
                       </td>
 
-                      {/* Child accom/pp */}
+                      {/* Child Total Accom */}
                       <td className="px-2 py-2">
-                        <input type="number" min={0} step="0.01" value={row.childCostPP || ''}
-                          onChange={e => updateRow(i, { childCostPP: Number(e.target.value) })}
+                        <input type="number" min={0} step="0.01" value={row.childTotal || ''}
+                          onChange={e => updateRow(i, { childTotal: Number(e.target.value) })}
                           className={`input py-1 text-xs font-mono text-center w-full ${numChildren === 0 ? 'opacity-30 bg-gray-50' : ''}`}
                           placeholder="0" />
-                        {numChildren > 0 && <p className="text-gray-400 text-xs text-center mt-0.5">={fmt2(childAccomTotal)}</p>}
+                        {numChildren > 0 && <p className="text-gray-400 text-xs text-center mt-0.5">{fmt2(perChildAccom)}/child</p>}
                       </td>
 
-                      {/* Park fee adult */}
+                      {/* Adult Total Park */}
                       <td className="px-2 py-2">
-                        <input type="number" min={0} step="0.01" value={row.parkFeeAdultPP || ''}
-                          onChange={e => updateRow(i, { parkFeeAdultPP: Number(e.target.value) })}
+                        <input type="number" min={0} step="0.01" value={row.parkFeeAdultTotal || ''}
+                          onChange={e => updateRow(i, { parkFeeAdultTotal: Number(e.target.value) })}
                           className="input py-1 text-xs font-mono text-center w-full" placeholder="0" />
-                        <p className="text-gray-400 text-xs text-center mt-0.5">={fmt2(adultParkDayTotal)}</p>
+                        <p className="text-gray-400 text-xs text-center mt-0.5">{fmt2(perAdultPark)}/adult</p>
                       </td>
 
-                      {/* Park fee child */}
+                      {/* Child Total Park */}
                       <td className="px-2 py-2">
-                        <input type="number" min={0} step="0.01" value={row.parkFeeChildPP || ''}
-                          onChange={e => updateRow(i, { parkFeeChildPP: Number(e.target.value) })}
+                        <input type="number" min={0} step="0.01" value={row.parkFeeChildTotal || ''}
+                          onChange={e => updateRow(i, { parkFeeChildTotal: Number(e.target.value) })}
                           className={`input py-1 text-xs font-mono text-center w-full ${numChildren === 0 ? 'opacity-30 bg-gray-50' : ''}`}
                           placeholder="0" />
-                        {numChildren > 0 && <p className="text-gray-400 text-xs text-center mt-0.5">={fmt2(childParkDayTotal)}</p>}
+                        {numChildren > 0 && <p className="text-gray-400 text-xs text-center mt-0.5">{fmt2(perChildPark)}/child</p>}
                       </td>
 
-                      {/* Transport TOTAL for the day */}
+                      {/* Transport Total */}
                       <td className="px-2 py-2">
                         <input type="number" min={0} step="0.01" value={row.transportTotal || ''}
                           onChange={e => updateRow(i, { transportTotal: Number(e.target.value) })}
                           className="input py-1 text-xs font-mono text-center w-full" placeholder="0" />
                         {numPax > 0 && row.transportTotal > 0 && (
-                          <p className="text-gray-400 text-xs text-center mt-0.5">{fmt2(row.transportTotal / numPax)}/pp</p>
+                          <p className="text-gray-400 text-xs text-center mt-0.5">{fmt2(perPaxTransport)}/pax</p>
                         )}
                       </td>
 
-                      {/* Flight adult/pp */}
-                      <td className="px-2 py-2">
-                        <input type="number" min={0} step="0.01" value={row.flightAdultPP || ''}
-                          onChange={e => updateRow(i, { flightAdultPP: Number(e.target.value) })}
-                          className="input py-1 text-xs font-mono text-center w-full" placeholder="0" />
-                        {row.flightAdultPP > 0 && <p className="text-gray-400 text-xs text-center mt-0.5">={fmt2(flightAdultTotal)}</p>}
+                      {/* Flight toggle (✈️) */}
+                      <td className="px-2 py-2 text-center">
+                        <input type="checkbox" checked={row.hasFlight} onChange={e => updateRow(i, { hasFlight: e.target.checked })} className="w-4 h-4" />
                       </td>
 
-                      {/* Flight child/pp */}
-                      <td className="px-2 py-2">
-                        <input type="number" min={0} step="0.01" value={row.flightChildPP || ''}
-                          onChange={e => updateRow(i, { flightChildPP: Number(e.target.value) })}
-                          className={`input py-1 text-xs font-mono text-center w-full ${numChildren === 0 ? 'opacity-30 bg-gray-50' : ''}`}
-                          placeholder="0" />
-                        {numChildren > 0 && row.flightChildPP > 0 && <p className="text-gray-400 text-xs text-center mt-0.5">={fmt2(flightChildTotal)}</p>}
-                      </td>
+                      {/* Flight columns – only shown if this row has flight enabled */}
+                      {row.hasFlight && (
+                        <>
+                          <td className="px-2 py-2">
+                            <input type="number" min={0} step="0.01" value={row.flightAdultPP || ''}
+                              onChange={e => updateRow(i, { flightAdultPP: Number(e.target.value) })}
+                              className="input py-1 text-xs font-mono text-center w-full" placeholder="0" />
+                            {row.flightAdultPP > 0 && <p className="text-gray-400 text-xs text-center mt-0.5">={fmt2(flightAdultDayTotal)} total</p>}
+                          </td>
+                          <td className="px-2 py-2">
+                            <input type="number" min={0} step="0.01" value={row.flightChildPP || ''}
+                              onChange={e => updateRow(i, { flightChildPP: Number(e.target.value) })}
+                              className={`input py-1 text-xs font-mono text-center w-full ${numChildren === 0 ? 'opacity-30 bg-gray-50' : ''}`}
+                              placeholder="0" />
+                            {numChildren > 0 && row.flightChildPP > 0 && <p className="text-gray-400 text-xs text-center mt-0.5">={fmt2(flightChildDayTotal)} total</p>}
+                          </td>
+                        </>
+                      )}
 
                       {/* Day total */}
                       <td className="px-2 py-2 text-right">
                         <p className="font-mono font-bold text-gray-800">{currency} {fmt2(dayTotal)}</p>
-                        {numAdults > 0   && <p className="text-gray-400 text-xs">{fmt2(dayTotal / numAdults)}/adult</p>}
-                        {numChildren > 0 && <p className="text-gray-400 text-xs">{fmt2(dayTotal / (numChildren + numAdults))}/child</p>}
+                        {numAdults > 0 && <p className="text-gray-400 text-xs">{fmt2(dayTotal / numAdults)}/adult</p>}
+                        {numChildren > 0 && <p className="text-gray-400 text-xs">{fmt2(dayTotal / numChildren)}/child</p>}
                       </td>
                     </tr>
                   );
@@ -514,7 +528,7 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
           </div>
         </div>
 
-        {/* ── Section 4: Global extras ── */}
+        {/* ── Section 4: Global extras (file handling, water, insurance) ── */}
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
           <div>
             <label className="label">File Handling Fees ({currency})</label>
@@ -530,9 +544,9 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
           </div>
         </div>
 
-        {/* ── Section 5: Transfers & Flight ── */}
+        {/* ── Section 5: Transfers only (global flight removed) ── */}
         <div className="border border-orange-100 rounded-xl p-4 mb-5 space-y-3 bg-white">
-          <p className="text-sm font-semibold text-gray-700">Transfers & Flight</p>
+          <p className="text-sm font-semibold text-gray-700">Transfers</p>
 
           <div className="flex items-center gap-3 flex-wrap">
             <label className="flex items-center gap-2 cursor-pointer min-w-[200px]">
@@ -563,24 +577,9 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
               </div>
             )}
           </div>
-
-          <div className="flex items-center gap-3 flex-wrap">
-            <label className="flex items-center gap-2 cursor-pointer min-w-[200px]">
-              <input type="checkbox" checked={includeFlight} onChange={e => setIncludeFlight(e.target.checked)} className="rounded" />
-              <span className="text-sm font-medium text-gray-700">✈️ Flight Cost/pp</span>
-            </label>
-            {includeFlight && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">{currency}/pp:</span>
-                <input type="number" min={0} step="0.01" value={flightCostPP||''} onChange={e => setFlightCostPP(Number(e.target.value))}
-                  className="input w-28 font-mono text-sm" placeholder="0" />
-                <span className="text-xs text-gray-400">= {fmt2(flightCostPP * numPax)} total</span>
-              </div>
-            )}
-          </div>
         </div>
 
-        {/* ── Section 6: Optional extras ── */}
+        {/* ── Section 6: Optional extras (Maasai village + custom items) ── */}
         <div className="flex items-center gap-4 mb-4 p-3 bg-white rounded-lg border border-orange-100">
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
             <input type="checkbox" checked={maasaiVillage} onChange={e => setMaasaiVillage(e.target.checked)} className="rounded" />
@@ -624,11 +623,10 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
                 { label: `Park Fees — Adults (${numAdults}×)`,       value: adultParkTotal },
                 ...(numChildren > 0 ? [{ label: `Park Fees — Children (${numChildren}×)`,     value: childParkTotal    }] : []),
                 { label: 'Transport (all days total)',                value: transportTotal },
-                ...(dayFlightAdult > 0  ? [{ label: `Day Flights — Adults`,   value: dayFlightAdult  }] : []),
-                ...(dayFlightChild > 0  ? [{ label: `Day Flights — Children`, value: dayFlightChild  }] : []),
+                ...(dayFlightAdultTotal > 0  ? [{ label: `Day Flights — Adults`,   value: dayFlightAdultTotal  }] : []),
+                ...(dayFlightChildTotal > 0  ? [{ label: `Day Flights — Children`, value: dayFlightChildTotal  }] : []),
                 ...(arrivalTransfer     ? [{ label: 'Arrival Transfer',        value: arrivalTotal    }] : []),
                 ...(departureTransfer   ? [{ label: 'Departure Transfer',      value: departureTotal  }] : []),
-                ...(globalFlightTotal>0 ? [{ label: '✈️ Global Flight',        value: globalFlightTotal }] : []),
                 { label: 'File Handling',                             value: fileHandling },
                 { label: 'Eco Bottle + Water',                        value: ecoBottle },
                 { label: 'Evacuation Insurance',                      value: evacInsurance },
@@ -683,17 +681,15 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
               <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Rate per person at different group sizes (2 → {numPax}):</p>
               <div className="grid grid-cols-4 gap-1">
                 {Array.from({ length: Math.max(0, numPax - 1) }, (_, i) => i + 2).map(n => {
-                  // For each group size n, recalculate what per-person cost would be
-                  // Transport is fixed total, everything else scales with n adults
-                  const scaledAccom   = dayRows.reduce((s, r) => s + r.adultCostPP * n, 0);
-                  const scaledPark    = dayRows.reduce((s, r) => s + r.parkFeeAdultPP * n, 0);
-                  const scaledFlight  = dayRows.reduce((s, r) => s + r.flightAdultPP * n, 0);
-                  const scaledTransport = transportTotal; // fixed total, doesn't scale
+                  // For each group size n: accommodation & park totals scale with n, flight also scales if any row has flight
+                  const scaledAccom   = dayRows.reduce((s, r) => s + r.adultTotal * (n / Math.max(1, numAdults)), 0);
+                  const scaledPark    = dayRows.reduce((s, r) => s + r.parkFeeAdultTotal * (n / Math.max(1, numAdults)), 0);
+                  const scaledFlight  = dayRows.reduce((s, r) => s + (r.hasFlight ? r.flightAdultPP * n : 0), 0);
+                  const scaledTransport = transportTotal;
                   const scaledMaasai  = maasaiVillage ? maasaiCost * n : 0;
                   const scaledExtras  = fileHandling + ecoBottle + evacInsurance + totalExtras +
                     (arrivalTransfer ? arrivalCostPP * n : 0) +
-                    (departureTransfer ? departureCostPP * n : 0) +
-                    (includeFlight ? flightCostPP * n : 0);
+                    (departureTransfer ? departureCostPP * n : 0);
                   const scaledSub   = scaledAccom + scaledPark + scaledFlight + scaledTransport + scaledMaasai + scaledExtras;
                   const scaledTotal = scaledSub * (1 + markup / 100);
                   const ppRate      = n > 0 ? scaledTotal / n : 0;
