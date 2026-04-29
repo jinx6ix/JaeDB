@@ -1,4 +1,3 @@
-// app/dashboard/vouchers/page.tsx
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 
@@ -50,7 +49,7 @@ export default async function VouchersPage({ searchParams }: { searchParams: { t
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              {['Voucher No', 'Type', 'Client', 'Property / Vehicle', 'Check-in / Date', 'Nights', 'Status', ''].map(h => (
+              {['Voucher No', 'Type', 'Client', 'Property / Hotel', 'Check-in / Date', 'Nights', 'Status', ''].map(h => (
                 <th key={h} className="text-left px-4 py-3 font-medium text-gray-600">{h}</th>
               ))}
             </tr>
@@ -69,7 +68,8 @@ export default async function VouchersPage({ searchParams }: { searchParams: { t
                 </td>
                 <td className="px-4 py-3 text-gray-800">{v.clientName || v.booking?.client?.name || '—'}</td>
                 <td className="px-4 py-3 text-gray-600">
-                  {v.property?.name || v.vehicle?.name || v.vehicleType || '—'}
+                  {/* Show hotelName (free‑text) first, then property name, then vehicle */}
+                  {v.hotelName || v.property?.name || v.vehicle?.name || v.vehicleType || '—'}
                   {v.roomType && <span className="text-xs text-gray-400 ml-1">({v.roomType})</span>}
                 </td>
                 <td className="px-4 py-3 text-gray-500 text-xs">
