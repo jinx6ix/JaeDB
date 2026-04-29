@@ -10,12 +10,14 @@ export default function EditBookingPage() {
   const { id } = useParams() as { id: string };
   const [booking, setBooking] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
+  const [tourPackages, setTourPackages] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     fetch(`/api/bookings/${id}`).then(r => r.json()).then(setBooking);
     fetch('/api/users').then(r => r.json()).then(setUsers);
+    fetch('/api/tour-packages?active=true').then(r => r.json()).then(setTourPackages);
   }, [id]);
 
   if (!booking) return (
@@ -28,20 +30,29 @@ export default function EditBookingPage() {
     e.preventDefault();
     setSaving(true);
     setError('');
-    const fd = new FormData(e.currentTarget);
+
+    const formData = new FormData(e.currentTarget);
     const body = {
-      status: fd.get('status'),
-      totalAmount: fd.get('totalAmount') ? Number(fd.get('totalAmount')) : null,
-      paidAmount: Number(fd.get('paidAmount') || 0),
-      assignedToId: fd.get('assignedToId') || null,
-      notes: fd.get('notes') || null,
-      specialRequirements: fd.get('specialRequirements') || null,
+      status: formData.get('status'),
+      totalAmount: formData.get('totalAmount') ? Number(formData.get('totalAmount')) : null,
+      paidAmount: Number(formData.get('paidAmount') || 0),
+      assignedToId: formData.get('assignedToId') || null,
+      notes: formData.get('notes') || null,
+      specialRequirements: formData.get('specialRequirements') || null,
+      numAdults: Number(formData.get('numAdults')),
+      numChildren: Number(formData.get('numChildren')),
+      startDate: formData.get('startDate'),
+      endDate: formData.get('endDate'),
+      tourPackageId: formData.get('tourPackageId') || null,
+      isResident: formData.get('isResident') === 'true',
     };
+
     const res = await fetch(`/api/bookings/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+
     if (res.ok) {
       router.push(`/dashboard/bookings/${id}`);
     } else {
@@ -52,16 +63,17 @@ export default function EditBookingPage() {
   }
 
   return (
-    <div className="max-w-2xl space-y-5">
+    <div className="max-w-3xl space-y-5">
       <div className="flex items-center gap-3">
         <Link href={`/dashboard/bookings/${id}`} className="text-gray-400 hover:text-gray-600 text-sm">← Booking</Link>
         <h1 className="text-2xl font-bold text-gray-900">Edit Booking {booking.bookingRef}</h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="card space-y-4">
+      <form onSubmit={handleSubmit} className="card space-y-5">
         {error && <div className="bg-red-50 text-red-700 border border-red-200 rounded-lg p-3 text-sm">{error}</div>}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Basic Info */}
           <div>
             <label className="label">Status</label>
             <select name="status" className="input" defaultValue={booking.status}>
@@ -76,6 +88,41 @@ export default function EditBookingPage() {
             </select>
           </div>
           <div>
+            <label className="label">Tour Package</label>
+            <select name="tourPackageId" className="input" defaultValue={booking.tourPackageId || ''}>
+              <option value="">— Custom / None —</option>
+              {tourPackages.map((tp: any) => (
+                <option key={tp.id} value={tp.id}>{tp.title} ({tp.durationDays}D/{tp.durationNights}N)</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label flex items-center gap-2">
+              <input type="checkbox" name="isResident" value="true" defaultChecked={booking.isResident} className="rounded" />
+              Resident Rate?
+            </label>
+          </div>
+
+          {/* Pax & Dates */}
+          <div>
+            <label className="label">Adults</label>
+            <input type="number" name="numAdults" min={1} className="input" defaultValue={booking.numAdults} />
+          </div>
+          <div>
+            <label className="label">Children</label>
+            <input type="number" name="numChildren" min={0} className="input" defaultValue={booking.numChildren} />
+          </div>
+          <div>
+            <label className="label">Start Date</label>
+            <input type="date" name="startDate" className="input" defaultValue={booking.startDate?.split('T')[0]} required />
+          </div>
+          <div>
+            <label className="label">End Date</label>
+            <input type="date" name="endDate" className="input" defaultValue={booking.endDate?.split('T')[0]} required />
+          </div>
+
+          {/* Financials */}
+          <div>
             <label className="label">Total Amount ({booking.currency})</label>
             <input name="totalAmount" type="number" min={0} step="0.01" className="input"
               defaultValue={booking.totalAmount || ''} placeholder="0.00" />
@@ -85,6 +132,8 @@ export default function EditBookingPage() {
             <input name="paidAmount" type="number" min={0} step="0.01" className="input"
               defaultValue={booking.paidAmount || 0} />
           </div>
+
+          {/* Long text fields */}
           <div className="col-span-2">
             <label className="label">Special Requirements</label>
             <textarea name="specialRequirements" rows={2} className="input resize-none"
@@ -103,6 +152,9 @@ export default function EditBookingPage() {
           </button>
           <Link href={`/dashboard/bookings/${id}`} className="btn-secondary">Cancel</Link>
         </div>
+        <p className="text-xs text-amber-600 mt-2">
+          ⚠️ Changing pax numbers or dates will automatically update vouchers, shift itinerary dates, and mark cost sheets as outdated.
+        </p>
       </form>
     </div>
   );

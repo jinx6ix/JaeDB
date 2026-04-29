@@ -1,3 +1,4 @@
+'/dashboard/vouchers/new'
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -29,9 +30,13 @@ export default function NewVoucherPage() {
   const [vehicleName, setVehicleName] = useState('');
   const [vehicleType, setVehicleType] = useState('');
   const [rateKES,     setRateKES]     = useState('');
-  const [nights,      setNights]      = useState(1);
   const [saving,      setSaving]      = useState(false);
   const [error,       setError]       = useState('');
+
+  // --- Hotel specific controlled fields ---
+  const [checkInDate,  setCheckInDate]  = useState('');
+  const [checkOutDate, setCheckOutDate] = useState('');
+  const [nights,       setNights]       = useState(1);
 
   useEffect(() => {
     fetch('/api/properties').then(r => r.json()).then(setProperties);
@@ -43,17 +48,65 @@ export default function NewVoucherPage() {
       if (preBookingId) {
         const b = data.find((b: Booking) => b.id === preBookingId) || null;
         setSelBooking(b);
-        if (b) setSelClientId(b.client.id);
+        if (b) {
+          setSelClientId(b.client.id);
+          // Pre-fill hotel dates from selected booking
+          const start = b.startDate.split('T')[0];
+          const end   = b.endDate.split('T')[0];
+          setCheckInDate(start);
+          setCheckOutDate(end);
+          if (start && end) {
+            const diff = Math.ceil((new Date(end).getTime() - new Date(start).getTime()) / 86400000);
+            if (diff > 0) setNights(diff);
+          }
+        }
       }
     });
   }, [preBookingId]);
 
-  function handleCheckInOut(e: React.ChangeEvent<HTMLInputElement>, field: 'in' | 'out') {
-    const form = e.currentTarget.form; if (!form) return;
-    const i = field === 'in'  ? e.currentTarget.value : (form.querySelector('[name=checkIn]')  as HTMLInputElement)?.value;
-    const o = field === 'out' ? e.currentTarget.value : (form.querySelector('[name=checkOut]') as HTMLInputElement)?.value;
-    if (i && o) { const d = Math.ceil((new Date(o).getTime() - new Date(i).getTime()) / 86400000); if (d > 0) setNights(d); }
-  }
+  // --- Date / Nights helpers (Hotel only) ---
+  const updateNightsFromDates = (inDate: string, outDate: string) => {
+    if (inDate && outDate) {
+      const diff = Math.ceil((new Date(outDate).getTime() - new Date(inDate).getTime()) / 86400000);
+      if (diff > 0) setNights(diff);
+      else if (diff === 0) setNights(1); // same day counts as 1 night (optional)
+    }
+  };
+
+  const updateCheckOutFromNights = (inDate: string, nightsVal: number) => {
+    if (inDate && nightsVal > 0) {
+      const newOut = new Date(inDate);
+      newOut.setDate(newOut.getDate() + nightsVal);
+      setCheckOutDate(newOut.toISOString().split('T')[0]);
+    }
+  };
+
+  const handleCheckInChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newIn = e.target.value;
+    setCheckInDate(newIn);
+    if (checkOutDate) {
+      updateNightsFromDates(newIn, checkOutDate);
+    } else if (nights > 0) {
+      // If nights already has a value, adjust checkout accordingly
+      updateCheckOutFromNights(newIn, nights);
+    }
+  };
+
+  const handleCheckOutChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newOut = e.target.value;
+    setCheckOutDate(newOut);
+    if (checkInDate) {
+      updateNightsFromDates(checkInDate, newOut);
+    }
+  };
+
+  const handleNightsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newNights = Number(e.target.value);
+    setNights(newNights);
+    if (checkInDate && newNights > 0) {
+      updateCheckOutFromNights(checkInDate, newNights);
+    }
+  };
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -80,9 +133,9 @@ export default function NewVoucherPage() {
         numDoubles:  Number(fd.get('numDoubles')  || 0),
         numSingles:  Number(fd.get('numSingles')  || 0),
         numTriples:  Number(fd.get('numTriples')  || 0),
-        checkIn:     fd.get('checkIn'),
-        checkOut:    fd.get('checkOut'),
-        numNights:   Number(fd.get('numNights')),
+        checkIn:     checkInDate,
+        checkOut:    checkOutDate,
+        numNights:   nights,
         remarks:     fd.get('remarks') || null,
       });
     } else if (voucherType === 'VEHICLE') {
@@ -128,8 +181,6 @@ export default function NewVoucherPage() {
     { label: 'Flight',       type: 'FLIGHT',  icon: '✈️',  color: 'bg-sky-600'    },
   ];
 
-  const toISO = (d: string) => { try { return new Date(d).toISOString().split('T')[0]; } catch { return ''; } };
-
   return (
     <div className="max-w-2xl space-y-5">
       <div className="flex items-center gap-3">
@@ -159,7 +210,17 @@ export default function NewVoucherPage() {
             onChange={e => {
               const b = bookings.find(bk => bk.id === e.target.value) || null;
               setSelBooking(b);
-              if (b) setSelClientId(b.client.id);
+              if (b) {
+                setSelClientId(b.client.id);
+                const start = b.startDate.split('T')[0];
+                const end   = b.endDate.split('T')[0];
+                setCheckInDate(start);
+                setCheckOutDate(end);
+                if (start && end) {
+                  const diff = Math.ceil((new Date(end).getTime() - new Date(start).getTime()) / 86400000);
+                  if (diff > 0) setNights(diff);
+                }
+              }
             }}>
             <option value="">— Standalone Voucher —</option>
             {bookings.map(b => <option key={b.id} value={b.id}>{b.bookingRef} · {b.client.name}</option>)}
@@ -199,9 +260,8 @@ export default function NewVoucherPage() {
           </div>
         </div>
 
-        {/* ── HOTEL ─────────────────────────────────────────────────────── */}
+        {/* ── HOTEL (with two‑way date ↔ nights calculation) ── */}
         {voucherType === 'HOTEL' && (<>
-          {/* Free-text hotel name with optional property link */}
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <label className="label">Hotel / Camp Name *</label>
@@ -228,22 +288,39 @@ export default function NewVoucherPage() {
               <input name="roomType" required className="input" defaultValue="Standard Room FullBoard"
                 placeholder="Standard Room FullBoard" />
             </div>
+            {/* Controlled date fields with two-way logic */}
             <div>
               <label className="label">Check-in Date *</label>
-              <input name="checkIn" type="date" required className="input"
-                defaultValue={selBooking ? toISO(selBooking.startDate) : ''}
-                onChange={e => handleCheckInOut(e, 'in')} />
+              <input
+                name="checkIn"
+                type="date"
+                required
+                className="input"
+                value={checkInDate}
+                onChange={handleCheckInChange}
+              />
             </div>
             <div>
               <label className="label">Check-out Date *</label>
-              <input name="checkOut" type="date" required className="input"
-                defaultValue={selBooking ? toISO(selBooking.endDate) : ''}
-                onChange={e => handleCheckInOut(e, 'out')} />
+              <input
+                name="checkOut"
+                type="date"
+                required
+                className="input"
+                value={checkOutDate}
+                onChange={handleCheckOutChange}
+              />
             </div>
             <div>
               <label className="label">Number of Nights</label>
-              <input name="numNights" type="number" min={1} className="input"
-                value={nights} onChange={e => setNights(Number(e.target.value))} />
+              <input
+                name="numNights"
+                type="number"
+                min={1}
+                className="input"
+                value={nights}
+                onChange={handleNightsChange}
+              />
             </div>
             <div>
               <label className="label">No. of Adults *</label>
@@ -268,7 +345,7 @@ export default function NewVoucherPage() {
           </div>
         </>)}
 
-        {/* ── VEHICLE ───────────────────────────────────────────────────── */}
+        {/* ── VEHICLE (unchanged) ───────────────────────────────────── */}
         {voucherType === 'VEHICLE' && (
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
@@ -309,12 +386,12 @@ export default function NewVoucherPage() {
             <div>
               <label className="label">Pickup Date *</label>
               <input name="pickupDate" type="date" required className="input"
-                defaultValue={selBooking ? toISO(selBooking.startDate) : ''} />
+                defaultValue={selBooking ? selBooking.startDate.split('T')[0] : ''} />
             </div>
             <div>
               <label className="label">Drop-off Date</label>
               <input name="dropoffDate" type="date" className="input"
-                defaultValue={selBooking ? toISO(selBooking.endDate) : ''} />
+                defaultValue={selBooking ? selBooking.endDate.split('T')[0] : ''} />
             </div>
             <div>
               <label className="label">Pickup Location *</label>
@@ -334,7 +411,7 @@ export default function NewVoucherPage() {
           </div>
         )}
 
-        {/* ── FLIGHT ────────────────────────────────────────────────────── */}
+        {/* ── FLIGHT (unchanged) ────────────────────────────────────── */}
         {voucherType === 'FLIGHT' && (
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
@@ -358,12 +435,12 @@ export default function NewVoucherPage() {
             <div>
               <label className="label">Departure Date *</label>
               <input name="departureDate" type="date" required className="input"
-                defaultValue={selBooking ? toISO(selBooking.startDate) : ''} />
+                defaultValue={selBooking ? selBooking.startDate.split('T')[0] : ''} />
             </div>
             <div>
               <label className="label">Return Date</label>
               <input name="returnDate" type="date" className="input"
-                defaultValue={selBooking ? toISO(selBooking.endDate) : ''} />
+                defaultValue={selBooking ? selBooking.endDate.split('T')[0] : ''} />
             </div>
             <div>
               <label className="label">Number of Days</label>

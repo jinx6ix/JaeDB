@@ -4,9 +4,12 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 const statusColors: Record<string, string> = {
-  ENQUIRY: 'badge-enquiry', QUOTED: 'badge-quoted', CONFIRMED: 'badge-confirmed',
+  ENQUIRY: 'badge-enquiry', 
+  QUOTED: 'badge-quoted', 
+  CONFIRMED: 'badge-confirmed',
   IN_PROGRESS: 'bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full text-xs font-medium',
-  COMPLETED: 'badge-completed', CANCELLED: 'badge-cancelled',
+  COMPLETED: 'badge-completed', 
+  CANCELLED: 'badge-cancelled',
 };
 
 export default async function BookingDetailPage({ params }: { params: { id: string } }) {
@@ -24,21 +27,33 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
 
   if (!booking) notFound();
 
-  // CostSheets loaded separately — gracefully handles case where migration hasn't run yet
+  // CostSheets loaded separately – includes isOutdated flag
   let costSheets: any[] = [];
   try {
     costSheets = await (prisma as any).costSheet.findMany({
       where: { bookingId: params.id },
       orderBy: { createdAt: 'desc' },
-      select: { id: true, tourTitle: true, numAdults: true, numChildren: true, currency: true, totalCost: true, perAdultCost: true, createdAt: true },
+      select: { 
+        id: true, 
+        tourTitle: true, 
+        numAdults: true, 
+        numChildren: true, 
+        currency: true, 
+        totalCost: true, 
+        perAdultCost: true, 
+        createdAt: true,
+        isOutdated: true        // ← added
+      },
     });
   } catch {
-    // Table not yet migrated — silently skip
+    // Table not yet migrated – silently skip
   }
 
   const totalDays = Math.ceil(
     (new Date(booking.endDate).getTime() - new Date(booking.startDate).getTime()) / (1000 * 60 * 60 * 24)
   );
+
+  const hasOutdatedCostSheets = costSheets.some((cs: any) => cs.isOutdated);
 
   return (
     <div className="max-w-5xl space-y-5">
@@ -125,13 +140,20 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
           {costSheets.length > 0 && (
             <div className="card p-0 overflow-hidden">
               <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-                <h2 className="font-semibold text-gray-800">Costing Sheets ({costSheets.length})</h2>
-                <Link href="/dashboard/rates" className="text-orange-500 text-xs hover:underline">+ New Costing</Link>
+                <div>
+                  <h2 className="font-semibold text-gray-800">Costing Sheets ({costSheets.length})</h2>
+                  {hasOutdatedCostSheets && (
+                    <p className="text-xs text-amber-600 mt-0.5">
+                      ⚠️ Some cost sheets are outdated because booking details changed. Please review and regenerate.
+                    </p>
+                  )}
+                </div>
+                <Link href="/dashboard/costing" className="text-orange-500 text-xs hover:underline">+ New Costing</Link>
               </div>
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    {['Tour', 'Pax', 'Total Cost', 'Per Adult', 'Date', ''].map(h => (
+                    {['Tour', 'Pax', 'Total Cost', 'Per Adult', 'Date', 'Status', ''].map(h => (
                       <th key={h} className="text-left px-4 py-2 font-medium text-gray-600 text-xs">{h}</th>
                     ))}
                   </tr>
@@ -145,7 +167,16 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
                       <td className="px-4 py-2.5 text-xs font-mono text-orange-600">{cs.currency} {cs.perAdultCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                       <td className="px-4 py-2.5 text-xs text-gray-400">{new Date(cs.createdAt).toLocaleDateString('en-KE')}</td>
                       <td className="px-4 py-2.5">
-                        <Link href="/dashboard/rates" className="text-orange-500 hover:underline text-xs">View</Link>
+                        {cs.isOutdated ? (
+                          <span className="inline-flex items-center gap-1 text-amber-600 text-xs font-medium">
+                            ⚠️ Outdated
+                          </span>
+                        ) : (
+                          <span className="text-green-600 text-xs">✓ Current</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <Link href="/dashboard/costing" className="text-orange-500 hover:underline text-xs">View</Link>
                       </td>
                     </tr>
                   ))}

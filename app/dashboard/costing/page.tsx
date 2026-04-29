@@ -1,4 +1,4 @@
-// app/dashboard/rates/page.tsx
+// app/dashboard/costing/page.tsx
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import RateCalculator from './RateCalculator';
@@ -18,9 +18,9 @@ export default async function RatesPage() {
     }),
     prisma.sRHotel.findMany({
       orderBy: [{ county: { name: 'asc' } }, { stars: 'desc' }, { name: 'asc' }],
-      include: { county: { select: { id: true, name: true } } },   // ← include county.id too
+      include: { county: { select: { id: true, name: true } } },
     }),
-    prisma.sRCounty.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } }), // ← fetch destinations
+    prisma.sRCounty.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } }),
   ]);
 
   return (
@@ -30,7 +30,7 @@ export default async function RatesPage() {
           <h1 className="text-2xl font-bold text-gray-900">Rates & Costing</h1>
           <p className="text-gray-500 text-sm mt-0.5">Build a linked costing sheet for any client</p>
         </div>
-        <Link href="/dashboard/rates/new" className="btn-primary">+ New Rate Card</Link>
+        <Link href="/dashboard/costing/new" className="btn-primary">+ New Rate Card</Link>
       </div>
 
       {/* Interactive Cost Calculator */}
@@ -41,10 +41,10 @@ export default async function RatesPage() {
         agents={agents as any[]}
         bookings={bookings as any[]}
         hotels={hotels as any[]}
-        destinations={destinations as any[]}   // ← new prop
+        destinations={destinations as any[]}
       />
 
-      {/* Rate Cards Table (unchanged) */}
+      {/* Rate Cards Table */}
       <div className="card p-0 overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100">
           <h2 className="font-semibold text-gray-800">Rate Cards</h2>
@@ -84,7 +84,7 @@ export default async function RatesPage() {
                 <td className="px-4 py-3 text-gray-600">{rc.currency}</td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
-                    <Link href={`/dashboard/rates/${rc.id}/edit`} className="text-orange-500 hover:underline text-xs">Edit</Link>
+                    <Link href={`/dashboard/costing/${rc.id}/edit`} className="text-orange-500 hover:underline text-xs">Edit</Link>
                   </div>
                 </td>
               </tr>

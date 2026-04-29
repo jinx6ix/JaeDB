@@ -352,6 +352,7 @@ model CostSheet {
   totalCost       Float
   perAdultCost    Float
   perChildCost    Float    @default(0)
+  isOutdated      Boolean   @default(false)   // ← add this line
   notes           String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
