@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import VoucherPDFButton from '@/components/vouchers/VoucherPDFButton';
+import SendEmailButton from '@/components/vouchers/SendEmailButton';
 
 export default async function VoucherDetailPage({ params }: { params: { id: string } }) {
   const voucher = await prisma.voucher.findUnique({
@@ -43,6 +44,7 @@ export default async function VoucherDetailPage({ params }: { params: { id: stri
         </div>
         <div className="flex gap-2">
           <VoucherPDFButton voucher={voucherData as any} />
+          <SendEmailButton voucherId={voucher.id} clientName={voucher.clientName} />
           <Link href={`/dashboard/vouchers/${voucher.id}/edit`} className="btn-secondary">Edit</Link>
         </div>
       </div>
@@ -97,7 +99,6 @@ export default async function VoucherDetailPage({ params }: { params: { id: stri
     </div>
   );
 }
-
 
 function FlightVoucherBody({ voucher }: { voucher: any }) {
   const fmt = (d: string | null) =>
@@ -156,7 +157,7 @@ function HotelVoucherBody({ voucher }: { voucher: any }) {
       <div className="grid grid-cols-2 gap-6">
         <div>
           <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Hotel Name</p>
-          <p className="text-orange-600 font-semibold text-lg">{voucher.property?.name || '—'}</p>
+          <p className="text-orange-600 font-semibold text-lg">{voucher.property?.name || voucher.hotelName || '—'}</p>
         </div>
         <div>
           <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Room Type</p>
@@ -164,7 +165,6 @@ function HotelVoucherBody({ voucher }: { voucher: any }) {
         </div>
       </div>
 
-      {/* Client bar */}
       <div className="bg-orange-500 text-white px-4 py-3 rounded-lg">
         <span className="font-bold text-sm">CLIENTS: </span>
         <span className="text-sm">{voucher.clientName}</span>
@@ -179,7 +179,6 @@ function HotelVoucherBody({ voucher }: { voucher: any }) {
         </div>
       </div>
 
-      {/* Room config */}
       <div className="border border-gray-200 rounded-lg p-4">
         <p className="font-bold text-orange-600 mb-3">Please Book</p>
         <div className="grid grid-cols-2 gap-x-8 gap-y-1">
@@ -230,7 +229,7 @@ function VehicleVoucherBody({ voucher }: { voucher: any }) {
       <div className="grid grid-cols-2 gap-6">
         <div>
           <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Vehicle</p>
-          <p className="text-orange-600 font-semibold text-lg">{voucher.vehicle?.name || voucher.vehicleType || '—'}</p>
+          <p className="text-orange-600 font-semibold text-lg">{voucher.vehicle?.name || voucher.vehicleName || voucher.vehicleType || '—'}</p>
         </div>
         <div>
           <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Vehicle Type</p>
