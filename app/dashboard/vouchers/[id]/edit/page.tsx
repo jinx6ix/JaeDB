@@ -62,6 +62,36 @@ export default function EditVoucherPage() {
     fetch('/api/bookings?all=1').then(r => r.json()).then(d => setBookings(Array.isArray(d) ? d : []));
   }, [id]);
 
+  // Automatically calculate nights when check-in or check-out changes (for hotels)
+  useEffect(() => {
+    if (voucher?.type === 'HOTEL' && f.checkIn && f.checkOut) {
+      const start = new Date(f.checkIn);
+      const end = new Date(f.checkOut);
+      if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && end >= start) {
+        const diffTime = Math.abs(end.getTime() - start.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        if (diffDays !== f.numNights) {
+          setF((prev: any) => ({ ...prev, numNights: diffDays }));
+        }
+      }
+    }
+  }, [f.checkIn, f.checkOut, voucher?.type]);
+
+  // Automatically adjust check-out when number of nights changes (for hotels)
+  useEffect(() => {
+    if (voucher?.type === 'HOTEL' && f.checkIn && f.numNights > 0) {
+      const start = new Date(f.checkIn);
+      if (!isNaN(start.getTime())) {
+        const newCheckOut = new Date(start);
+        newCheckOut.setDate(start.getDate() + f.numNights);
+        const newCheckOutStr = newCheckOut.toISOString().split('T')[0];
+        if (newCheckOutStr !== f.checkOut) {
+          setF((prev: any) => ({ ...prev, checkOut: newCheckOutStr }));
+        }
+      }
+    }
+  }, [f.numNights, f.checkIn, voucher?.type]);
+
   useEffect(() => {
     if (selHotelId) {
       fetch(`/api/safari-rates/room-types?hotelId=${selHotelId}`)
