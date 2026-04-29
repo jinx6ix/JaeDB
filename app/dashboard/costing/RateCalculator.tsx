@@ -15,11 +15,11 @@ interface DayRow {
   destinationId: number|null;
   hotelId: string;
   hotelName: string;
-  adultAccomTotal: number;
-  childAccomTotal: number;
-  parkFeeAdultTotal: number;
-  parkFeeChildTotal: number;
-  transportTotal: number;
+  adultAccomTotal: number;    // PER PERSON
+  childAccomTotal: number;    // PER PERSON
+  parkFeeAdultTotal: number;  // GROUP TOTAL
+  parkFeeChildTotal: number;  // GROUP TOTAL
+  transportTotal: number;     // GROUP TOTAL
   hasFlight: boolean;
   flightAdultPP: number;
   flightChildPP: number;
@@ -59,7 +59,7 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
 
   const [dayRows, setDayRows] = useState<DayRow[]>([emptyRow()]);
 
-  // Global extras – entered as TOTAL amounts
+  // Global extras – GROUP totals
   const [fileHandling,      setFileHandling]      = useState(0);
   const [ecoBottle,         setEcoBottle]         = useState(0);
   const [evacInsurance,     setEvacInsurance]     = useState(0);
@@ -71,7 +71,7 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
   const [departureTransfer, setDepartureTransfer] = useState(false);
   const [departureTotal,    setDepartureTotal]    = useState(0);
 
-  // ── Excel‑style options table ───────────────────────────────────────────────
+  // Option tables
   const [options, setOptions] = useState([
     { pax: 2, markup: 10, rateCharged: 0 },
     { pax: 4, markup: 10, rateCharged: 0 },
@@ -85,7 +85,7 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
 
   const numPax = numAdults + numChildren;
 
-  // ── Auto-fill from tour ─────────────────────────────────────────────────────
+  // Auto-fill from tour
   useEffect(() => {
     const t = tours.find(t => t.id === tourId);
     if (t) {
@@ -122,7 +122,7 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
     setDayRows(prev => prev.map((r, j) => j === i ? { ...r, ...patch } : r));
   }
 
-  // ── Fetch rates matching the day's date within season ──────────────────────
+  // Fetch rates (per person)
   const fetchRates = useCallback(async (i: number, hotelId: string, board: string, date?: string) => {
     if (!hotelId) return;
     updateRow(i, { ratesLoading: true, availableRates: [] });
@@ -147,12 +147,13 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
     if (hotelId) fetchRates(i, hotelId, boardBasis, dayDate(i));
   }
 
+  // FIXED: Store per‑person accommodation rates directly (no multiplication)
   function onRoomPriceSelect(i: number, priceId: string) {
     const price = dayRows[i].availableRates.find(p => String(p.id) === priceId);
     if (!price) return;
     updateRow(i, {
-      adultAccomTotal: (price.ratePerPersonSharing || 0) * numAdults,
-      childAccomTotal: (price.childRate || 0) * numChildren,
+      adultAccomTotal: price.ratePerPersonSharing || 0,
+      childAccomTotal: price.childRate || 0,
     });
   }
 
@@ -173,22 +174,21 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
     setLocalDests(Array.isArray(d) ? d : []);
   };
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // EXCEL‑STYLE CALCULATIONS (base totals, no markup)
-  // ─────────────────────────────────────────────────────────────────────────────
-  const accomBase   = dayRows.reduce((s, r) => s + r.adultAccomTotal + r.childAccomTotal, 0);
-  const parkBase    = dayRows.reduce((s, r) => s + r.parkFeeAdultTotal + r.parkFeeChildTotal, 0);
-  const transportBase = dayRows.reduce((s, r) => s + r.transportTotal, 0);
-  const flightBase  = dayRows.reduce((s, r) => s + (r.hasFlight ? r.flightAdultPP * numAdults + r.flightChildPP * numChildren : 0), 0);
-  const extrasBase  = extraItems.reduce((s, e) => s + e.cost, 0)
-                    + fileHandling + ecoBottle + evacInsurance
-                    + (maasaiVillage ? maasaiCostTotal : 0)
-                    + (arrivalTransfer ? arrivalTotal : 0)
-                    + (departureTransfer ? departureTotal : 0);
+  // ── EXCEL‑STYLE CALCULATIONS (accommodation = per‑person, others group totals) ──
+  const accomPerPersonSum = dayRows.reduce((s, r) => s + r.adultAccomTotal + r.childAccomTotal, 0);
+  const parkBase          = dayRows.reduce((s, r) => s + r.parkFeeAdultTotal + r.parkFeeChildTotal, 0);
+  const transportBase     = dayRows.reduce((s, r) => s + r.transportTotal, 0);
+  const flightBase        = dayRows.reduce((s, r) => s + (r.hasFlight ? r.flightAdultPP * numAdults + r.flightChildPP * numChildren : 0), 0);
+  const extrasBase        = extraItems.reduce((s, e) => s + e.cost, 0)
+                          + fileHandling + ecoBottle + evacInsurance
+                          + (maasaiVillage ? maasaiCostTotal : 0)
+                          + (arrivalTransfer ? arrivalTotal : 0)
+                          + (departureTransfer ? departureTotal : 0);
 
-  const totalBaseCost = accomBase + parkBase + transportBase + flightBase + extrasBase;
+  // Total group base cost = accommodation per‑person sum × pax + group totals for others
+  const totalBaseCost = (accomPerPersonSum * numPax) + parkBase + transportBase + flightBase + extrasBase;
 
-  // Compute option results for display
+  // Option results (per person sharing)
   const optionResults = options.map(opt => {
     const perPersonBase = totalBaseCost / opt.pax;
     const markedUp = perPersonBase * (1 + opt.markup / 100);
@@ -202,7 +202,6 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
   const selectedAgent   = agents.find(a => a.id === agentId);
   const selectedBooking = bookings.find(b => b.id === bookingId);
 
-  // ── Save costing sheet ──────────────────────────────────────────────────────
   async function handleSave() {
     setSaving(true); setSaved(false); setSaveError('');
     const payload = {
@@ -267,7 +266,7 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
         {saved     && <div className="mb-4 bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-2 text-sm">✓ Saved{selectedClient ? ` and linked to ${selectedClient.name}` : ''}.</div>}
         {saveError && <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm">{saveError}</div>}
 
-        {/* ── Section 1: Link to Client / Booking ── */}
+        {/* Section 1: Link to Client / Booking */}
         <div className="bg-white rounded-xl border border-orange-100 p-4 mb-5">
           <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-3">🔗 Link to Client / Booking</p>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -309,7 +308,7 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
           )}
         </div>
 
-        {/* ── Section 2: Core settings (no global markup) ── */}
+        {/* Section 2: Core settings */}
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-5">
           <div><label className="label text-xs">Adults *</label><input type="number" min={1} value={numAdults} onChange={e => setNumAdults(Number(e.target.value))} className="input" /></div>
           <div><label className="label text-xs">Children</label><input type="number" min={0} value={numChildren} onChange={e => setNumChildren(Number(e.target.value))} className="input" /><p className="text-xs text-gray-400 mt-0.5">Total pax: {numPax}</p></div>
@@ -319,11 +318,11 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
           <div><label className="label text-xs">Currency</label><select className="input" value={currency} onChange={e => setCurrency(e.target.value)}>{['USD','KES','EUR','GBP'].map(c => <option key={c}>{c}</option>)}</select></div>
         </div>
 
-        {/* ── Section 3: Day‑by‑day table (exactly as original, unchanged) ── */}
+        {/* Section 3: Day‑by‑day table */}
         <div className="mb-5">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold text-gray-700 text-sm">🏕 Properties & Costs — Day by Day</h3>
-            <p className="text-xs text-gray-400">Accom / Park / Transport = day total · Flight optional per day (✔️ to enable)</p>
+            <p className="text-xs text-gray-400">Accommodation = per person · Park/Transport/Flight = totals for whole group</p>
           </div>
           <div className="overflow-x-auto rounded-xl border border-orange-100">
             <table className="w-full text-xs">
@@ -332,16 +331,16 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
                   <th className="px-2 py-2 text-left font-semibold text-gray-600 w-14">Day</th>
                   <th className="px-2 py-2 text-left font-semibold text-gray-600 w-28">Destination</th>
                   <th className="px-2 py-2 text-left font-semibold text-gray-600">Hotel / Accommodation</th>
-                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Accom Total<br/><span className="text-gray-400 font-normal">Adults ({currency})</span></th>
-                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Accom Total<br/><span className="text-gray-400 font-normal">Children ({currency})</span></th>
-                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Park Fees Total<br/><span className="text-gray-400 font-normal">Adults ({currency})</span></th>
-                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Park Fees Total<br/><span className="text-gray-400 font-normal">Children ({currency})</span></th>
-                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Transport<br/><span className="text-gray-400 font-normal">total ({currency})</span></th>
+                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Accom (per adult)</th>
+                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Accom (per child)</th>
+                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Park Fees (group total)</th>
+                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Park Fees (children)</th>
+                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Transport (group total)</th>
                   <th className="px-2 py-2 text-center font-semibold text-gray-600 w-20">✈️</th>
                   {dayRows.some(r => r.hasFlight) && (
                     <>
-                      <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Flight<br/><span className="text-gray-400 font-normal">Adult/pp</span></th>
-                      <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Flight<br/><span className="text-gray-400 font-normal">Child/pp</span></th>
+                      <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Flight Adult/pp</th>
+                      <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Flight Child/pp</th>
                     </>
                   )}
                   <th className="px-2 py-2 text-right font-semibold text-gray-600 w-28">Day Total</th>
@@ -352,12 +351,17 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
                   const dayDate = startDate ? new Date(new Date(startDate).getTime() + i * 86400000).toISOString().split('T')[0] : undefined;
                   const flightAdultDay = row.hasFlight ? row.flightAdultPP * numAdults : 0;
                   const flightChildDay = row.hasFlight ? row.flightChildPP * numChildren : 0;
-                  const dayTotalBase = row.adultAccomTotal + row.childAccomTotal + row.parkFeeAdultTotal + row.parkFeeChildTotal + row.transportTotal + flightAdultDay + flightChildDay;
+                  // Day total = (accommodation per person × number of pax) + park group + transport group + flight group
+                  const dayTotalBase = (row.adultAccomTotal + row.childAccomTotal) * numPax
+                                     + row.parkFeeAdultTotal + row.parkFeeChildTotal
+                                     + row.transportTotal
+                                     + flightAdultDay + flightChildDay;
 
-                  const perAdultAccom   = numAdults > 0 ? row.adultAccomTotal / numAdults : 0;
-                  const perChildAccom   = numChildren > 0 ? row.childAccomTotal / numChildren : 0;
-                  const perAdultPark    = numAdults > 0 ? row.parkFeeAdultTotal / numAdults : 0;
-                  const perChildPark    = numChildren > 0 ? row.parkFeeChildTotal / numChildren : 0;
+                  // For display: per‑person values (accommodation fields are already per person)
+                  const perAdultAccom = row.adultAccomTotal;
+                  const perChildAccom = row.childAccomTotal;
+                  const perAdultPark   = numAdults > 0 ? row.parkFeeAdultTotal / numAdults : 0;
+                  const perChildPark   = numChildren > 0 ? row.parkFeeChildTotal / numChildren : 0;
                   const perPaxTransport = numPax > 0 && row.transportTotal > 0 ? row.transportTotal / numPax : 0;
 
                   return (
@@ -366,123 +370,41 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
                         <span className="bg-orange-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">{i+1}</span>
                         {dayDate && <p className="text-gray-400 text-xs mt-0.5 whitespace-nowrap">{new Date(dayDate).toLocaleDateString('en-KE', { day:'numeric', month:'short' })}</p>}
                       </td>
-
                       <td className="px-2 py-2">
-                        <select
-                          value={row.destinationId ?? ''}
-                          onChange={e => {
-                            const destId = e.target.value ? Number(e.target.value) : null;
-                            updateRow(i, { destinationId: destId, hotelId: '', hotelName: '', availableRates: [] });
-                          }}
-                          className="input py-1 text-xs w-full"
-                        >
+                        <select value={row.destinationId ?? ''} onChange={e => updateRow(i, { destinationId: e.target.value ? Number(e.target.value) : null, hotelId: '', hotelName: '', availableRates: [] })} className="input py-1 text-xs w-full">
                           <option value="">— Select destination —</option>
                           {localDests.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                         </select>
                       </td>
-
                       <td className="px-2 py-2 min-w-[180px]">
-                        <select
-                          className="input py-1 text-xs w-full"
-                          value={row.hotelId}
-                          onChange={e => onHotelChange(i, e.target.value)}
-                        >
+                        <select className="input py-1 text-xs w-full" value={row.hotelId} onChange={e => onHotelChange(i, e.target.value)}>
                           <option value="">— Select hotel —</option>
-                          {localHotels
-                            .filter(h => !row.destinationId || h.county.id === row.destinationId)
-                            .map(h => (
-                              <option key={h.id} value={h.id}>
-                                {h.name} · {h.county.name}
-                                {h.stars ? ` ${'★'.repeat(h.stars)}` : ''}
-                              </option>
-                            ))}
+                          {localHotels.filter(h => !row.destinationId || h.county.id === row.destinationId).map(h => (
+                            <option key={h.id} value={h.id}>{h.name} · {h.county.name}{h.stars ? ` ${'★'.repeat(h.stars)}` : ''}</option>
+                          ))}
                         </select>
-                        {row.ratesLoading && (
-                          <p className="text-orange-400 text-xs mt-1 flex items-center gap-1">
-                            <span className="inline-block w-2.5 h-2.5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" /> Loading rates…
-                          </p>
-                        )}
+                        {row.ratesLoading && <p className="text-orange-400 text-xs mt-1 flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin"/>Loading rates…</p>}
                         {!row.ratesLoading && row.availableRates.length > 0 && (
-                          <select className="input py-1 text-xs w-full mt-1 border-orange-200 bg-orange-50"
-                            onChange={e => onRoomPriceSelect(i, e.target.value)} defaultValue="">
+                          <select className="input py-1 text-xs w-full mt-1 border-orange-200 bg-orange-50" onChange={e => onRoomPriceSelect(i, e.target.value)} defaultValue="">
                             <option value="">↑ Pick rate → auto‑fills totals</option>
                             {row.availableRates.map(p => (
-                              <option key={p.id} value={p.id}>
-                                {p.roomType.name}: {p.ratePerPersonSharing ?? '?'}/adult · {p.childRate ?? '?'}/child ({p.season?.name})
-                              </option>
+                              <option key={p.id} value={p.id}>{p.roomType.name}: {p.ratePerPersonSharing ?? '?'}/adult · {p.childRate ?? 0}/child ({p.season?.name})</option>
                             ))}
                           </select>
                         )}
-                        {!row.hotelId && (
-                          <input value={row.hotelName} onChange={e => updateRow(i, { hotelName: e.target.value })}
-                            className="input py-1 text-xs w-full mt-1" placeholder="Or type manually" />
-                        )}
+                        {!row.hotelId && <input value={row.hotelName} onChange={e => updateRow(i, { hotelName: e.target.value })} className="input py-1 text-xs w-full mt-1" placeholder="Or type manually"/>}
                       </td>
-
-                      <td className="px-2 py-2">
-                        <input type="number" min={0} step="0.01" value={row.adultAccomTotal || ''}
-                          onChange={e => updateRow(i, { adultAccomTotal: Number(e.target.value) })}
-                          className="input py-1 text-xs font-mono text-center w-full" placeholder="0" />
-                        <p className="text-gray-400 text-xs text-center mt-0.5">{fmt2(perAdultAccom)}/adult</p>
-                      </td>
-
-                      <td className="px-2 py-2">
-                        <input type="number" min={0} step="0.01" value={row.childAccomTotal || ''}
-                          onChange={e => updateRow(i, { childAccomTotal: Number(e.target.value) })}
-                          className={`input py-1 text-xs font-mono text-center w-full ${numChildren === 0 ? 'opacity-30 bg-gray-50' : ''}`}
-                          placeholder="0" />
-                        {numChildren > 0 && <p className="text-gray-400 text-xs text-center mt-0.5">{fmt2(perChildAccom)}/child</p>}
-                      </td>
-
-                      <td className="px-2 py-2">
-                        <input type="number" min={0} step="0.01" value={row.parkFeeAdultTotal || ''}
-                          onChange={e => updateRow(i, { parkFeeAdultTotal: Number(e.target.value) })}
-                          className="input py-1 text-xs font-mono text-center w-full" placeholder="0" />
-                        <p className="text-gray-400 text-xs text-center mt-0.5">{fmt2(perAdultPark)}/adult</p>
-                      </td>
-
-                      <td className="px-2 py-2">
-                        <input type="number" min={0} step="0.01" value={row.parkFeeChildTotal || ''}
-                          onChange={e => updateRow(i, { parkFeeChildTotal: Number(e.target.value) })}
-                          className={`input py-1 text-xs font-mono text-center w-full ${numChildren === 0 ? 'opacity-30 bg-gray-50' : ''}`}
-                          placeholder="0" />
-                        {numChildren > 0 && <p className="text-gray-400 text-xs text-center mt-0.5">{fmt2(perChildPark)}/child</p>}
-                      </td>
-
-                      <td className="px-2 py-2">
-                        <input type="number" min={0} step="0.01" value={row.transportTotal || ''}
-                          onChange={e => updateRow(i, { transportTotal: Number(e.target.value) })}
-                          className="input py-1 text-xs font-mono text-center w-full" placeholder="0" />
-                        {numPax > 0 && row.transportTotal > 0 && (
-                          <p className="text-gray-400 text-xs text-center mt-0.5">{fmt2(perPaxTransport)}/pax</p>
-                        )}
-                      </td>
-
-                      <td className="px-2 py-2 text-center">
-                        <input type="checkbox" checked={row.hasFlight} onChange={e => updateRow(i, { hasFlight: e.target.checked })} className="w-4 h-4" />
-                      </td>
-
-                      {row.hasFlight && (
-                        <>
-                          <td className="px-2 py-2">
-                            <input type="number" min={0} step="0.01" value={row.flightAdultPP || ''}
-                              onChange={e => updateRow(i, { flightAdultPP: Number(e.target.value) })}
-                              className="input py-1 text-xs font-mono text-center w-full" placeholder="0" />
-                          </td>
-                          <td className="px-2 py-2">
-                            <input type="number" min={0} step="0.01" value={row.flightChildPP || ''}
-                              onChange={e => updateRow(i, { flightChildPP: Number(e.target.value) })}
-                              className={`input py-1 text-xs font-mono text-center w-full ${numChildren === 0 ? 'opacity-30 bg-gray-50' : ''}`}
-                              placeholder="0" />
-                          </td>
-                        </>
-                      )}
-
-                      <td className="px-2 py-2 text-right">
-                        <p className="font-mono font-bold text-gray-800">{currency} {fmt2(dayTotalBase)}</p>
-                        {numAdults > 0 && <p className="text-gray-400 text-xs">{fmt2(dayTotalBase / numAdults)}/adult</p>}
-                        {numChildren > 0 && <p className="text-gray-400 text-xs">{fmt2(dayTotalBase / numChildren)}/child</p>}
-                      </td>
+                      <td className="px-2 py-2"><input type="number" min={0} step="0.01" value={row.adultAccomTotal || ''} onChange={e => updateRow(i, { adultAccomTotal: Number(e.target.value) })} className="input py-1 text-xs font-mono text-center w-full" placeholder="0"/> <span className="text-gray-400 text-xs block text-center">per adult</span></td>
+                      <td className="px-2 py-2"><input type="number" min={0} step="0.01" value={row.childAccomTotal || ''} onChange={e => updateRow(i, { childAccomTotal: Number(e.target.value) })} className="input py-1 text-xs font-mono text-center w-full" placeholder="0"/><span className="text-gray-400 text-xs block text-center">per child</span></td>
+                      <td className="px-2 py-2"><input type="number" min={0} step="0.01" value={row.parkFeeAdultTotal || ''} onChange={e => updateRow(i, { parkFeeAdultTotal: Number(e.target.value) })} className="input py-1 text-xs font-mono text-center w-full" placeholder="0"/><p className="text-gray-400 text-xs text-center mt-0.5">{numAdults>0?fmt2(perAdultPark):'-'}/adult</p></td>
+                      <td className="px-2 py-2"><input type="number" min={0} step="0.01" value={row.parkFeeChildTotal || ''} onChange={e => updateRow(i, { parkFeeChildTotal: Number(e.target.value) })} className="input py-1 text-xs font-mono text-center w-full" placeholder="0"/>{numChildren>0 && <p className="text-gray-400 text-xs text-center mt-0.5">{fmt2(perChildPark)}/child</p>}</td>
+                      <td className="px-2 py-2"><input type="number" min={0} step="0.01" value={row.transportTotal || ''} onChange={e => updateRow(i, { transportTotal: Number(e.target.value) })} className="input py-1 text-xs font-mono text-center w-full" placeholder="0"/>{numPax>0 && row.transportTotal>0 && <p className="text-gray-400 text-xs text-center mt-0.5">{fmt2(perPaxTransport)}/pax</p>}</td>
+                      <td className="px-2 py-2 text-center"><input type="checkbox" checked={row.hasFlight} onChange={e => updateRow(i, { hasFlight: e.target.checked })} className="w-4 h-4"/></td>
+                      {row.hasFlight && <>
+                        <td className="px-2 py-2"><input type="number" min={0} step="0.01" value={row.flightAdultPP || ''} onChange={e => updateRow(i, { flightAdultPP: Number(e.target.value) })} className="input py-1 text-xs font-mono text-center w-full" placeholder="0"/>{row.flightAdultPP>0 && <p className="text-gray-400 text-xs text-center mt-0.5">={fmt2(flightAdultDay)} total</p>}</td>
+                        <td className="px-2 py-2"><input type="number" min={0} step="0.01" value={row.flightChildPP || ''} onChange={e => updateRow(i, { flightChildPP: Number(e.target.value) })} className="input py-1 text-xs font-mono text-center w-full" placeholder="0"/>{numChildren>0 && row.flightChildPP>0 && <p className="text-gray-400 text-xs text-center mt-0.5">={fmt2(flightChildDay)} total</p>}</td>
+                      </>}
+                      <td className="px-2 py-2 text-right"><p className="font-mono font-bold text-gray-800">{currency} {fmt2(dayTotalBase)}</p><p className="text-gray-400 text-xs">{fmt2(dayTotalBase/numPax)}/pax</p></td>
                     </tr>
                   );
                 })}
@@ -491,61 +413,33 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
           </div>
         </div>
 
-        {/* ── Section 4: Global extras (unchanged from original) ── */}
+        {/* Section 4: Global extras */}
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
           <div><label className="label">File Handling Fees ({currency}) – total</label><input type="number" min={0} value={fileHandling||''} onChange={e => setFileHandling(Number(e.target.value))} className="input font-mono" placeholder="0" /></div>
           <div><label className="label">Eco Bottle + Water ({currency}) – total</label><input type="number" min={0} value={ecoBottle||''} onChange={e => setEcoBottle(Number(e.target.value))} className="input font-mono" placeholder="0" /></div>
           <div><label className="label">Evacuation Insurance ({currency}) – total</label><input type="number" min={0} value={evacInsurance||''} onChange={e => setEvacInsurance(Number(e.target.value))} className="input font-mono" placeholder="0" /></div>
         </div>
 
-        {/* ── Section 5: Transfers (as total) ── */}
+        {/* Section 5: Transfers */}
         <div className="border border-orange-100 rounded-xl p-4 mb-5 space-y-3 bg-white">
           <p className="text-sm font-semibold text-gray-700">Transfers <span className="text-xs font-normal text-gray-400">— enter TOTAL cost (not per person)</span></p>
           <div className="flex items-center gap-3 flex-wrap">
-            <label className="flex items-center gap-2 cursor-pointer min-w-[200px]">
-              <input type="checkbox" checked={arrivalTransfer} onChange={e => setArrivalTransfer(e.target.checked)} className="rounded" />
-              <span className="text-sm font-medium text-gray-700">Arrival Transfer (Day 1)</span>
-            </label>
-            {arrivalTransfer && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">Total {currency}:</span>
-                <input type="number" min={0} step="0.01" value={arrivalTotal||''} onChange={e => setArrivalTotal(Number(e.target.value))} className="input w-28 font-mono text-sm" placeholder="0" />
-              </div>
-            )}
+            <label className="flex items-center gap-2 cursor-pointer min-w-[200px]"><input type="checkbox" checked={arrivalTransfer} onChange={e => setArrivalTransfer(e.target.checked)} className="rounded"/><span className="text-sm font-medium text-gray-700">Arrival Transfer (Day 1)</span></label>
+            {arrivalTransfer && <div className="flex items-center gap-2"><span className="text-xs text-gray-500">Total {currency}:</span><input type="number" min={0} step="0.01" value={arrivalTotal||''} onChange={e => setArrivalTotal(Number(e.target.value))} className="input w-28 font-mono text-sm" placeholder="0"/></div>}
           </div>
           <div className="flex items-center gap-3 flex-wrap">
-            <label className="flex items-center gap-2 cursor-pointer min-w-[200px]">
-              <input type="checkbox" checked={departureTransfer} onChange={e => setDepartureTransfer(e.target.checked)} className="rounded" />
-              <span className="text-sm font-medium text-gray-700">Departure Transfer (Last Day)</span>
-            </label>
-            {departureTransfer && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">Total {currency}:</span>
-                <input type="number" min={0} step="0.01" value={departureTotal||''} onChange={e => setDepartureTotal(Number(e.target.value))} className="input w-28 font-mono text-sm" placeholder="0" />
-              </div>
-            )}
+            <label className="flex items-center gap-2 cursor-pointer min-w-[200px]"><input type="checkbox" checked={departureTransfer} onChange={e => setDepartureTransfer(e.target.checked)} className="rounded"/><span className="text-sm font-medium text-gray-700">Departure Transfer (Last Day)</span></label>
+            {departureTransfer && <div className="flex items-center gap-2"><span className="text-xs text-gray-500">Total {currency}:</span><input type="number" min={0} step="0.01" value={departureTotal||''} onChange={e => setDepartureTotal(Number(e.target.value))} className="input w-28 font-mono text-sm" placeholder="0"/></div>}
           </div>
         </div>
 
-        {/* ── Section 6: Maasai & extras (unchanged) ── */}
+        {/* Section 6: Maasai & extras */}
         <div className="flex items-center gap-4 mb-4 p-3 bg-white rounded-lg border border-orange-100">
-          <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
-            <input type="checkbox" checked={maasaiVillage} onChange={e => setMaasaiVillage(e.target.checked)} className="rounded" />
-            Maasai Village (optional)
-          </label>
-          {maasaiVillage && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500">Total {currency}:</span>
-              <input type="number" min={0} value={maasaiCostTotal||''} onChange={e => setMaasaiCostTotal(Number(e.target.value))} className="input w-24 text-xs py-1.5 font-mono" />
-            </div>
-          )}
+          <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer"><input type="checkbox" checked={maasaiVillage} onChange={e => setMaasaiVillage(e.target.checked)} className="rounded"/>Maasai Village (optional)</label>
+          {maasaiVillage && <div className="flex items-center gap-2"><span className="text-xs text-gray-500">Total {currency}:</span><input type="number" min={0} value={maasaiCostTotal||''} onChange={e => setMaasaiCostTotal(Number(e.target.value))} className="input w-24 text-xs py-1.5 font-mono"/></div>}
         </div>
-
         <div className="mb-5">
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-sm font-medium text-gray-700">Additional Extras <span className="text-xs font-normal text-gray-400">(enter total per item)</span></label>
-            <button type="button" onClick={() => setExtraItems(p => [...p, {label:'',cost:0}])} className="text-orange-500 text-xs hover:underline">+ Add Item</button>
-          </div>
+          <div className="flex items-center justify-between mb-2"><label className="text-sm font-medium text-gray-700">Additional Extras <span className="text-xs font-normal text-gray-400">(enter total per item)</span></label><button type="button" onClick={() => setExtraItems(p => [...p, {label:'',cost:0}])} className="text-orange-500 text-xs hover:underline">+ Add Item</button></div>
           {extraItems.map((ex, idx) => (
             <div key={idx} className="flex gap-2 mb-2 items-center">
               <input value={ex.label} onChange={e => setExtraItems(p => p.map((x,j) => j===idx?{...x,label:e.target.value}:x))} className="input flex-1 text-sm" placeholder="Description" />
@@ -555,59 +449,29 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
           ))}
         </div>
 
-        {/* ── Section 7: Excel‑style Totals and Option Tables ── */}
+        {/* Section 7: Totals and Option Tables */}
         <div className="bg-white rounded-xl border border-orange-100 overflow-hidden mb-5">
           <div className="px-4 py-2 bg-orange-50 border-b border-orange-100 font-semibold text-gray-700">📊 Totals for the whole group (no markup)</div>
           <div className="p-4 flex flex-wrap gap-4 text-sm">
-            <div><span className="text-gray-500">Accommodation:</span> {currency} {fmt2(accomBase)}</div>
-            <div><span className="text-gray-500">Park Fees:</span> {currency} {fmt2(parkBase)}</div>
-            <div><span className="text-gray-500">Transport:</span> {currency} {fmt2(transportBase)}</div>
-            <div><span className="text-gray-500">Flights & Extras:</span> {currency} {fmt2(flightBase + extrasBase)}</div>
+            <div><span className="text-gray-500">Accommodation (per person sum):</span> {currency} {fmt2(accomPerPersonSum)}</div>
+            <div><span className="text-gray-500">Park Fees (group total):</span> {currency} {fmt2(parkBase)}</div>
+            <div><span className="text-gray-500">Transport (group total):</span> {currency} {fmt2(transportBase)}</div>
+            <div><span className="text-gray-500">Flights & Extras (group total):</span> {currency} {fmt2(flightBase + extrasBase)}</div>
             <div><span className="font-bold">Total Base Cost:</span> {currency} {fmt2(totalBaseCost)}</div>
           </div>
-
           <div className="px-4 py-2 bg-orange-50 border-t border-orange-100 font-semibold text-gray-700">Option Tables – Per Person (P.P.S)</div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="p-2 text-left">Pax</th>
-                  <th className="p-2 text-left">Per Person Sharing (base)</th>
-                  <th className="p-2 text-left">Markup %</th>
-                  <th className="p-2 text-left">Marked Up</th>
-                  <th className="p-2 text-left">Rate Charged</th>
-                  <th className="p-2 text-left">Profit</th>
-                </tr>
-              </thead>
+              <thead className="bg-gray-50"><tr><th className="p-2 text-left">Pax</th><th className="p-2 text-left">Per Person Sharing (base)</th><th className="p-2 text-left">Markup %</th><th className="p-2 text-left">Marked Up</th><th className="p-2 text-left">Rate Charged</th><th className="p-2 text-left">Profit</th></tr></thead>
               <tbody>
                 {optionResults.map((opt, idx) => (
                   <tr key={opt.pax} className="border-b">
                     <td className="p-2 font-medium">{opt.pax} people</td>
                     <td className="p-2 font-mono">{currency} {fmt2(opt.perPersonBase)}</td>
-                    <td className="p-2">
-                      <input
-                        type="number"
-                        min={0}
-                        step={1}
-                        value={opt.markup}
-                        onChange={e => setOptions(prev => prev.map((o,i) => i===idx ? {...o, markup:Number(e.target.value)} : o))}
-                        className="input w-20 text-center"
-                      />
-                    </td>
+                    <td className="p-2"><input type="number" min={0} step={1} value={opt.markup} onChange={e => setOptions(prev => prev.map((o,i) => i===idx ? {...o, markup:Number(e.target.value)} : o))} className="input w-20 text-center"/></td>
                     <td className="p-2 font-mono">{currency} {fmt2(opt.markedUp)}</td>
-                    <td className="p-2">
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={opt.rateCharged || ''}
-                        onChange={e => setOptions(prev => prev.map((o,i) => i===idx ? {...o, rateCharged:Number(e.target.value)} : o))}
-                        className="input w-28 text-center"
-                        placeholder="--"
-                      />
-                    </td>
-                    <td className={`p-2 font-mono ${opt.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {currency} {fmt2(opt.profit)}
-                    </td>
+                    <td className="p-2"><input type="number" step="0.01" value={opt.rateCharged || ''} onChange={e => setOptions(prev => prev.map((o,i) => i===idx ? {...o, rateCharged:Number(e.target.value)} : o))} className="input w-28 text-center" placeholder="--"/></td>
+                    <td className={`p-2 font-mono ${opt.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{currency} {fmt2(opt.profit)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -615,20 +479,11 @@ export default function RateCalculator({ tours, rateCards, clients = [], agents 
           </div>
         </div>
 
-        {/* ── Section 8: Per‑person summary cards (optional) ── */}
+        {/* Section 8: Summary cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="bg-green-50 p-4 rounded-xl text-center">
-            <p className="text-xs text-green-600">Total Base Cost ({numPax} pax)</p>
-            <p className="text-2xl font-bold">{currency} {fmt2(totalBaseCost)}</p>
-          </div>
-          <div className="bg-orange-50 p-4 rounded-xl text-center">
-            <p className="text-xs text-orange-600">Per Person Sharing (base)</p>
-            <p className="text-2xl font-bold">{currency} {fmt2(totalBaseCost / numPax)}</p>
-          </div>
-          <div className="bg-blue-50 p-4 rounded-xl text-center">
-            <p className="text-xs text-blue-600">Markup Example (10%)</p>
-            <p className="text-2xl font-bold">{currency} {fmt2((totalBaseCost / numPax) * 1.1)}</p>
-          </div>
+          <div className="bg-green-50 p-4 rounded-xl text-center"><p className="text-xs text-green-600">Total Base Cost ({numPax} pax)</p><p className="text-2xl font-bold">{currency} {fmt2(totalBaseCost)}</p></div>
+          <div className="bg-orange-50 p-4 rounded-xl text-center"><p className="text-xs text-orange-600">Per Person Sharing (base)</p><p className="text-2xl font-bold">{currency} {fmt2(totalBaseCost / numPax)}</p></div>
+          <div className="bg-blue-50 p-4 rounded-xl text-center"><p className="text-xs text-blue-600">Markup Example (10%)</p><p className="text-2xl font-bold">{currency} {fmt2((totalBaseCost / numPax) * 1.1)}</p></div>
         </div>
       </div>
     </div>
