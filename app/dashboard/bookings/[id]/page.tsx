@@ -4,12 +4,9 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 const statusColors: Record<string, string> = {
-  ENQUIRY: 'badge-enquiry', 
-  QUOTED: 'badge-quoted', 
-  CONFIRMED: 'badge-confirmed',
+  ENQUIRY: 'badge-enquiry', QUOTED: 'badge-quoted', CONFIRMED: 'badge-confirmed',
   IN_PROGRESS: 'bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full text-xs font-medium',
-  COMPLETED: 'badge-completed', 
-  CANCELLED: 'badge-cancelled',
+  COMPLETED: 'badge-completed', CANCELLED: 'badge-cancelled',
 };
 
 export default async function BookingDetailPage({ params }: { params: { id: string } }) {
@@ -27,33 +24,32 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
 
   if (!booking) notFound();
 
-  // CostSheets loaded separately – includes isOutdated flag
-  let costSheets: any[] = [];
+  // Invoices loaded separately
+  let invoices: any[] = [];
   try {
-    costSheets = await (prisma as any).costSheet.findMany({
+    invoices = await prisma.invoice.findMany({
       where: { bookingId: params.id },
       orderBy: { createdAt: 'desc' },
-      select: { 
-        id: true, 
-        tourTitle: true, 
-        numAdults: true, 
-        numChildren: true, 
-        currency: true, 
-        totalCost: true, 
-        perAdultCost: true, 
-        createdAt: true,
-        isOutdated: true        // ← added
-      },
+      select: { id: true, invoiceNo: true, totalAmount: true, amountPaid: true, depositReceived: true, currency: true, status: true, dueDate: true },
     });
   } catch {
-    // Table not yet migrated – silently skip
+    // silently skip
+  }
+  // CostSheets loaded separately — gracefully handles case where migration hasn't run yet
+  let costSheets: any[] = [];
+  try {
+    costSheets = await prisma.costSheet.findMany({
+      where: { bookingId: params.id },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, tourTitle: true, numAdults: true, numChildren: true, currency: true, totalCost: true, perAdultCost: true, createdAt: true },
+    });
+  } catch {
+    // Table not yet migrated — silently skip
   }
 
   const totalDays = Math.ceil(
     (new Date(booking.endDate).getTime() - new Date(booking.startDate).getTime()) / (1000 * 60 * 60 * 24)
   );
-
-  const hasOutdatedCostSheets = costSheets.some((cs: any) => cs.isOutdated);
 
   return (
     <div className="max-w-5xl space-y-5">
@@ -136,24 +132,61 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
 
         {/* Right: Vouchers + Itinerary */}
         <div className="col-span-2 space-y-4">
+          {/* Invoices */}
+          <div className="card p-0 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="font-semibold text-gray-800">Invoices ({invoices.length})</h2>
+              <Link href={`/dashboard/invoices/new?bookingId=${params.id}`} className="text-orange-500 text-xs hover:underline">+ New Invoice</Link>
+            </div>
+            {invoices.length === 0 ? (
+              <div className="px-5 py-6 text-center text-gray-400 text-sm">
+                No invoices yet. <Link href={`/dashboard/invoices/new?bookingId=${params.id}`} className="text-orange-500 hover:underline">Create one →</Link>
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    {['Invoice No', 'Amount', 'Deposit', 'Balance', 'Status', 'Due', ''].map(h => (
+                      <th key={h} className="text-left px-4 py-2 font-medium text-gray-600 text-xs">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {invoices.map((inv: any) => {
+                    const balance = inv.totalAmount - inv.amountPaid;
+                    const overdue = inv.status !== 'PAID' && inv.status !== 'CANCELLED' && new Date(inv.dueDate) < new Date();
+                    const statusColor = inv.status === 'PAID' ? 'bg-green-100 text-green-700' : inv.status === 'OVERDUE' || overdue ? 'bg-red-100 text-red-600' : inv.status === 'SENT' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600';
+                    return (
+                      <tr key={inv.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-2.5 font-mono text-xs font-bold text-gray-800">{inv.invoiceNo}</td>
+                        <td className="px-4 py-2.5 font-mono text-xs">{inv.currency} {Number(inv.totalAmount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                        <td className="px-4 py-2.5 font-mono text-xs text-green-600">{inv.depositReceived > 0 ? `${inv.currency} ${Number(inv.depositReceived).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '—'}</td>
+                        <td className={`px-4 py-2.5 font-mono text-xs font-bold ${balance > 0 ? 'text-orange-600' : 'text-green-600'}`}>{balance > 0 ? `${inv.currency} ${balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '✓ Paid'}</td>
+                        <td className="px-4 py-2.5"><span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusColor}`}>{inv.status}</span></td>
+                        <td className={`px-4 py-2.5 text-xs ${overdue ? 'text-red-500 font-medium' : 'text-gray-400'}`}>{new Date(inv.dueDate).toLocaleDateString('en-KE', { day: 'numeric', month: 'short' })}</td>
+                        <td className="px-4 py-2.5 flex gap-2">
+                          <Link href={`/dashboard/invoices/${inv.id}`} className="text-orange-500 hover:underline text-xs">View</Link>
+                          <Link href={`/dashboard/invoices/${inv.id}/edit`} className="text-gray-400 hover:underline text-xs">Edit</Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+
           {/* Cost Sheets */}
           {costSheets.length > 0 && (
             <div className="card p-0 overflow-hidden">
               <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-                <div>
-                  <h2 className="font-semibold text-gray-800">Costing Sheets ({costSheets.length})</h2>
-                  {hasOutdatedCostSheets && (
-                    <p className="text-xs text-amber-600 mt-0.5">
-                      ⚠️ Some cost sheets are outdated because booking details changed. Please review and regenerate.
-                    </p>
-                  )}
-                </div>
-                <Link href="/dashboard/costing" className="text-orange-500 text-xs hover:underline">+ New Costing</Link>
+                <h2 className="font-semibold text-gray-800">Costing Sheets ({costSheets.length})</h2>
+                <Link href="/dashboard/rates" className="text-orange-500 text-xs hover:underline">+ New Costing</Link>
               </div>
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    {['Tour', 'Pax', 'Total Cost', 'Per Adult', 'Date', 'Status', ''].map(h => (
+                    {['Tour', 'Pax', 'Total Cost', 'Per Adult', 'Date', ''].map(h => (
                       <th key={h} className="text-left px-4 py-2 font-medium text-gray-600 text-xs">{h}</th>
                     ))}
                   </tr>
@@ -167,16 +200,7 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
                       <td className="px-4 py-2.5 text-xs font-mono text-orange-600">{cs.currency} {cs.perAdultCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                       <td className="px-4 py-2.5 text-xs text-gray-400">{new Date(cs.createdAt).toLocaleDateString('en-KE')}</td>
                       <td className="px-4 py-2.5">
-                        {cs.isOutdated ? (
-                          <span className="inline-flex items-center gap-1 text-amber-600 text-xs font-medium">
-                            ⚠️ Outdated
-                          </span>
-                        ) : (
-                          <span className="text-green-600 text-xs">✓ Current</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <Link href="/dashboard/costing" className="text-orange-500 hover:underline text-xs">View</Link>
+                        <Link href="/dashboard/rates" className="text-orange-500 hover:underline text-xs">View</Link>
                       </td>
                     </tr>
                   ))}
