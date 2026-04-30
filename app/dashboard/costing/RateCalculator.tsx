@@ -81,8 +81,8 @@ export default function RateCalculator({
   const [bookingId, setBookingId] = useState('');
   const [tourId, setTourId] = useState('');
 
-  // Core settings
-  const [numAdults, setNumAdults] = useState(2);
+  // Core settings – now start with 0 adults, 0 children (empty table)
+  const [numAdults, setNumAdults] = useState(0);
   const [numChildren, setNumChildren] = useState(0);
   const [numDays, setNumDays] = useState(1);
   const [numNights, setNumNights] = useState(0);
@@ -105,10 +105,8 @@ export default function RateCalculator({
   const [departureTransfer, setDepartureTransfer] = useState(false);
   const [departureTotal, setDepartureTotal] = useState(0);
 
-  // Option tables – now explicitly for Pax 1 to 8 (each with editable markup)
-  const [options, setOptions] = useState(
-    Array.from({ length: 8 }, (_, i) => ({ pax: i + 1, markup: 10 }))
-  );
+  // Option tables – starts empty, populates only when numPax > 0
+  const [options, setOptions] = useState<{ pax: number; markup: number }[]>([]);
 
   // UI state
   const [saving, setSaving] = useState(false);
@@ -116,6 +114,27 @@ export default function RateCalculator({
   const [saveError, setSaveError] = useState('');
 
   const numPax = numAdults + numChildren;
+  const maxDisplayPax = Math.min(numPax, 8); // Car capacity max 8
+
+  // Update options whenever numPax changes (only if numPax > 0)
+  useEffect(() => {
+    if (numPax === 0) {
+      setOptions([]);
+      return;
+    }
+    const newLength = maxDisplayPax;
+    setOptions(prev => {
+      if (prev.length === newLength && prev.every((opt, idx) => opt.pax === idx + 1)) {
+        return prev;
+      }
+      const newOptions = [];
+      for (let p = 1; p <= newLength; p++) {
+        const existing = prev.find(opt => opt.pax === p);
+        newOptions.push({ pax: p, markup: existing?.markup ?? 10 });
+      }
+      return newOptions;
+    });
+  }, [numPax, maxDisplayPax]);
 
   // =============================================================================
   // AUTO-FILL & SYNC
@@ -194,7 +213,6 @@ export default function RateCalculator({
     if (hotelId) fetchRates(i, hotelId, boardBasis, dayDate(i));
   }
 
-  // Store per‑person accommodation rates directly
   function onRoomPriceSelect(i: number, priceId: string) {
     const price = dayRows[i].availableRates.find((p) => String(p.id) === priceId);
     if (!price) return;
@@ -204,7 +222,6 @@ export default function RateCalculator({
     });
   }
 
-  // Re-fetch when start date or board basis changes
   useEffect(() => {
     if (!startDate) return;
     dayRows.forEach((row, i) => {
@@ -222,7 +239,7 @@ export default function RateCalculator({
   };
 
   // =============================================================================
-  // EXACT FORMULA (as requested)
+  // EXACT FORMULA
   // =============================================================================
   const accomPerPersonSum = dayRows.reduce(
     (s, r) => s + r.adultAccomTotal + r.childAccomTotal,
@@ -249,7 +266,6 @@ export default function RateCalculator({
 
   const flightAndExtrasGroupTotal = flightGroupTotal + extrasGroupTotal;
 
-  // Option results using the exact formula
   const optionResults = options.map((opt) => {
     const pax = opt.pax;
     const basePerPerson =
@@ -468,7 +484,7 @@ export default function RateCalculator({
             <label className="label text-xs">Adults *</label>
             <input
               type="number"
-              min={1}
+              min={0}
               value={numAdults}
               onChange={(e) => setNumAdults(Number(e.target.value))}
               className="input"
@@ -723,7 +739,7 @@ export default function RateCalculator({
                           <span className="text-gray-400 text-xs block text-center">
                             per child
                           </span>
-                         </td>
+                        </td>
                       )}
                       <td className="px-2 py-2">
                         <input
@@ -806,7 +822,7 @@ export default function RateCalculator({
                           {currency} {fmt2(dayTotalBase)}
                         </p>
                         <p className="text-gray-400 text-xs">
-                          {fmt2(dayTotalBase / numPax)}/pax
+                          {numPax > 0 ? fmt2(dayTotalBase / numPax) : '0'}/pax
                         </p>
                        </td>
                     </tr>
@@ -1019,49 +1035,55 @@ export default function RateCalculator({
             Option Tables – Per Person Sharing (P.P.S)
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="p-2 text-left">Pax</th>
-                  <th className="p-2 text-left">Per Person Sharing (base)</th>
-                  <th className="p-2 text-left">Markup %</th>
-                  <th className="p-2 text-left">Marked Up</th>
-                  <th className="p-2 text-left">Profit</th>
-                </tr>
-              </thead>
-              <tbody>
-                {optionResults.map((opt, idx) => (
-                  <tr key={opt.pax} className="border-b">
-                    <td className="p-2 font-medium">{opt.pax} people</td>
-                    <td className="p-2 font-mono">
-                      {currency} {fmt2(opt.perPersonBase)}
-                    </td>
-                    <td className="p-2">
-                      <input
-                        type="number"
-                        min={0}
-                        step={1}
-                        value={opt.markup}
-                        onChange={(e) =>
-                          setOptions((prev) =>
-                            prev.map((o, i) =>
-                              i === idx ? { ...o, markup: Number(e.target.value) } : o
-                            )
-                          )
-                        }
-                        className="input w-20 text-center"
-                      />
-                    </td>
-                    <td className="p-2 font-mono">
-                      {currency} {fmt2(opt.markedUp)}
-                    </td>
-                    <td className={`p-2 font-mono ${opt.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {currency} {fmt2(opt.profit)}
-                    </td>
+            {numPax === 0 ? (
+              <div className="p-4 text-center text-gray-400 text-sm">
+                Enter at least 1 adult or child to see pricing options.
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="p-2 text-left">Pax</th>
+                    <th className="p-2 text-left">Per Person Sharing (base)</th>
+                    <th className="p-2 text-left">Markup %</th>
+                    <th className="p-2 text-left">Marked Up</th>
+                    <th className="p-2 text-left">Profit</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {optionResults.map((opt, idx) => (
+                    <tr key={opt.pax} className="border-b">
+                      <td className="p-2 font-medium">{opt.pax} people</td>
+                      <td className="p-2 font-mono">
+                        {currency} {fmt2(opt.perPersonBase)}
+                      </td>
+                      <td className="p-2">
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={opt.markup}
+                          onChange={(e) =>
+                            setOptions((prev) =>
+                              prev.map((o, i) =>
+                                i === idx ? { ...o, markup: Number(e.target.value) } : o
+                              )
+                            )
+                          }
+                          className="input w-20 text-center"
+                        />
+                      </td>
+                      <td className="p-2 font-mono">
+                        {currency} {fmt2(opt.markedUp)}
+                      </td>
+                      <td className={`p-2 font-mono ${opt.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {currency} {fmt2(opt.profit)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
 
