@@ -105,13 +105,10 @@ export default function RateCalculator({
   const [departureTransfer, setDepartureTransfer] = useState(false);
   const [departureTotal, setDepartureTotal] = useState(0);
 
-  // Option tables (Rate Charged removed)
-  const [options, setOptions] = useState([
-    { pax: 2, markup: 10 },
-    { pax: 4, markup: 10 },
-    { pax: 6, markup: 10 },
-    { pax: 8, markup: 10 },
-  ]);
+  // Option tables – now explicitly for Pax 1 to 8 (each with editable markup)
+  const [options, setOptions] = useState(
+    Array.from({ length: 8 }, (_, i) => ({ pax: i + 1, markup: 10 }))
+  );
 
   // UI state
   const [saving, setSaving] = useState(false);
@@ -226,11 +223,6 @@ export default function RateCalculator({
 
   // =============================================================================
   // EXACT FORMULA (as requested)
-  // Per Person Sharing (base) = 
-  //   Accommodation (per person sum) + 
-  //   Park Fees (group total) + 
-  //   (Transport group total / pax) + 
-  //   Flights & Extras (group total)
   // =============================================================================
   const accomPerPersonSum = dayRows.reduce(
     (s, r) => s + r.adultAccomTotal + r.childAccomTotal,
@@ -255,7 +247,6 @@ export default function RateCalculator({
     (arrivalTransfer ? arrivalTotal : 0) +
     (departureTransfer ? departureTotal : 0);
 
-  // Flights & Extras (group total) for the formula
   const flightAndExtrasGroupTotal = flightGroupTotal + extrasGroupTotal;
 
   // Option results using the exact formula
@@ -627,7 +618,7 @@ export default function RateCalculator({
                             })}
                           </p>
                         )}
-                      </td>
+                       </td>
                       <td className="px-2 py-2">
                         <select
                           value={row.destinationId ?? ''}
@@ -648,7 +639,7 @@ export default function RateCalculator({
                             </option>
                           ))}
                         </select>
-                      </td>
+                       </td>
                       <td className="px-2 py-2 min-w-[180px]">
                         <select
                           className="input py-1 text-xs w-full"
@@ -699,7 +690,7 @@ export default function RateCalculator({
                             placeholder="Or type manually"
                           />
                         )}
-                      </td>
+                       </td>
                       <td className="px-2 py-2">
                         <input
                           type="number"
@@ -715,7 +706,7 @@ export default function RateCalculator({
                         <span className="text-gray-400 text-xs block text-center">
                           per adult
                         </span>
-                      </td>
+                       </td>
                       {numChildren > 0 && (
                         <td className="px-2 py-2">
                           <input
@@ -732,7 +723,7 @@ export default function RateCalculator({
                           <span className="text-gray-400 text-xs block text-center">
                             per child
                           </span>
-                        </td>
+                         </td>
                       )}
                       <td className="px-2 py-2">
                         <input
@@ -746,7 +737,7 @@ export default function RateCalculator({
                           className="input py-1 text-xs font-mono text-center w-full"
                           placeholder="0"
                         />
-                      </td>
+                       </td>
                       <td className="px-2 py-2">
                         <input
                           type="number"
@@ -759,7 +750,7 @@ export default function RateCalculator({
                           className="input py-1 text-xs font-mono text-center w-full"
                           placeholder="0"
                         />
-                      </td>
+                       </td>
                       <td className="px-2 py-2 text-center">
                         <input
                           type="checkbox"
@@ -769,7 +760,7 @@ export default function RateCalculator({
                           }
                           className="w-4 h-4"
                         />
-                      </td>
+                       </td>
                       {row.hasFlight && (
                         <>
                           <td className="px-2 py-2">
@@ -789,7 +780,7 @@ export default function RateCalculator({
                                 ={fmt2(flightAdultDayTotal)} total
                               </p>
                             )}
-                          </td>
+                           </td>
                           <td className="px-2 py-2">
                             <input
                               type="number"
@@ -807,7 +798,7 @@ export default function RateCalculator({
                                 ={fmt2(flightChildDayTotal)} total
                               </p>
                             )}
-                          </td>
+                           </td>
                         </>
                       )}
                       <td className="px-2 py-2 text-right">
@@ -817,7 +808,7 @@ export default function RateCalculator({
                         <p className="text-gray-400 text-xs">
                           {fmt2(dayTotalBase / numPax)}/pax
                         </p>
-                      </td>
+                       </td>
                     </tr>
                   );
                 })}
@@ -1074,29 +1065,6 @@ export default function RateCalculator({
           </div>
         </div>
 
-        {/* ── Section 8: Summary cards ── */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="bg-green-50 p-4 rounded-xl text-center">
-            <p className="text-xs text-green-600">Total Base (for {numPax} pax)</p>
-            <p className="text-2xl font-bold">
-              {currency}{' '}
-              {fmt2(accomPerPersonSum + parkGroupTotal + transportGroupTotal + flightAndExtrasGroupTotal)}
-            </p>
-          </div>
-          <div className="bg-orange-50 p-4 rounded-xl text-center">
-            <p className="text-xs text-orange-600">Per Person Sharing (base)</p>
-            <p className="text-2xl font-bold">
-              {currency} {fmt2((accomPerPersonSum + parkGroupTotal + transportGroupTotal + flightAndExtrasGroupTotal) / numPax)}
-            </p>
-          </div>
-          <div className="bg-blue-50 p-4 rounded-xl text-center">
-            <p className="text-xs text-blue-600">Markup Example (10%)</p>
-            <p className="text-2xl font-bold">
-              {currency}{' '}
-              {fmt2(((accomPerPersonSum + parkGroupTotal + transportGroupTotal + flightAndExtrasGroupTotal) / numPax) * 1.1)}
-            </p>
-          </div>
-        </div>
       </div>
     </div>
   );
