@@ -6,7 +6,7 @@ interface Invoice {
   id: string; invoiceNo: string; billTo: string; currency: string;
   totalAmount: number; amountPaid: number; depositReceived: number;
   status: string; invoiceDate: string; dueDate: string;
-  booking: { bookingRef: string; client: { id: string; name: string } };
+  booking: {  id: string; bookingRef: string; client: { id: string; name: string } };
 }
 
 const STATUS_COLORS: Record<string, string> = {
