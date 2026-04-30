@@ -11,6 +11,7 @@ const nav = [
   { label: 'Clients', href: '/dashboard/clients', icon: '👥', adminOnly: false },
   { label: 'Bookings', href: '/dashboard/bookings', icon: '📋', adminOnly: false },
   { label: 'Vouchers', href: '/dashboard/vouchers', icon: '🎫', adminOnly: false },
+  { label: 'Invoices', href: '/dashboard/invoices', icon: '🧾', adminOnly: false },
   { label: 'Itineraries', href: '/dashboard/itineraries', icon: '🗺️', adminOnly: false },
   { label: 'Tours', href: '/dashboard/tours', icon: '🦁', adminOnly: false },
   { label: 'Costing', href: '/dashboard/costing', icon: '💰', adminOnly: false },
