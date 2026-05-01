@@ -3,12 +3,25 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
+interface DayRow {
+  hotelName?: string;
+  adultAccomTotal?: number;
+  adultTotal?: number;
+  childAccomTotal?: number;
+  childTotal?: number;
+  parkFeeAdultTotal?: number;
+  parkFeeChildTotal?: number;
+  transportTotal?: number;
+  hasFlight?: boolean;
+  flightAdultPP?: number;
+  flightChildPP?: number;
+}
+
 export default function CostSheetDetailPage() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
   const [sheet, setSheet] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetch(`/api/cost-sheets/${id}`)
@@ -19,18 +32,32 @@ export default function CostSheetDetailPage() {
 
   async function handleDelete() {
     if (!confirm('Delete this costing sheet? This cannot be undone.')) return;
-    setDeleting(true);
-    await fetch(`/api/cost-sheets/${id}`, { method: 'DELETE' });
-    router.push('/dashboard/cost-sheets');
+    const res = await fetch(`/api/cost-sheets/${id}`, { method: 'DELETE' });
+    if (res.ok) router.push('/dashboard/cost-sheets');
   }
 
   if (loading) return <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"/></div>;
   if (!sheet) return <div className="p-8 text-gray-500">Costing sheet not found. <Link href="/dashboard/cost-sheets" className="text-orange-500 hover:underline">Back to list</Link></div>;
 
-  const dayRows: any[] = (() => { try { return JSON.parse(sheet.dayRows || '[]'); } catch { return []; } })();
-  const extras: any[] = (() => { try { return JSON.parse(sheet.extras || '[]'); } catch { return []; } })();
+  // Safely parse JSON fields with fallback to empty array
+  let dayRows: DayRow[] = [];
+  try {
+    const parsed = JSON.parse(sheet.dayRows || '[]');
+    dayRows = Array.isArray(parsed) ? parsed : [];
+  } catch { dayRows = []; }
+
+  let extras: any[] = [];
+  try {
+    const parsed = JSON.parse(sheet.extras || '[]');
+    extras = Array.isArray(parsed) ? parsed : [];
+  } catch { extras = []; }
+
   const mf = 1 + sheet.markupPercent / 100;
   const fmt2 = (n: number) => Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // Helper to get accommodation total (handles both field names)
+  const getAdultAccom = (row: DayRow) => row.adultAccomTotal ?? row.adultTotal ?? 0;
+  const getChildAccom = (row: DayRow) => row.childAccomTotal ?? row.childTotal ?? 0;
 
   return (
     <div className="max-w-4xl space-y-5">
@@ -41,10 +68,9 @@ export default function CostSheetDetailPage() {
           <h1 className="text-2xl font-bold text-gray-900 max-w-lg truncate">{sheet.tourTitle}</h1>
         </div>
         <div className="flex gap-2">
-          <Link href="/dashboard/costing" className="btn-secondary text-sm">+ New Costing</Link>
-          <button onClick={handleDelete} disabled={deleting}
-            className="text-red-500 hover:text-red-700 text-sm font-medium border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50">
-            {deleting ? 'Deleting…' : '🗑 Delete'}
+          <Link href={`/dashboard/costing?edit=${sheet.id}`} className="btn-secondary text-sm">✏️ Edit</Link>
+          <button onClick={handleDelete} className="text-red-500 hover:text-red-700 text-sm font-medium border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50">
+            🗑 Delete
           </button>
         </div>
       </div>
@@ -97,19 +123,20 @@ export default function CostSheetDetailPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {dayRows.map((row: any, i: number) => {
+                {dayRows.map((row: DayRow, i: number) => {
+                  const adultAccomBase = getAdultAccom(row);
+                  const childAccomBase = getChildAccom(row);
                   const flightA = row.hasFlight ? (row.flightAdultPP || 0) * sheet.numAdults * mf : 0;
                   const flightC = row.hasFlight ? (row.flightChildPP || 0) * sheet.numChildren * mf : 0;
-                  const dayTotal = (row.adultAccomTotal || row.adultTotal || 0) * mf +
-                    (row.childAccomTotal || row.childTotal || 0) * mf +
+                  const dayTotal = (adultAccomBase + childAccomBase) * mf +
                     (row.parkFeeAdultTotal || 0) + (row.parkFeeChildTotal || 0) +
                     (row.transportTotal || 0) + flightA + flightC;
                   return (
                     <tr key={i} className="hover:bg-gray-50">
                       <td className="px-3 py-2"><span className="bg-orange-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">{i+1}</span></td>
                       <td className="px-3 py-2 font-medium text-gray-700">{row.hotelName || '—'}</td>
-                      <td className="px-3 py-2 font-mono">{sheet.currency} {fmt2((row.adultAccomTotal || row.adultTotal || 0) * mf)}</td>
-                      <td className="px-3 py-2 font-mono text-gray-400">{sheet.numChildren > 0 ? `${sheet.currency} ${fmt2((row.childAccomTotal || row.childTotal || 0) * mf)}` : '—'}</td>
+                      <td className="px-3 py-2 font-mono">{sheet.currency} {fmt2(adultAccomBase * mf)}</td>
+                      <td className="px-3 py-2 font-mono text-gray-400">{sheet.numChildren > 0 ? `${sheet.currency} ${fmt2(childAccomBase * mf)}` : '—'}</td>
                       <td className="px-3 py-2 font-mono text-green-600">{sheet.currency} {fmt2(row.parkFeeAdultTotal || 0)}</td>
                       <td className="px-3 py-2 font-mono text-green-600">{sheet.numChildren > 0 ? `${sheet.currency} ${fmt2(row.parkFeeChildTotal || 0)}` : '—'}</td>
                       <td className="px-3 py-2 font-mono text-green-600">{sheet.currency} {fmt2(row.transportTotal || 0)}</td>
@@ -154,7 +181,6 @@ export default function CostSheetDetailPage() {
               {sheet.numChildren > 0 && <p className="text-xs text-blue-500 mt-1">Child: {sheet.currency} {fmt2(sheet.perChildCost)}</p>}
             </div>
           </div>
-          {/* Invoice creation shortcut */}
           {sheet.booking && (
             <Link href={`/dashboard/invoices/new?bookingId=${sheet.booking.id}&costSheetId=${sheet.id}`}
               className="block w-full text-center btn-primary text-sm py-2">
@@ -168,7 +194,7 @@ export default function CostSheetDetailPage() {
       </div>
 
       {/* Extras */}
-      {(extras.length > 0 || sheet.maasaiVillage || sheet.fileHandlingFee > 0 || sheet.ecoBottle > 0 || sheet.evacInsurance > 0) && (
+      {(extras.length > 0 || sheet.maasaiVillage || sheet.fileHandlingFee > 0 || sheet.ecoBottle > 0 || sheet.evacInsurance > 0 || sheet.arrivalTransfer > 0 || sheet.departureTransfer > 0) && (
         <div className="card">
           <h2 className="font-semibold text-gray-800 mb-3">Extras & Fees</h2>
           <div className="space-y-2 text-sm">
