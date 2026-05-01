@@ -81,7 +81,7 @@ export default function RateCalculator({
   const [bookingId, setBookingId] = useState('');
   const [tourId, setTourId] = useState('');
 
-  // Core settings – now start with 0 adults, 0 children (empty table)
+  // Core settings – start with 0 adults, 0 children (empty table)
   const [numAdults, setNumAdults] = useState(0);
   const [numChildren, setNumChildren] = useState(0);
   const [numDays, setNumDays] = useState(1);
@@ -171,6 +171,18 @@ export default function RateCalculator({
     if (c?.agentId) setAgentId(c.agentId);
   }, [clientId, clients]);
 
+  // CRITICAL FIX: When numChildren becomes 0, clear all child-related fields in all rows
+  useEffect(() => {
+    if (numChildren === 0) {
+      setDayRows(prev => prev.map(row => ({
+        ...row,
+        childAccomTotal: 0,
+        parkFeeChildTotal: 0,
+        flightChildPP: 0,
+      })));
+    }
+  }, [numChildren]);
+
   function updateRow(i: number, patch: Partial<DayRow>) {
     setDayRows((prev) => prev.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   }
@@ -213,12 +225,13 @@ export default function RateCalculator({
     if (hotelId) fetchRates(i, hotelId, boardBasis, dayDate(i));
   }
 
+  // CRITICAL FIX: When picking a rate, if numChildren is 0, force childAccomTotal to 0
   function onRoomPriceSelect(i: number, priceId: string) {
     const price = dayRows[i].availableRates.find((p) => String(p.id) === priceId);
     if (!price) return;
     updateRow(i, {
       adultAccomTotal: price.ratePerPersonSharing || 0,
-      childAccomTotal: price.childRate || 0,
+      childAccomTotal: numChildren > 0 ? (price.childRate || 0) : 0,
     });
   }
 
@@ -1014,7 +1027,7 @@ export default function RateCalculator({
           </div>
           <div className="p-4 flex flex-wrap gap-4 text-sm">
             <div>
-              <span className="text-gray-500">Accommodation (per person sum):</span>{' '}
+              <span className="text-gray-500">Accommodation (sum of daily per‑person rates):</span>{' '}
               {currency} {fmt2(accomPerPersonSum)}
             </div>
             <div>
