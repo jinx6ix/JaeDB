@@ -41,7 +41,7 @@ export default function CostSheetDetailPage() {
           <h1 className="text-2xl font-bold text-gray-900 max-w-lg truncate">{sheet.tourTitle}</h1>
         </div>
         <div className="flex gap-2">
-          <Link href="/dashboard/rates" className="btn-secondary text-sm">+ New Costing</Link>
+          <Link href="/dashboard/costing" className="btn-secondary text-sm">+ New Costing</Link>
           <button onClick={handleDelete} disabled={deleting}
             className="text-red-500 hover:text-red-700 text-sm font-medium border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50">
             {deleting ? 'Deleting…' : '🗑 Delete'}

@@ -57,7 +57,7 @@ export default function CostSheetsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Costing Sheets</h1>
           <p className="text-gray-500 text-sm mt-0.5">All saved cost calculations linked to clients & bookings</p>
         </div>
-        <Link href="/dashboard/rates" className="btn-primary">+ New Costing Sheet</Link>
+        <Link href="/dashboard/costing" className="btn-primary">+ New Costing Sheet</Link>
       </div>
 
       <div className="flex gap-3">
@@ -76,7 +76,7 @@ export default function CostSheetsPage() {
           <tbody className="divide-y divide-gray-100">
             {loading && <tr><td colSpan={11} className="text-center py-10 text-gray-400">Loading…</td></tr>}
             {!loading && filtered.length === 0 && (
-              <tr><td colSpan={11} className="text-center py-10 text-gray-400">No costing sheets yet. <Link href="/dashboard/rates" className="text-orange-500 hover:underline">Create one →</Link></td></tr>
+              <tr><td colSpan={11} className="text-center py-10 text-gray-400">No costing sheets yet. <Link href="/dashboard/costing" className="text-orange-500 hover:underline">Create one →</Link></td></tr>
             )}
             {filtered.map(s => (
               <tr key={s.id} className="hover:bg-gray-50">

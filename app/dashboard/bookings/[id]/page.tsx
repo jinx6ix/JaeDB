@@ -181,7 +181,7 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
             <div className="card p-0 overflow-hidden">
               <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
                 <h2 className="font-semibold text-gray-800">Costing Sheets ({costSheets.length})</h2>
-                <Link href="/dashboard/rates" className="text-orange-500 text-xs hover:underline">+ New Costing</Link>
+                <Link href="/dashboard/costing" className="text-orange-500 text-xs hover:underline">+ New Costing</Link>
               </div>
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-100">
@@ -200,7 +200,7 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
                       <td className="px-4 py-2.5 text-xs font-mono text-orange-600">{cs.currency} {cs.perAdultCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                       <td className="px-4 py-2.5 text-xs text-gray-400">{new Date(cs.createdAt).toLocaleDateString('en-KE')}</td>
                       <td className="px-4 py-2.5">
-                        <Link href="/dashboard/rates" className="text-orange-500 hover:underline text-xs">View</Link>
+                        <Link href="/dashboard/costing" className="text-orange-500 hover:underline text-xs">View</Link>
                       </td>
                     </tr>
                   ))}
