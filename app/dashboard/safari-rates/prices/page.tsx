@@ -11,9 +11,10 @@ interface Price      {
   ratePerPersonSharing: number|null; 
   singleRoomRate: number|null; 
   childRate: number|null; 
+  thirdAdultRate: number|null; // 👈 added
   currency: string; 
   roomType: { name: string; hotel: { name: string } }; 
-  season: { name: string; startDate?: string; endDate?: string }; // ← added dates
+  season: { name: string; startDate?: string; endDate?: string };
 }
 
 const BOARDS = ['FB','HB','BB','RO','AI'];
@@ -27,7 +28,7 @@ export default function PricesPage() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<number|null>(null);
-  const [form, setForm] = useState({ roomTypeId:'', seasonId:'', boardBasis:'FB', ratePerPersonSharing:'', singleRoomRate:'', childRate:'', currency:'USD' });
+  const [form, setForm] = useState({ roomTypeId:'', seasonId:'', boardBasis:'FB', ratePerPersonSharing:'', singleRoomRate:'', childRate:'', thirdAdultRate:'', currency:'USD' });
 
   // Global search filter (applies to price table + management cards)
   const [globalHotelSearch, setGlobalHotelSearch] = useState('');
@@ -246,7 +247,6 @@ export default function PricesPage() {
     finally { setDeletingSeasonId(null); }
   }
 
-  // Delete handlers for management cards (alias)
   async function deleteRoomType(id: number) { return handleDeleteRoomType(id); }
   async function deleteSeason(id: number) { return handleDeleteSeason(id); }
 
@@ -262,6 +262,7 @@ export default function PricesPage() {
       ratePerPersonSharing: p.ratePerPersonSharing != null ? String(p.ratePerPersonSharing) : '',
       singleRoomRate: p.singleRoomRate != null ? String(p.singleRoomRate) : '',
       childRate: p.childRate != null ? String(p.childRate) : '',
+      thirdAdultRate: p.thirdAdultRate != null ? String(p.thirdAdultRate) : '',
       currency: p.currency,
     });
     setEditingId(p.id);
@@ -408,6 +409,10 @@ export default function PricesPage() {
               <input type="number" min={0} step="0.01" className="input font-mono" value={form.childRate} onChange={e=>setForm(f=>({...f,childRate:e.target.value}))} placeholder="0.00" />
             </div>
             <div>
+              <label className="label">Third Adult Rate</label> {/* 👈 New field */}
+              <input type="number" min={0} step="0.01" className="input font-mono" value={form.thirdAdultRate} onChange={e=>setForm(f=>({...f,thirdAdultRate:e.target.value}))} placeholder="0.00" />
+            </div>
+            <div>
               <label className="label">Currency</label>
               <select className="input" value={form.currency} onChange={e=>setForm(f=>({...f,currency:e.target.value}))}>
                 <option>USD</option><option>KES</option><option>EUR</option>
@@ -436,26 +441,25 @@ export default function PricesPage() {
         )}
       </div>
 
-      {/* Price Table with Season Dates column */}
+      {/* Price Table with Third Adult column */}
       <div className="card p-0 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              {['Hotel','Room Type','Season','Season Dates','Board','Per Person Sharing','Single','Child','Currency',''].map(h=>(
+              {['Hotel','Room Type','Season','Season Dates','Board','Per Person Sharing','Single','Child','Third Adult','Currency',''].map(h=>(
                 <th key={h} className="text-left px-4 py-3 font-medium text-gray-600 text-xs">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {filteredPrices.length===0&&(
-              <tr><td colSpan={10} className="text-center text-gray-400 py-10">No prices found. Try a different hotel name or add a price.</td></tr>
+              <tr><td colSpan={11} className="text-center text-gray-400 py-10">No prices found. Try a different hotel name or add a price.</td></tr>
             )}
             {filteredPrices.slice(0,100).map(p=>(
               <tr key={p.id} className="hover:bg-gray-50">
                 <td className="px-4 py-2 font-medium text-gray-800 text-xs">{p.roomType.hotel.name}</td>
                 <td className="px-4 py-2 text-gray-600 text-xs">{p.roomType.name}</td>
                 <td className="px-4 py-2 text-orange-600 text-xs">{p.season.name}</td>
-                {/* New column: season dates */}
                 <td className="px-4 py-2 text-gray-600 text-xs">
                   {p.season.startDate && p.season.endDate ? (
                     `${new Date(p.season.startDate).toLocaleDateString('en-KE', {day:'numeric',month:'short'})} – ${new Date(p.season.endDate).toLocaleDateString('en-KE', {day:'numeric',month:'short',year:'numeric'})}`
@@ -465,6 +469,7 @@ export default function PricesPage() {
                 <td className="px-4 py-2 font-mono text-xs">{p.ratePerPersonSharing?.toLocaleString()||'—'}</td>
                 <td className="px-4 py-2 font-mono text-xs text-gray-500">{p.singleRoomRate?.toLocaleString()||'—'}</td>
                 <td className="px-4 py-2 font-mono text-xs text-gray-500">{p.childRate?.toLocaleString()||'—'}</td>
+                <td className="px-4 py-2 font-mono text-xs text-gray-500">{p.thirdAdultRate?.toLocaleString()||'—'}</td> {/* 👈 Added */}
                 <td className="px-4 py-2 text-gray-400 text-xs">{p.currency}</td>
                 <td className="px-4 py-2 text-xs">
                   <button type="button" onClick={() => handleEdit(p)} className="text-orange-500 hover:underline font-medium">Edit</button>

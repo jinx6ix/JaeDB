@@ -32,7 +32,8 @@ export async function POST(req: NextRequest) {
     update: {
       ratePerPersonSharing: body.ratePerPersonSharing ? Number(body.ratePerPersonSharing) : null,
       singleRoomRate:       body.singleRoomRate       ? Number(body.singleRoomRate)       : null,
-      childRate:            body.childRate             ? Number(body.childRate)             : null,
+      childRate:            body.childRate            ? Number(body.childRate)            : null,
+      thirdAdultRate:       body.thirdAdultRate       ? Number(body.thirdAdultRate)       : null, // 👈 New
       currency: body.currency || 'USD',
     },
     create: {
@@ -41,7 +42,8 @@ export async function POST(req: NextRequest) {
       boardBasis:           body.boardBasis,
       ratePerPersonSharing: body.ratePerPersonSharing ? Number(body.ratePerPersonSharing) : null,
       singleRoomRate:       body.singleRoomRate       ? Number(body.singleRoomRate)       : null,
-      childRate:            body.childRate             ? Number(body.childRate)             : null,
+      childRate:            body.childRate            ? Number(body.childRate)            : null,
+      thirdAdultRate:       body.thirdAdultRate       ? Number(body.thirdAdultRate)       : null, // 👈 New
       currency: body.currency || 'USD',
     },
   });

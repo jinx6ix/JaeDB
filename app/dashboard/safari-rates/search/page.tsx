@@ -4,7 +4,8 @@ import Link from 'next/link';
 
 interface Price {
   id: number; boardBasis: string; ratePerPersonSharing: number|null;
-  singleRoomRate: number|null; childRate: number|null; currency: string;
+  singleRoomRate: number|null; childRate: number|null; thirdAdultRate: number|null; // 👈 added
+  currency: string;
   roomType: { name: string; maxOccupancy: number; hotel: { id: number; name: string; stars: number|null; category: string|null; county: { id: number; name: string } } };
   season: { name: string; startDate: string; endDate: string };
 }
@@ -238,7 +239,7 @@ export default function SafariRatesSearchPage() {
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 border-b border-gray-100">
                       <tr>
-                        {['Room Type','Season','Period','Board','Per Person Sharing','Single','Child', nights>0?`${nights}N Total`:''].filter(Boolean).map(h => (
+                        {['Room Type','Season','Period','Board','Per Person Sharing','Single','Child','Third Adult', nights>0?`${nights}N Total`:''].filter(Boolean).map(h => (
                           <th key={h} className="text-left px-4 py-2 font-medium text-gray-600 text-xs">{h}</th>
                         ))}
                       </tr>
@@ -255,7 +256,12 @@ export default function SafariRatesSearchPage() {
                           <td className="px-4 py-2.5 font-mono font-bold text-gray-800">{fmt(p.ratePerPersonSharing,p.currency)}</td>
                           <td className="px-4 py-2.5 font-mono text-gray-600">{fmt(p.singleRoomRate,p.currency)}</td>
                           <td className="px-4 py-2.5 font-mono text-gray-500">{fmt(p.childRate,p.currency)}</td>
-                          {nights>0 && <td className="px-4 py-2.5 font-mono font-bold text-green-700">{p.ratePerPersonSharing?`${p.currency} ${(p.ratePerPersonSharing*nights).toLocaleString()}`:'—'}</td>}
+                          <td className="px-4 py-2.5 font-mono text-gray-500">{fmt(p.thirdAdultRate,p.currency)}</td> {/* 👈 New column */}
+                          {nights>0 && (
+                            <td className="px-4 py-2.5 font-mono font-bold text-green-700">
+                              {p.ratePerPersonSharing ? `${p.currency} ${(p.ratePerPersonSharing*nights).toLocaleString()}` : '—'}
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>

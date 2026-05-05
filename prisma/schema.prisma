@@ -1,5 +1,3 @@
-// prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,60 +8,52 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// ─── AUTH ────────────────────────────────────────────────────────────────────
-
 model User {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   name      String
-  email     String   @unique
+  email     String    @unique
   password  String
-  role      String   @default("EMPLOYEE") // "ADMIN" | "EMPLOYEE"
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  role      String    @default("EMPLOYEE")
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   bookings  Booking[]
   vouchers  Voucher[]
 }
 
-// ─── AGENTS ──────────────────────────────────────────────────────────────────
-
 model Agent {
-  id        String    @id @default(cuid())
-  name      String
-  company   String?
-  email     String?
-  phone     String?
-  address   String?
-  notes     String?
-  isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  clients   Client[]
-  vouchers  Voucher[]
+  id         String      @id @default(cuid())
+  name       String
+  company    String?
+  email      String?
+  phone      String?
+  address    String?
+  notes      String?
+  isActive   Boolean     @default(true)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  clients    Client[]
   costSheets CostSheet[]
+  vouchers   Voucher[]
 }
 
-// ─── CLIENTS ─────────────────────────────────────────────────────────────────
-
 model Client {
-  id          String    @id @default(cuid())
+  id          String      @id @default(cuid())
   name        String
   email       String?
   phone       String?
   nationality String?
-  isResident  Boolean   @default(false)
+  isResident  Boolean     @default(false)
   address     String?
   notes       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
   agentId     String?
-  agent       Agent?    @relation(fields: [agentId], references: [id])
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
   bookings    Booking[]
-  vouchers    Voucher[]
+  agent       Agent?      @relation(fields: [agentId], references: [id])
   costSheets  CostSheet[]
+  vouchers    Voucher[]
 }
-
-// ─── DESTINATIONS ────────────────────────────────────────────────────────────
 
 model Destination {
   id          String    @id @default(cuid())
@@ -74,8 +64,6 @@ model Destination {
   createdAt   DateTime  @default(now())
   tourDays    TourDay[]
 }
-
-// ─── TOUR PACKAGES ───────────────────────────────────────────────────────────
 
 model TourPackage {
   id             String     @id @default(cuid())
@@ -88,17 +76,15 @@ model TourPackage {
   isActive       Boolean    @default(true)
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
-  days           TourDay[]
   bookings       Booking[]
   rateCards      RateCard[]
+  days           TourDay[]
 }
 
 model TourDay {
   id            String       @id @default(cuid())
   tourPackageId String
-  tourPackage   TourPackage  @relation(fields: [tourPackageId], references: [id], onDelete: Cascade)
   destinationId String?
-  destination   Destination? @relation(fields: [destinationId], references: [id])
   dayNumber     Int
   title         String
   description   String?
@@ -106,14 +92,13 @@ model TourDay {
   mealPlan      String?
   activities    String?
   createdAt     DateTime     @default(now())
+  destination   Destination? @relation(fields: [destinationId], references: [id])
+  tourPackage   TourPackage  @relation(fields: [tourPackageId], references: [id], onDelete: Cascade)
 }
-
-// ─── RATE CARDS ──────────────────────────────────────────────────────────────
 
 model RateCard {
   id            String      @id @default(cuid())
   tourPackageId String
-  tourPackage   TourPackage @relation(fields: [tourPackageId], references: [id], onDelete: Cascade)
   season        String      @default("LOW")
   validFrom     DateTime
   validTo       DateTime
@@ -130,9 +115,8 @@ model RateCard {
   notes         String?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+  tourPackage   TourPackage @relation(fields: [tourPackageId], references: [id], onDelete: Cascade)
 }
-
-// ─── PROPERTIES ──────────────────────────────────────────────────────────────
 
 model Property {
   id          String    @id @default(cuid())
@@ -150,8 +134,6 @@ model Property {
   vouchers    Voucher[]
 }
 
-// ─── VEHICLES ────────────────────────────────────────────────────────────────
-
 model Vehicle {
   id          String    @id @default(cuid())
   name        String
@@ -167,17 +149,12 @@ model Vehicle {
   vouchers    Voucher[]
 }
 
-// ─── BOOKINGS ────────────────────────────────────────────────────────────────
-
 model Booking {
   id                  String       @id @default(cuid())
   bookingRef          String       @unique
   clientId            String
-  client              Client       @relation(fields: [clientId], references: [id])
   tourPackageId       String?
-  tourPackage         TourPackage? @relation(fields: [tourPackageId], references: [id])
   assignedToId        String?
-  assignedTo          User?        @relation(fields: [assignedToId], references: [id])
   status              String       @default("ENQUIRY")
   startDate           DateTime
   endDate             DateTime
@@ -191,28 +168,28 @@ model Booking {
   specialRequirements String?
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
-  vouchers            Voucher[]
-  itinerary           Itinerary?
-  invoices            Invoice[]
+  assignedTo          User?        @relation(fields: [assignedToId], references: [id])
+  client              Client       @relation(fields: [clientId], references: [id])
+  tourPackage         TourPackage? @relation(fields: [tourPackageId], references: [id])
   costSheets          CostSheet[]
+  invoices            Invoice[]
+  itinerary           Itinerary?
+  vouchers            Voucher[]
 }
-
-// ─── ITINERARY ───────────────────────────────────────────────────────────────
 
 model Itinerary {
   id        String         @id @default(cuid())
   bookingId String         @unique
-  booking   Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   title     String
-  days      ItineraryDay[]
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
+  booking   Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  days      ItineraryDay[]
 }
 
 model ItineraryDay {
-  id            String             @id @default(cuid())
+  id            String           @id @default(cuid())
   itineraryId   String
-  itinerary     Itinerary          @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
   dayNumber     Int
   date          DateTime?
   destination   String
@@ -220,40 +197,31 @@ model ItineraryDay {
   mealPlan      String?
   activities    String?
   notes         String?
+  createdAt     DateTime         @default(now())
+  itinerary     Itinerary        @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
   images        ItineraryImage[]
-  createdAt     DateTime           @default(now())
 }
 
 model ItineraryImage {
-  id          String       @id @default(cuid())
-  dayId       String?
-  day         ItineraryDay? @relation(fields: [dayId], references: [id], onDelete: Cascade)
-  filename    String
-  mimeType    String
-  data        String       // base64 encoded image data
-  caption     String?
-  createdAt   DateTime     @default(now())
+  id        String        @id @default(cuid())
+  dayId     String?
+  filename  String
+  mimeType  String
+  data      String
+  caption   String?
+  createdAt DateTime      @default(now())
+  day       ItineraryDay? @relation(fields: [dayId], references: [id], onDelete: Cascade)
 }
-
-// ─── VOUCHERS ────────────────────────────────────────────────────────────────
 
 model Voucher {
   id             String    @id @default(cuid())
   voucherNo      String    @unique
   type           String    @default("HOTEL")
   bookingId      String?
-  booking        Booking?  @relation(fields: [bookingId], references: [id])
-  clientId       String?
-  client         Client?   @relation(fields: [clientId], references: [id])
-  agentId        String?
-  agent          Agent?    @relation(fields: [agentId], references: [id])
   propertyId     String?
-  property       Property? @relation(fields: [propertyId], references: [id])
-  hotelName      String?   // free-text hotel name (overrides property.name)
+  hotelName      String?
   vehicleId      String?
-  vehicle        Vehicle?  @relation(fields: [vehicleId], references: [id])
   createdById    String
-  createdBy      User      @relation(fields: [createdById], references: [id])
   roomType       String?
   checkIn        DateTime?
   checkOut       DateTime?
@@ -266,34 +234,38 @@ model Voucher {
   numTriples     Int?
   clientName     String?
   remarks        String?
-  vehicleName    String?   // free-text vehicle name
+  vehicleName    String?
   vehicleType    String?
   pickupDate     DateTime?
   dropoffDate    DateTime?
   pickupLocation String?
   route          String?
   rateKES        Float?
-  // Flight fields
   flightName     String?
   flightSchedule String?
   departureDate  DateTime?
   returnDate     DateTime?
   numDays        Int?
-  bookingStatus  String    @default("book")   // "book"|"amend"|"cancel"
+  bookingStatus  String    @default("book")
   status         String    @default("ACTIVE")
   notes          String?
   issuedDate     DateTime  @default(now())
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+  agentId        String?
+  clientId       String?
+  agent          Agent?    @relation(fields: [agentId], references: [id])
+  booking        Booking?  @relation(fields: [bookingId], references: [id])
+  client         Client?   @relation(fields: [clientId], references: [id])
+  createdBy      User      @relation(fields: [createdById], references: [id])
+  property       Property? @relation(fields: [propertyId], references: [id])
+  vehicle        Vehicle?  @relation(fields: [vehicleId], references: [id])
 }
-
-// ─── INVOICES ────────────────────────────────────────────────────────────────
 
 model Invoice {
   id                  String   @id @default(cuid())
   invoiceNo           String   @unique
   bookingId           String
-  booking             Booking  @relation(fields: [bookingId], references: [id])
   billTo              String
   billToEmail         String?
   billToPhone         String?
@@ -311,90 +283,85 @@ model Invoice {
   status              String   @default("DRAFT")
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+  booking             Booking  @relation(fields: [bookingId], references: [id])
 }
-
-// ─── COST SHEET ──────────────────────────────────────────────────────────────
 
 model CostSheet {
-  id              String   @id @default(cuid())
-  // Links
-  bookingId       String?
-  booking         Booking? @relation(fields: [bookingId], references: [id])
-  clientId        String?
-  client          Client?  @relation(fields: [clientId], references: [id])
-  agentId         String?
-  agent           Agent?   @relation(fields: [agentId], references: [id])
-  // Tour info
-  bookingRef      String?
-  tourTitle       String
-  days            Int
-  numAdults       Int      @default(1)
-  numChildren     Int      @default(0)
-  numPax          Int      // total = adults + children
-  boardBasis      String   @default("FB")
-  currency        String   @default("USD")
-  // Per-day data stored as JSON array
-  dayRows         String   @default("[]")
-  // Extras
-  fileHandlingFee Float    @default(0)
-  ecoBottle       Float    @default(0)
-  evacInsurance   Float    @default(0)
-  arrivalTransfer Float    @default(0)
-  departureTransfer Float  @default(0)
-  flightCostPP    Float    @default(0)
-  extras          String?
-  maasaiVillage   Boolean  @default(false)
-  maasaiCost      Float    @default(0)
-  // Totals
-  subtotal        Float
-  markupPercent   Float    @default(10)
-  markupAmount    Float
-  totalCost       Float
-  perAdultCost    Float
-  perChildCost    Float    @default(0)
-  isOutdated      Boolean   @default(false)   // ← add this line
-  notes           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                String   @id @default(cuid())
+  bookingRef        String?
+  tourTitle         String
+  days              Int
+  numPax            Int
+  extras            String?
+  fileHandlingFee   Float    @default(0)
+  ecoBottle         Float    @default(0)
+  evacInsurance     Float    @default(0)
+  subtotal          Float
+  markupPercent     Float    @default(10)
+  markupAmount      Float
+  totalCost         Float
+  currency          String   @default("USD")
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  agentId           String?
+  arrivalTransfer   Float    @default(0)
+  boardBasis        String   @default("FB")
+  bookingId         String?
+  clientId          String?
+  dayRows           String   @default("[]")
+  departureTransfer Float    @default(0)
+  flightCostPP      Float    @default(0)
+  maasaiCost        Float    @default(0)
+  maasaiVillage     Boolean  @default(false)
+  numAdults         Int      @default(1)
+  numChildren       Int      @default(0)
+  perAdultCost      Float
+  perChildCost      Float    @default(0)
+  isOutdated        Boolean  @default(false)
+  agent             Agent?   @relation(fields: [agentId], references: [id])
+  booking           Booking? @relation(fields: [bookingId], references: [id])
+  client            Client?  @relation(fields: [clientId], references: [id])
 }
 
-// ─── SAFARI RATES (from rates app) ────────────────────────────────────────────
-
 model SRCounty {
-  id        Int        @id @default(autoincrement())
-  name      String     @unique
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
   region    String?
-  createdAt DateTime   @default(now())
+  createdAt DateTime  @default(now())
   hotels    SRHotel[]
+
   @@map("sr_counties")
 }
 
 model SRHotel {
-  id           Int           @id @default(autoincrement())
+  id           Int          @id @default(autoincrement())
   countyId     Int
-  county       SRCounty      @relation(fields: [countyId], references: [id])
   name         String
   stars        Int?
   category     String?
   contactEmail String?
   contactPhone String?
   notes        String?
-  createdAt    DateTime      @default(now())
+  createdAt    DateTime     @default(now())
+  county       SRCounty     @relation(fields: [countyId], references: [id])
   roomTypes    SRRoomType[]
   seasons      SRSeason[]
+
   @@unique([countyId, name])
   @@map("sr_hotels")
 }
 
 model SRRoomType {
-  id           Int          @id @default(autoincrement())
+  id           Int           @id @default(autoincrement())
   hotelId      Int
-  hotel        SRHotel      @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   name         String
   description  String?
-  maxOccupancy Int          @default(2)
-  createdAt    DateTime     @default(now())
+  maxOccupancy Int           @default(2)
+  createdAt    DateTime      @default(now())
   prices       SRRoomPrice[]
+  hotel        SRHotel       @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
   @@unique([hotelId, name])
   @@map("sr_room_types")
 }
@@ -402,28 +369,31 @@ model SRRoomType {
 model SRSeason {
   id        Int           @id @default(autoincrement())
   hotelId   Int
-  hotel     SRHotel       @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   name      String
   startDate DateTime
   endDate   DateTime
   createdAt DateTime      @default(now())
   prices    SRRoomPrice[]
+  hotel     SRHotel       @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
   @@map("sr_seasons")
 }
 
 model SRRoomPrice {
   id                   Int        @id @default(autoincrement())
   roomTypeId           Int
-  roomType             SRRoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
   seasonId             Int
-  season               SRSeason   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
-  boardBasis           String     @default("FB") // RO BB HB FB AI
+  boardBasis           String     @default("FB")
   ratePerPersonSharing Float?
   singleRoomRate       Float?
   childRate            Float?
   currency             String     @default("USD")
   notes                String?
   updatedAt            DateTime   @updatedAt
+  third_adult_rate     Float?
+  roomType             SRRoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
+  season               SRSeason   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
   @@unique([roomTypeId, seasonId, boardBasis])
   @@map("sr_room_prices")
 }
