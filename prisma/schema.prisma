@@ -390,7 +390,7 @@ model SRRoomPrice {
   currency             String     @default("USD")
   notes                String?
   updatedAt            DateTime   @updatedAt
-  third_adult_rate     Float?
+  third_adult_rate     Float?     @map("third_adult_rate")
   roomType             SRRoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
   season               SRSeason   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
 
