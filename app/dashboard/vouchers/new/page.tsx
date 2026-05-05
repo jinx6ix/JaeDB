@@ -1,4 +1,3 @@
-'/dashboard/vouchers/new'
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -69,7 +68,7 @@ export default function NewVoucherPage() {
     if (inDate && outDate) {
       const diff = Math.ceil((new Date(outDate).getTime() - new Date(inDate).getTime()) / 86400000);
       if (diff > 0) setNights(diff);
-      else if (diff === 0) setNights(1); // same day counts as 1 night (optional)
+      else if (diff === 0) setNights(1);
     }
   };
 
@@ -87,7 +86,6 @@ export default function NewVoucherPage() {
     if (checkOutDate) {
       updateNightsFromDates(newIn, checkOutDate);
     } else if (nights > 0) {
-      // If nights already has a value, adjust checkout accordingly
       updateCheckOutFromNights(newIn, nights);
     }
   };
@@ -125,7 +123,7 @@ export default function NewVoucherPage() {
     if (voucherType === 'HOTEL') {
       Object.assign(body, {
         hotelName:   hotelName || fd.get('hotelName'),
-        propertyId:  fd.get('propertyId') || null,
+        // propertyId is NOT sent because we only use the dropdown to auto‑fill hotelName
         roomType:    fd.get('roomType'),
         numAdults:   Number(fd.get('numAdults')),
         numChildren: Number(fd.get('numChildren') || 0),
@@ -272,14 +270,15 @@ export default function NewVoucherPage() {
             </div>
             <div className="col-span-2">
               <label className="label text-xs text-gray-400">
-                Or pick from saved properties (auto-fills name above)
+                Or pick from saved hotels (auto-fills name above)
               </label>
-              <select name="propertyId" className="input text-sm text-gray-500"
+              {/* No "name" attribute – this dropdown does NOT send a propertyId to backend */}
+              <select className="input text-sm text-gray-500"
                 onChange={e => {
                   const p = properties.find(x => x.id === e.target.value);
                   if (p) setHotelName(p.name);
                 }}>
-                <option value="">— Select saved property (optional) —</option>
+                <option value="">— Select saved hotel (optional) —</option>
                 {properties.map(p => <option key={p.id} value={p.id}>{p.name}{p.location ? ` · ${p.location}` : ''}</option>)}
               </select>
             </div>
@@ -314,7 +313,6 @@ export default function NewVoucherPage() {
             <div>
               <label className="label">Number of Nights</label>
               <input
-                name="numNights"
                 type="number"
                 min={1}
                 className="input"

@@ -1,4 +1,3 @@
-// app/api/properties/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -8,10 +7,23 @@ export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const properties = await prisma.property.findMany({ orderBy: { name: 'asc' } });
+  // Fetch from SRHotel with county relation
+  const hotels = await prisma.sRHotel.findMany({
+    include: { county: true },
+    orderBy: { name: 'asc' }
+  });
+
+  // Map to the format the frontend expects: { id, name, location }
+  const properties = hotels.map(h => ({
+    id: String(h.id),
+    name: h.name,
+    location: h.county?.name || null
+  }));
+
   return NextResponse.json(properties);
 }
 
+// POST remains unchanged (creates a Property record, not SRHotel)
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
