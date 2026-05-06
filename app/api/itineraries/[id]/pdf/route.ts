@@ -1,4 +1,3 @@
-// app/api/itineraries/[id]/pdf/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -18,7 +17,19 @@ import {
 // Styles
 // -----------------------------------------------------------------------------
 const S = StyleSheet.create({
-  page: { fontFamily: 'Helvetica', fontSize: 10, backgroundColor: '#ffffff', flexDirection: 'column' },
+  page: {
+    fontFamily: 'Helvetica',
+    fontSize: 10,
+    backgroundColor: '#ffffff',
+    flexDirection: 'column',
+    padding: 0,
+  },
+  // Main container that fills the page and pushes footer down
+  pageContainer: {
+    flex: 1,
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+  },
   header: { backgroundColor: '#1a1a2e', padding: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerLogo: { width: 44, height: 44, backgroundColor: '#f97316', borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   headerLogoTx: { color: '#ffffff', fontSize: 14, fontFamily: 'Helvetica-Bold' },
@@ -41,7 +52,7 @@ const S = StyleSheet.create({
   tCell: { fontSize: 8, color: '#374151', paddingHorizontal: 6 },
   tCellHd: { fontSize: 8, color: '#6b7280', fontFamily: 'Helvetica-Bold', paddingHorizontal: 6 },
   dayBadge: { backgroundColor: '#f97316', color: '#ffffff', fontSize: 7, fontFamily: 'Helvetica-Bold', padding: '2 6', borderRadius: 3 },
-  daySection: { padding: '14 24' },
+  daySection: { padding: '14 24', flex: 1 }, // This grows to fill space
   dayGrid: { flexDirection: 'row', gap: 12 },
   dayMain: { flex: 2 },
   daySide: { flex: 1, gap: 8 },
@@ -86,15 +97,25 @@ function safeParseJson(data: any, fallback: any[] = []) {
   return fallback;
 }
 
-// Ensure we have the base URL for image API
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+function getBase64FromImage(img: any): string | null {
+  if (!img.data) return null;
+  if (Buffer.isBuffer(img.data)) {
+    return img.data.toString('base64');
+  }
+  if (typeof img.data === 'string') {
+    let cleaned = img.data.replace(/\s/g, '');
+    cleaned = cleaned.replace(/^data:image\/\w+;base64,/, '');
+    return cleaned;
+  }
+  return null;
+}
 
 // -----------------------------------------------------------------------------
-// Fixed page height – large enough to never clip
+// Fixed page heights (taller than needed, but footer is now pushed via flex)
 // -----------------------------------------------------------------------------
 const PAGE_WIDTH = 595;
-const COVER_HEIGHT = 1100;         // generous fixed height for cover page
-const DAY_PAGE_HEIGHT = 850;       // enough for 3 rows of images + activities
+const COVER_PAGE_HEIGHT = 1100;
+const DAY_PAGE_HEIGHT = 900;
 
 // -----------------------------------------------------------------------------
 // PDF Component
@@ -112,109 +133,125 @@ function ItineraryPDF({ itinerary, costSheet, imagesByDay }: {
   const totalAmount = costSheet?.total || 0;
 
   // Cover page
-  const coverPage = React.createElement(Page, { size: [PAGE_WIDTH, COVER_HEIGHT], style: S.page, key: 'cover' },
-    React.createElement(View, { style: S.header },
-      React.createElement(View, { style: { flexDirection: 'row', alignItems: 'center', gap: 10 } },
-        React.createElement(View, { style: S.headerLogo }, React.createElement(Text, { style: S.headerLogoTx }, 'JT')),
-        React.createElement(View, null,
-          React.createElement(Text, { style: S.headerTitle }, 'Jae Travel Expeditions'),
-          React.createElement(Text, { style: S.headerSub }, `Proposal Ref: #${b.bookingRef}`),
-        ),
-      ),
-      React.createElement(View, { style: S.headerRight },
-        React.createElement(Text, { style: S.headerDate }, `Issued: ${fmt(new Date())}`),
-      ),
-    ),
-    React.createElement(View, { style: S.hero },
-      React.createElement(Text, { style: S.heroTitle }, itinerary.title),
-      React.createElement(View, { style: S.heroMeta },
-        React.createElement(Text, { style: S.heroMetaTxt }, 'Tour Length: ', React.createElement(Text, { style: S.heroMetaVal }, `${dayCount} Days / ${nightCount} Nights`)),
-        React.createElement(Text, { style: S.heroMetaTxt }, 'Travelers: ', React.createElement(Text, { style: S.heroMetaVal }, `${b.numAdults}x ${b.isResident ? 'Residents' : 'Non-Residents'}`)),
-        React.createElement(Text, { style: S.heroMetaTxt }, 'Start: ', React.createElement(Text, { style: S.heroMetaVal }, fmt(b.startDate))),
-      ),
-    ),
-    React.createElement(View, { style: S.section },
-      React.createElement(Text, { style: [S.body, S.bold] }, `Dear ${b.client.name},`),
-      React.createElement(Text, { style: [S.body, { marginTop: 6 }] }, `Thank you for giving us the opportunity to prepare this custom-made quote for your ${itinerary.title}.`),
-      React.createElement(Text, { style: [S.body, { marginTop: 4 }] }, `Your tour begins in ${b.startDestination || 'Nairobi'} on ${fmt(b.startDate)} and runs for ${dayCount} day${dayCount !== 1 ? 's' : ''} and ${nightCount} night${nightCount !== 1 ? 's' : ''}.`),
-      React.createElement(Text, { style: [S.body, { marginTop: 4 }] }, 'Please let us know if you have any questions, or if you would like any further details.'),
-      React.createElement(Text, { style: [S.body, { marginTop: 6 }] }, 'Best regards,'),
-      React.createElement(Text, { style: [S.body, S.bold] }, 'Jae Travel Expeditions'),
-    ),
-    React.createElement(View, { style: S.section },
-      React.createElement(Text, { style: S.sectionTitle }, 'Day by Day Summary'),
-      React.createElement(View, { style: S.table },
-        React.createElement(View, { style: S.tHead },
-          React.createElement(Text, { style: [S.tCellHd, { width: 50 }] }, 'Day'),
-          React.createElement(Text, { style: [S.tCellHd, { flex: 2 }] }, 'Destination'),
-          React.createElement(Text, { style: [S.tCellHd, { flex: 2 }] }, 'Accommodation'),
-          React.createElement(Text, { style: [S.tCellHd, { flex: 2 }] }, 'Meals'),
-        ),
-        ...itinerary.days.map((day: any) => {
-          const meals = day.mealPlan ? JSON.parse(day.mealPlan) : {};
-          const mealList = [meals.breakfast && 'Breakfast', meals.lunch && 'Lunch', meals.dinner && 'Dinner', meals.note].filter(Boolean).join(' · ');
-          return React.createElement(View, { style: S.tRow, key: day.id },
-            React.createElement(View, { style: { width: 50, paddingHorizontal: 6 } }, React.createElement(Text, { style: S.dayBadge }, `Day ${day.dayNumber}`)),
-            React.createElement(Text, { style: [S.tCell, { flex: 2, fontFamily: 'Helvetica-Bold' }] }, day.destination),
-            React.createElement(Text, { style: [S.tCell, { flex: 2 }] }, day.accommodation || 'No accommodation'),
-            React.createElement(Text, { style: [S.tCell, { flex: 2 }] }, mealList || '—'),
-          );
-        }),
-      ),
-    ),
-    costSheet && React.createElement(View, { style: S.section },
-      React.createElement(Text, { style: S.sectionTitle }, 'Breakdown of Costs'),
-      costItems.length > 0 && React.createElement(View, { style: S.costTable },
-        React.createElement(View, { style: S.tHead },
-          React.createElement(Text, { style: [S.tCellHd, { flex: 2 }] }, 'Item'),
-          React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Qty'),
-          React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Unit Price'),
-          React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Total'),
-        ),
-        ...costItems.map((item: any, idx: number) =>
-          React.createElement(View, { style: S.tRow, key: idx },
-            React.createElement(Text, { style: [S.tCell, { flex: 2 }] }, item.description || item.name),
-            React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right' }] }, item.quantity || ''),
-            React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right' }] }, `$${(item.unitPrice || 0).toFixed(2)}`),
-            React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right', fontFamily: 'Helvetica-Bold' }] }, `$${(item.total || 0).toFixed(2)}`),
+  const coverPage = React.createElement(Page, { size: [PAGE_WIDTH, COVER_PAGE_HEIGHT], style: S.page, key: 'cover' },
+    React.createElement(View, { style: S.pageContainer },
+      React.createElement(View, null,
+        React.createElement(View, { style: S.header },
+          React.createElement(View, { style: { flexDirection: 'row', alignItems: 'center', gap: 10 } },
+            React.createElement(View, { style: S.headerLogo }, React.createElement(Text, { style: S.headerLogoTx }, 'JT')),
+            React.createElement(View, null,
+              React.createElement(Text, { style: S.headerTitle }, 'Jae Travel Expeditions'),
+              React.createElement(Text, { style: S.headerSub }, `Proposal Ref: #${b.bookingRef}`),
+            ),
+          ),
+          React.createElement(View, { style: S.headerRight },
+            React.createElement(Text, { style: S.headerDate }, `Issued: ${fmt(new Date())}`),
           ),
         ),
-        React.createElement(View, { style: [S.tRow, { backgroundColor: '#fef3c7' }] },
-          React.createElement(Text, { style: [S.tCell, { flex: 5, textAlign: 'right', fontFamily: 'Helvetica-Bold' }] }, 'Total in USD'),
-          React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right', fontFamily: 'Helvetica-Bold' }] }, `$${totalAmount.toFixed(2)}`),
+        React.createElement(View, { style: S.hero },
+          React.createElement(Text, { style: S.heroTitle }, itinerary.title),
+          React.createElement(View, { style: S.heroMeta },
+            React.createElement(Text, { style: S.heroMetaTxt }, 'Tour Length: ', React.createElement(Text, { style: S.heroMetaVal }, `${dayCount} Days / ${nightCount} Nights`)),
+            React.createElement(Text, { style: S.heroMetaTxt }, 'Travelers: ', React.createElement(Text, { style: S.heroMetaVal }, `${b.numAdults}x ${b.isResident ? 'Residents' : 'Non-Residents'}`)),
+            React.createElement(Text, { style: S.heroMetaTxt }, 'Start: ', React.createElement(Text, { style: S.heroMetaVal }, fmt(b.startDate))),
+          ),
         ),
-      ),
-      costSheet.paymentInstructions && React.createElement(View, { style: S.paymentBox },
-        React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '💳 Payment Details'),
-        React.createElement(Text, { style: S.sideTxt }, costSheet.paymentInstructions),
-      ),
-      optionalExtras.length > 0 && React.createElement(View, { style: S.optionalTable },
-        React.createElement(Text, { style: S.sectionTitle }, 'Optional (not included)'),
-        React.createElement(View, { style: S.tHead },
-          React.createElement(Text, { style: [S.tCellHd, { flex: 2 }] }, 'Option'),
-          React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Destination'),
-          React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Price'),
+        React.createElement(View, { style: S.section },
+          React.createElement(Text, { style: [S.body, S.bold] }, `Dear ${b.client.name},`),
+          React.createElement(Text, { style: [S.body, { marginTop: 6 }] }, `Thank you for giving us the opportunity to prepare this custom-made quote for your ${itinerary.title}.`),
+          React.createElement(Text, { style: [S.body, { marginTop: 4 }] }, `Your tour begins in ${b.startDestination || 'Nairobi'} on ${fmt(b.startDate)} and runs for ${dayCount} day${dayCount !== 1 ? 's' : ''} and ${nightCount} night${nightCount !== 1 ? 's' : ''}.`),
+          React.createElement(Text, { style: [S.body, { marginTop: 4 }] }, 'Please let us know if you have any questions, or if you would like any further details.'),
+          React.createElement(Text, { style: [S.body, { marginTop: 6 }] }, 'Best regards,'),
+          React.createElement(Text, { style: [S.body, S.bold] }, 'Jae Travel Expeditions'),
         ),
-        ...optionalExtras.map((opt: any, idx: number) =>
-          React.createElement(View, { style: S.tRow, key: idx },
-            React.createElement(Text, { style: [S.tCell, { flex: 2 }] }, opt.name),
-            React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right' }] }, opt.destination || ''),
-            React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right' }] }, `$${(opt.price || 0).toFixed(2)}`),
+        React.createElement(View, { style: S.section },
+          React.createElement(Text, { style: S.sectionTitle }, 'Day by Day Summary'),
+          React.createElement(View, { style: S.table },
+            React.createElement(View, { style: S.tHead },
+              React.createElement(Text, { style: [S.tCellHd, { width: 50 }] }, 'Day'),
+              React.createElement(Text, { style: [S.tCellHd, { flex: 2 }] }, 'Destination'),
+              React.createElement(Text, { style: [S.tCellHd, { flex: 2 }] }, 'Accommodation'),
+              React.createElement(Text, { style: [S.tCellHd, { flex: 2 }] }, 'Meals'),
+            ),
+            ...itinerary.days.map((day: any) => {
+              const meals = day.mealPlan ? JSON.parse(day.mealPlan) : {};
+              const mealList = [meals.breakfast && 'Breakfast', meals.lunch && 'Lunch', meals.dinner && 'Dinner', meals.note].filter(Boolean).join(' · ');
+              return React.createElement(View, { style: S.tRow, key: day.id },
+                React.createElement(View, { style: { width: 50, paddingHorizontal: 6 } }, React.createElement(Text, { style: S.dayBadge }, `Day ${day.dayNumber}`)),
+                React.createElement(Text, { style: [S.tCell, { flex: 2, fontFamily: 'Helvetica-Bold' }] }, day.destination),
+                React.createElement(Text, { style: [S.tCell, { flex: 2 }] }, day.accommodation || ''),
+                React.createElement(Text, { style: [S.tCell, { flex: 2 }] }, mealList || '—'),
+              );
+            }),
+          ),
+        ),
+        costSheet && React.createElement(View, { style: S.section },
+          React.createElement(Text, { style: S.sectionTitle }, 'Breakdown of Costs'),
+          costItems.length > 0 && React.createElement(View, { style: S.costTable },
+            React.createElement(View, { style: S.tHead },
+              React.createElement(Text, { style: [S.tCellHd, { flex: 2 }] }, 'Item'),
+              React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Qty'),
+              React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Unit Price'),
+              React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Total'),
+            ),
+            ...costItems.map((item: any, idx: number) =>
+              React.createElement(View, { style: S.tRow, key: idx },
+                React.createElement(Text, { style: [S.tCell, { flex: 2 }] }, item.description || item.name),
+                React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right' }] }, item.quantity || ''),
+                React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right' }] }, `$${(item.unitPrice || 0).toFixed(2)}`),
+                React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right', fontFamily: 'Helvetica-Bold' }] }, `$${(item.total || 0).toFixed(2)}`),
+              ),
+            ),
+            React.createElement(View, { style: [S.tRow, { backgroundColor: '#fef3c7' }] },
+              React.createElement(Text, { style: [S.tCell, { flex: 5, textAlign: 'right', fontFamily: 'Helvetica-Bold' }] }, 'Total in USD'),
+              React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right', fontFamily: 'Helvetica-Bold' }] }, `$${totalAmount.toFixed(2)}`),
+            ),
+          ),
+          costSheet.paymentInstructions && React.createElement(View, { style: S.paymentBox },
+            React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '💳 Payment Details'),
+            React.createElement(Text, { style: S.sideTxt }, costSheet.paymentInstructions),
+          ),
+          optionalExtras.length > 0 && React.createElement(View, { style: S.optionalTable },
+            React.createElement(Text, { style: S.sectionTitle }, 'Optional (not included)'),
+            React.createElement(View, { style: S.tHead },
+              React.createElement(Text, { style: [S.tCellHd, { flex: 2 }] }, 'Option'),
+              React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Destination'),
+              React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Price'),
+            ),
+            ...optionalExtras.map((opt: any, idx: number) =>
+              React.createElement(View, { style: S.tRow, key: idx },
+                React.createElement(Text, { style: [S.tCell, { flex: 2 }] }, opt.name),
+                React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right' }] }, opt.destination || ''),
+                React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right' }] }, `$${(opt.price || 0).toFixed(2)}`),
+              ),
+            ),
+          ),
+          (costSheet.included || costSheet.excluded) && React.createElement(View, { style: { marginTop: 12 } },
+            costSheet.included && React.createElement(View, null,
+              React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '✓ Included'),
+              React.createElement(Text, { style: S.sideTxt }, costSheet.included),
+            ),
+            costSheet.excluded && React.createElement(View, { style: { marginTop: 8 } },
+              React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '✗ Excluded'),
+              React.createElement(Text, { style: S.sideTxt }, costSheet.excluded),
+            ),
           ),
         ),
       ),
-      (costSheet.included || costSheet.excluded) && React.createElement(View, { style: { marginTop: 12 } },
-        costSheet.included && React.createElement(View, null,
-          React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '✓ Included'),
-          React.createElement(Text, { style: S.sideTxt }, costSheet.included),
+      React.createElement(View, null,
+        React.createElement(View, { style: S.footer },
+          React.createElement(View, { style: S.footerLeft },
+            React.createElement(Text, { style: S.footerBold }, 'Jae Travel Expeditions'),
+            React.createElement(Text, { style: S.footerTxt }, 'jaetravelexpeditions@gmail.com'),
+            React.createElement(Text, { style: S.footerTxt }, 'www.jaetravel.co.ke'),
+          ),
+          React.createElement(View, { style: S.footerRight },
+            React.createElement(Text, { style: S.footerItalic }, '"Live life with no excuses, travel with no regret"'),
+          ),
         ),
-        costSheet.excluded && React.createElement(View, { style: { marginTop: 8 } },
-          React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '✗ Excluded'),
-          React.createElement(Text, { style: S.sideTxt }, costSheet.excluded),
-        ),
+        React.createElement(Text, { style: S.pageNum, render: ({ pageNumber, totalPages }: any) => `${pageNumber} / ${totalPages}` }),
       ),
     ),
-    React.createElement(Text, { style: S.pageNum, render: ({ pageNumber, totalPages }: any) => `${pageNumber} / ${totalPages}` }),
   );
 
   // Day pages
@@ -227,71 +264,74 @@ function ItineraryPDF({ itinerary, costSheet, imagesByDay }: {
       meals.dinner && '→ Dinner',
       meals.note && `→ ${meals.note}`,
     ].filter(Boolean);
-
     const images = imagesByDay[day.id] || [];
-    const hasImages = images.length > 0;
 
     return React.createElement(Page, { size: [PAGE_WIDTH, DAY_PAGE_HEIGHT], style: S.page, key: day.id },
-      React.createElement(View, { style: { backgroundColor: '#1a1a2e', padding: '10 24', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' } },
-        React.createElement(Text, { style: { color: '#ffffff', fontSize: 10, fontFamily: 'Helvetica-Bold' } }, 'Jae Travel Expeditions'),
-        React.createElement(Text, { style: { color: '#9ca3af', fontSize: 8 } }, itinerary.title),
-      ),
-      React.createElement(View, { style: { backgroundColor: '#f97316', padding: '10 24', flexDirection: 'row', alignItems: 'center', gap: 8 } },
-        React.createElement(Text, { style: { backgroundColor: '#fff', color: '#f97316', fontSize: 8, fontFamily: 'Helvetica-Bold', padding: '3 7', borderRadius: 10 } }, `Day ${day.dayNumber}`),
-        React.createElement(Text, { style: { color: '#ffffff', fontSize: 14, fontFamily: 'Helvetica-Bold' } }, day.destination),
-        day.date && React.createElement(Text, { style: { color: '#fed7aa', fontSize: 8, marginLeft: 'auto' } }, fmt(day.date)),
-      ),
-      React.createElement(View, { style: S.daySection },
-        React.createElement(View, { style: S.dayGrid },
-          React.createElement(View, { style: S.dayMain },
-            day.notes && React.createElement(Text, { style: [S.body, { marginBottom: 8 }] }, day.notes),
-            activities.length > 0 && React.createElement(View, { style: S.actBox },
-              React.createElement(Text, { style: S.actTitle }, 'Activities'),
-              ...activities.map((a: any, i: number) =>
-                React.createElement(Text, { key: i, style: S.actItem },
-                  a.time ? React.createElement(Text, { style: S.actTime }, `${a.time}: `) : null,
-                  `→ ${a.description}`,
+      React.createElement(View, { style: S.pageContainer },
+        React.createElement(View, null,
+          React.createElement(View, { style: { backgroundColor: '#1a1a2e', padding: '10 24', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' } },
+            React.createElement(Text, { style: { color: '#ffffff', fontSize: 10, fontFamily: 'Helvetica-Bold' } }, 'Jae Travel Expeditions'),
+            React.createElement(Text, { style: { color: '#9ca3af', fontSize: 8 } }, itinerary.title),
+          ),
+          React.createElement(View, { style: { backgroundColor: '#f97316', padding: '10 24', flexDirection: 'row', alignItems: 'center', gap: 8 } },
+            React.createElement(Text, { style: { backgroundColor: '#fff', color: '#f97316', fontSize: 8, fontFamily: 'Helvetica-Bold', padding: '3 7', borderRadius: 10 } }, `Day ${day.dayNumber}`),
+            React.createElement(Text, { style: { color: '#ffffff', fontSize: 14, fontFamily: 'Helvetica-Bold' } }, day.destination),
+            day.date && React.createElement(Text, { style: { color: '#fed7aa', fontSize: 8, marginLeft: 'auto' } }, fmt(day.date)),
+          ),
+          React.createElement(View, { style: S.daySection },
+            React.createElement(View, { style: S.dayGrid },
+              React.createElement(View, { style: S.dayMain },
+                day.notes && React.createElement(Text, { style: [S.body, { marginBottom: 8 }] }, day.notes),
+                activities.length > 0 && React.createElement(View, { style: S.actBox },
+                  React.createElement(Text, { style: S.actTitle }, 'Activities'),
+                  ...activities.map((a: any, i: number) =>
+                    React.createElement(Text, { key: i, style: S.actItem },
+                      a.time ? React.createElement(Text, { style: S.actTime }, `${a.time}: `) : null,
+                      `→ ${a.description}`,
+                    ),
+                  ),
+                ),
+                images.length > 0 && React.createElement(View, { style: S.imgContainer },
+                  React.createElement(Text, { style: S.imgTitle }, '📷 Gallery'),
+                  React.createElement(View, { style: S.imgRow },
+                    images.map((img: any) => {
+                      const base64 = getBase64FromImage(img);
+                      if (!base64) return null;
+                      return React.createElement(View, { key: img.id, style: S.imgCell },
+                        React.createElement(PDFImage, { src: `data:${img.mimeType};base64,${base64}`, style: S.imgThumb }),
+                        img.caption ? React.createElement(Text, { style: S.imgCaption }, img.caption) : null,
+                      );
+                    }).filter(Boolean),
+                  ),
                 ),
               ),
-            ),
-            hasImages && React.createElement(View, { style: S.imgContainer },
-              React.createElement(Text, { style: S.imgTitle }, '📷 Gallery'),
-              React.createElement(View, { style: S.imgRow },
-                images.map((img: any) =>
-                  React.createElement(View, { key: img.id, style: S.imgCell },
-                    React.createElement(PDFImage, {
-                      src: `${BASE_URL}/api/images/${img.id}`,
-                      style: S.imgThumb,
-                    }),
-                    img.caption ? React.createElement(Text, { style: S.imgCaption }, img.caption) : null,
-                  )
+              React.createElement(View, { style: S.daySide },
+                day.accommodation && React.createElement(View, { style: S.sideCard },
+                  React.createElement(Text, { style: S.sideLabel }, '🏕 Accommodation'),
+                  React.createElement(Text, { style: S.sideTxt }, day.accommodation),
+                ),
+                mealItems.length > 0 && React.createElement(View, { style: S.sideCard },
+                  React.createElement(Text, { style: S.sideLabel }, '🍽 Meals'),
+                  ...mealItems.map((m, i) => React.createElement(Text, { key: i, style: S.sideTxt }, m)),
                 ),
               ),
             ),
           ),
-          React.createElement(View, { style: S.daySide },
-            day.accommodation && React.createElement(View, { style: S.sideCard },
-              React.createElement(Text, { style: S.sideLabel }, '🏕 Accommodation'),
-              React.createElement(Text, { style: S.sideTxt }, day.accommodation),
+        ),
+        React.createElement(View, null,
+          React.createElement(View, { style: S.footer },
+            React.createElement(View, { style: S.footerLeft },
+              React.createElement(Text, { style: S.footerBold }, 'Jae Travel Expeditions'),
+              React.createElement(Text, { style: S.footerTxt }, 'jaetravelexpeditions@gmail.com'),
+              React.createElement(Text, { style: S.footerTxt }, 'www.jaetravel.co.ke'),
             ),
-            mealItems.length > 0 && React.createElement(View, { style: S.sideCard },
-              React.createElement(Text, { style: S.sideLabel }, '🍽 Meals'),
-              ...mealItems.map((m, i) => React.createElement(Text, { key: i, style: S.sideTxt }, m)),
+            React.createElement(View, { style: S.footerRight },
+              React.createElement(Text, { style: S.footerItalic }, '"Live life with no excuses, travel with no regret"'),
             ),
           ),
+          React.createElement(Text, { style: S.pageNum, render: ({ pageNumber, totalPages }: any) => `${pageNumber} / ${totalPages}` }),
         ),
       ),
-      React.createElement(View, { style: S.footer },
-        React.createElement(View, { style: S.footerLeft },
-          React.createElement(Text, { style: S.footerBold }, 'Jae Travel Expeditions'),
-          React.createElement(Text, { style: S.footerTxt }, 'jaetravelexpeditions@gmail.com'),
-          React.createElement(Text, { style: S.footerTxt }, 'www.jaetravel.co.ke'),
-        ),
-        React.createElement(View, { style: S.footerRight },
-          React.createElement(Text, { style: S.footerItalic }, '"Live life with no excuses, travel with no regret"'),
-        ),
-      ),
-      React.createElement(Text, { style: S.pageNum, render: ({ pageNumber, totalPages }: any) => `${pageNumber} / ${totalPages}` }),
     );
   });
 
@@ -303,11 +343,8 @@ function ItineraryPDF({ itinerary, costSheet, imagesByDay }: {
 // -----------------------------------------------------------------------------
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
-  if (!session) {
-    return new NextResponse('Unauthorized', { status: 401 });
-  }
+  if (!session) return new NextResponse('Unauthorized', { status: 401 });
 
-  // Fetch itinerary and its days
   const itinerary = await prisma.itinerary.findUnique({
     where: { id: params.id },
     include: {
@@ -316,23 +353,19 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     },
   });
 
-  if (!itinerary) {
-    return new NextResponse('Not found', { status: 404 });
-  }
+  if (!itinerary) return new NextResponse('Not found', { status: 404 });
 
-  // Fetch images for each day
   const imagesByDay: Record<string, any[]> = {};
   for (const day of itinerary.days) {
     const imgs = await prisma.itineraryImage.findMany({
       where: { dayId: day.id },
-      select: { id: true, filename: true, mimeType: true, caption: true },
+      select: { id: true, filename: true, mimeType: true, data: true, caption: true },
       orderBy: { createdAt: 'asc' },
     });
     imagesByDay[day.id] = imgs;
-    console.log(`[PDF] Day ${day.dayNumber} (${day.destination}): ${imgs.length} images`);
+    console.log(`[PDF] Day ${day.dayNumber}: ${imgs.length} images`);
   }
 
-  // Fetch cost sheet
   const costSheet = await prisma.costSheet.findFirst({
     where: { bookingId: itinerary.booking.id },
   });
