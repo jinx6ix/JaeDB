@@ -22,7 +22,6 @@ const S = StyleSheet.create({
     fontFamily: 'Helvetica',
     fontSize: 10,
     backgroundColor: '#ffffff',
-    display: 'flex',
     flexDirection: 'column',
   },
   header: {
@@ -107,8 +106,8 @@ const S = StyleSheet.create({
   imgCell: { width: '30%', marginBottom: 8 },
   imgThumb: { width: '100%', height: 'auto', minHeight: 80, objectFit: 'cover', borderRadius: 4 },
   imgCaption: { fontSize: 7, color: '#6b7280', textAlign: 'center', marginTop: 2 },
+  // Footer: no marginTop: 'auto' — sits directly after content
   footer: {
-    marginTop: 'auto',
     backgroundColor: '#f9fafb',
     padding: '14 24',
     flexDirection: 'row',
@@ -119,7 +118,8 @@ const S = StyleSheet.create({
   footerTxt: { fontSize: 8, color: '#6b7280' },
   footerBold: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#374151' },
   footerItalic: { fontSize: 8, color: '#9ca3af' },
-  pageNum: { textAlign: 'right', paddingRight: 24, paddingBottom: 10, fontSize: 8, color: '#9ca3af' },
+  // Page number: no bottom padding gap
+  pageNum: { paddingHorizontal: 24, paddingBottom: 6, fontSize: 8, color: '#9ca3af', textAlign: 'right' },
   costTable: { marginTop: 12 },
   optionalTable: { marginTop: 12 },
   paymentBox: {
@@ -142,7 +142,6 @@ function fmt(date: string | Date) {
   });
 }
 
-// Safe JSON parse helper
 function safeParseJson(data: any, fallback: any[] = []) {
   if (!data) return fallback;
   if (Array.isArray(data)) return data;
@@ -164,7 +163,6 @@ function ItineraryPDF({ itinerary, costSheet }: { itinerary: any; costSheet: any
   const dayCount = itinerary.days.length;
   const nightCount = Math.max(0, dayCount - 1);
 
-  // Prepare cost sheet data
   const costItems = safeParseJson(costSheet?.items || costSheet?.lineItems);
   const optionalExtras = safeParseJson(costSheet?.optionalExtras || costSheet?.options);
   const totalAmount = costSheet?.total || 0;
@@ -273,7 +271,12 @@ function ItineraryPDF({ itinerary, costSheet }: { itinerary: any; costSheet: any
         ),
         ...itinerary.days.map((day: any) => {
           const meals = day.mealPlan ? JSON.parse(day.mealPlan) : {};
-          const mealList = [meals.breakfast && 'Breakfast', meals.lunch && 'Lunch', meals.dinner && 'Dinner', meals.note]
+          const mealList = [
+            meals.breakfast && 'Breakfast',
+            meals.lunch && 'Lunch',
+            meals.dinner && 'Dinner',
+            meals.note,
+          ]
             .filter(Boolean)
             .join(' · ');
           return React.createElement(
@@ -291,13 +294,12 @@ function ItineraryPDF({ itinerary, costSheet }: { itinerary: any; costSheet: any
         }),
       ),
     ),
-    // Cost Breakdown (only if costSheet exists)
+    // Cost Breakdown
     costSheet &&
       React.createElement(
         View,
         { style: S.section },
         React.createElement(Text, { style: S.sectionTitle }, 'Breakdown of Costs'),
-        // Main items table
         costItems.length > 0 &&
           React.createElement(
             View,
@@ -343,7 +345,6 @@ function ItineraryPDF({ itinerary, costSheet }: { itinerary: any; costSheet: any
               ),
             ),
           ),
-        // Payment details
         costSheet.paymentInstructions &&
           React.createElement(
             View,
@@ -351,7 +352,6 @@ function ItineraryPDF({ itinerary, costSheet }: { itinerary: any; costSheet: any
             React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '💳 Payment Details'),
             React.createElement(Text, { style: S.sideTxt }, costSheet.paymentInstructions),
           ),
-        // Optional extras
         optionalExtras.length > 0 &&
           React.createElement(
             View,
@@ -378,7 +378,6 @@ function ItineraryPDF({ itinerary, costSheet }: { itinerary: any; costSheet: any
               ),
             ),
           ),
-        // Included / Excluded free text
         (costSheet.included || costSheet.excluded) &&
           React.createElement(
             View,
@@ -399,7 +398,7 @@ function ItineraryPDF({ itinerary, costSheet }: { itinerary: any; costSheet: any
               ),
           ),
       ),
-    // Page number
+    // Page number — immediately after content, no spacer
     React.createElement(Text, {
       style: S.pageNum,
       render: ({ pageNumber, totalPages }: any) => `${pageNumber} / ${totalPages}`,
@@ -407,7 +406,7 @@ function ItineraryPDF({ itinerary, costSheet }: { itinerary: any; costSheet: any
   );
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Day Pages (detailed)
+  // Day Pages (detailed) — no image limit, footer sits directly after content
   // ─────────────────────────────────────────────────────────────────────────
   const dayPages = itinerary.days.map((day: any) => {
     const meals = day.mealPlan ? JSON.parse(day.mealPlan) : {};
@@ -418,6 +417,7 @@ function ItineraryPDF({ itinerary, costSheet }: { itinerary: any; costSheet: any
       meals.dinner && '→ Dinner',
       meals.note && `→ ${meals.note}`,
     ].filter(Boolean);
+    // All images — no slice, no limit
     const images = day.images || [];
 
     return React.createElement(
@@ -460,9 +460,17 @@ function ItineraryPDF({ itinerary, costSheet }: { itinerary: any; costSheet: any
           },
           `Day ${day.dayNumber}`,
         ),
-        React.createElement(Text, { style: { color: '#ffffff', fontSize: 14, fontFamily: 'Helvetica-Bold' } }, day.destination),
+        React.createElement(
+          Text,
+          { style: { color: '#ffffff', fontSize: 14, fontFamily: 'Helvetica-Bold' } },
+          day.destination,
+        ),
         day.date &&
-          React.createElement(Text, { style: { color: '#fed7aa', fontSize: 8, marginLeft: 'auto' } }, fmt(day.date)),
+          React.createElement(
+            Text,
+            { style: { color: '#fed7aa', fontSize: 8, marginLeft: 'auto' } },
+            fmt(day.date),
+          ),
       ),
       // Main content
       React.createElement(
@@ -490,7 +498,7 @@ function ItineraryPDF({ itinerary, costSheet }: { itinerary: any; costSheet: any
                   ),
                 ),
               ),
-            // ALL images (no slice)
+            // All images — no limit
             images.length > 0 &&
               React.createElement(
                 View,
@@ -534,7 +542,7 @@ function ItineraryPDF({ itinerary, costSheet }: { itinerary: any; costSheet: any
           ),
         ),
       ),
-      // Footer (non-absolute, pushed to bottom by marginTop: 'auto')
+      // Footer sits directly after content — no marginTop: 'auto' gap
       React.createElement(
         View,
         { style: S.footer },
@@ -548,9 +556,14 @@ function ItineraryPDF({ itinerary, costSheet }: { itinerary: any; costSheet: any
         React.createElement(
           View,
           { style: S.footerRight },
-          React.createElement(Text, { style: S.footerItalic }, '"Live life with no excuses, travel with no regret"'),
+          React.createElement(
+            Text,
+            { style: S.footerItalic },
+            '"Live life with no excuses, travel with no regret"',
+          ),
         ),
       ),
+      // Page number immediately after footer
       React.createElement(Text, {
         style: S.pageNum,
         render: ({ pageNumber, totalPages }: any) => `${pageNumber} / ${totalPages}`,
@@ -585,18 +598,18 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     return new NextResponse('Not found', { status: 404 });
   }
 
-  // Fetch the cost sheet linked to the same booking
   const costSheet = await prisma.costSheet.findFirst({
     where: { bookingId: itinerary.booking.id },
   });
 
-  // Optional: log to debug – remove in production
   if (process.env.NODE_ENV === 'development') {
     console.log('PDF costSheet:', JSON.stringify(costSheet, null, 2));
   }
 
   try {
-    const buffer = await renderToBuffer(React.createElement(ItineraryPDF, { itinerary, costSheet }) as any);
+    const buffer = await renderToBuffer(
+      React.createElement(ItineraryPDF, { itinerary, costSheet }) as any,
+    );
     const filename = `${itinerary.title.replace(/[^a-zA-Z0-9]/g, '_')}_itinerary.pdf`;
 
     return new NextResponse(buffer as any, {
