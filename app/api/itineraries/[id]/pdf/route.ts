@@ -106,7 +106,6 @@ const S = StyleSheet.create({
   imgCell: { width: '30%', marginBottom: 8 },
   imgThumb: { width: '100%', height: 'auto', minHeight: 80, objectFit: 'cover', borderRadius: 4 },
   imgCaption: { fontSize: 7, color: '#6b7280', textAlign: 'center', marginTop: 2 },
-  // Footer: no marginTop: 'auto' — sits directly after content
   footer: {
     backgroundColor: '#f9fafb',
     padding: '14 24',
@@ -118,8 +117,14 @@ const S = StyleSheet.create({
   footerTxt: { fontSize: 8, color: '#6b7280' },
   footerBold: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#374151' },
   footerItalic: { fontSize: 8, color: '#9ca3af' },
-  // Page number: no bottom padding gap
-  pageNum: { paddingHorizontal: 24, paddingBottom: 6, fontSize: 8, color: '#9ca3af', textAlign: 'right' },
+  pageNum: {
+    paddingHorizontal: 24,
+    paddingBottom: 8,
+    paddingTop: 4,
+    fontSize: 8,
+    color: '#9ca3af',
+    textAlign: 'right',
+  },
   costTable: { marginTop: 12 },
   optionalTable: { marginTop: 12 },
   paymentBox: {
@@ -146,13 +151,77 @@ function safeParseJson(data: any, fallback: any[] = []) {
   if (!data) return fallback;
   if (Array.isArray(data)) return data;
   if (typeof data === 'string') {
-    try {
-      return JSON.parse(data);
-    } catch {
-      return fallback;
-    }
+    try { return JSON.parse(data); } catch { return fallback; }
   }
   return fallback;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Dynamic page height estimator (all values in PDF points, A4 width = 595pt)
+// This ensures each day page is exactly as tall as its content — no blank gap.
+// ─────────────────────────────────────────────────────────────────────────
+const PX = {
+  miniHeader: 36,
+  dayHero: 40,
+  sectionPadV: 28,        // 14 top + 14 bottom padding
+  notesLineHeight: 14,    // approx per line
+  actBoxBase: 36,         // box title + padding overhead
+  actItemH: 12,           // per activity item
+  imgContainerMarginTop: 12,
+  imgTitleH: 20,
+  imgRowH: 108,           // image row (thumb ~80 + caption + gap)
+  sideCardBase: 38,       // label + 1 line + card padding
+  sideCardLineH: 10,      // each extra line in a card
+  footerH: 58,
+  pageNumH: 24,
+  buffer: 32,             // safety buffer so nothing clips
+};
+
+function estimateDayPageHeight(day: any): number {
+  const meals = day.mealPlan ? JSON.parse(day.mealPlan) : {};
+  const activities: any[] = day.activities ? JSON.parse(day.activities) : [];
+  const images: any[] = day.images || [];
+
+  // ── Left column ──
+  let leftH = 0;
+
+  if (day.notes) {
+    const lines = Math.ceil(day.notes.length / 80) + 1;
+    leftH += lines * PX.notesLineHeight + 8;
+  }
+
+  if (activities.length > 0) {
+    leftH += PX.actBoxBase + activities.length * PX.actItemH + 12;
+  }
+
+  if (images.length > 0) {
+    const rows = Math.ceil(images.length / 3);
+    leftH += PX.imgContainerMarginTop + PX.imgTitleH + rows * PX.imgRowH;
+  }
+
+  // ── Right column ──
+  let rightH = 0;
+
+  if (day.accommodation) {
+    rightH += PX.sideCardBase + 8;
+  }
+
+  const mealCount = [meals.breakfast, meals.lunch, meals.dinner, meals.note].filter(Boolean).length;
+  if (mealCount > 0) {
+    rightH += PX.sideCardBase + (mealCount - 1) * PX.sideCardLineH + 8;
+  }
+
+  const contentH = Math.max(leftH, rightH);
+
+  return (
+    PX.miniHeader +
+    PX.dayHero +
+    PX.sectionPadV +
+    contentH +
+    PX.footerH +
+    PX.pageNumH +
+    PX.buffer
+  );
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -168,102 +237,70 @@ function ItineraryPDF({ itinerary, costSheet }: { itinerary: any; costSheet: any
   const totalAmount = costSheet?.total || 0;
 
   // ─────────────────────────────────────────────────────────────────────────
-  // First Page: Cover + Summary + Cost Breakdown
+  // First Page — standard A4, content wraps naturally across multiple A4 pages
   // ─────────────────────────────────────────────────────────────────────────
   const firstPage = React.createElement(
     Page,
     { size: 'A4', style: S.page, key: 'cover' },
+
     // Header
-    React.createElement(
-      View,
-      { style: S.header },
-      React.createElement(
-        View,
-        { style: { flexDirection: 'row', alignItems: 'center', gap: 10 } },
-        React.createElement(
-          View,
-          { style: S.headerLogo },
+    React.createElement(View, { style: S.header },
+      React.createElement(View, { style: { flexDirection: 'row', alignItems: 'center', gap: 10 } },
+        React.createElement(View, { style: S.headerLogo },
           React.createElement(Text, { style: S.headerLogoTx }, 'JT'),
         ),
-        React.createElement(
-          View,
-          null,
+        React.createElement(View, null,
           React.createElement(Text, { style: S.headerTitle }, 'Jae Travel Expeditions'),
           React.createElement(Text, { style: S.headerSub }, `Proposal Ref: #${b.bookingRef}`),
         ),
       ),
-      React.createElement(
-        View,
-        { style: S.headerRight },
+      React.createElement(View, { style: S.headerRight },
         React.createElement(Text, { style: S.headerDate }, `Issued: ${fmt(new Date())}`),
       ),
     ),
-    // Hero bar
-    React.createElement(
-      View,
-      { style: S.hero },
+
+    // Hero
+    React.createElement(View, { style: S.hero },
       React.createElement(Text, { style: S.heroTitle }, itinerary.title),
-      React.createElement(
-        View,
-        { style: S.heroMeta },
-        React.createElement(
-          Text,
-          { style: S.heroMetaTxt },
+      React.createElement(View, { style: S.heroMeta },
+        React.createElement(Text, { style: S.heroMetaTxt },
           'Tour Length: ',
           React.createElement(Text, { style: S.heroMetaVal }, `${dayCount} Days / ${nightCount} Nights`),
         ),
-        React.createElement(
-          Text,
-          { style: S.heroMetaTxt },
+        React.createElement(Text, { style: S.heroMetaTxt },
           'Travelers: ',
-          React.createElement(
-            Text,
-            { style: S.heroMetaVal },
+          React.createElement(Text, { style: S.heroMetaVal },
             `${b.numAdults}x ${b.isResident ? 'Residents' : 'Non-Residents'}`,
           ),
         ),
-        React.createElement(
-          Text,
-          { style: S.heroMetaTxt },
+        React.createElement(Text, { style: S.heroMetaTxt },
           'Start: ',
           React.createElement(Text, { style: S.heroMetaVal }, fmt(b.startDate)),
         ),
       ),
     ),
+
     // Cover letter
-    React.createElement(
-      View,
-      { style: S.section },
+    React.createElement(View, { style: S.section },
       React.createElement(Text, { style: [S.body, S.bold] }, `Dear ${b.client.name},`),
-      React.createElement(
-        Text,
-        { style: [S.body, { marginTop: 6 }] },
+      React.createElement(Text, { style: [S.body, { marginTop: 6 }] },
         `Thank you for giving us the opportunity to prepare this custom-made quote for your ${itinerary.title}.`,
       ),
-      React.createElement(
-        Text,
-        { style: [S.body, { marginTop: 4 }] },
+      React.createElement(Text, { style: [S.body, { marginTop: 4 }] },
         `Your tour begins in ${b.startDestination || 'Nairobi'} on ${fmt(b.startDate)} and runs for ${dayCount} day${dayCount !== 1 ? 's' : ''} and ${nightCount} night${nightCount !== 1 ? 's' : ''}.`,
       ),
-      React.createElement(
-        Text,
-        { style: [S.body, { marginTop: 4 }] },
+      React.createElement(Text, { style: [S.body, { marginTop: 4 }] },
         'Please let us know if you have any questions, or if you would like any further details.',
       ),
       React.createElement(Text, { style: [S.body, { marginTop: 6 }] }, 'Best regards,'),
       React.createElement(Text, { style: [S.body, S.bold] }, 'Jae Travel Expeditions'),
     ),
-    // Day by Day Summary Table
-    React.createElement(
-      View,
-      { style: S.section },
+
+    // Day by Day Summary
+    React.createElement(View, { style: S.section },
       React.createElement(Text, { style: S.sectionTitle }, 'Day by Day Summary'),
-      React.createElement(
-        View,
-        { style: S.table },
-        React.createElement(
-          View,
-          { style: S.tHead },
+      React.createElement(View, { style: S.table },
+        React.createElement(View, { style: S.tHead },
           React.createElement(Text, { style: [S.tCellHd, { width: 50 }] }, 'Day'),
           React.createElement(Text, { style: [S.tCellHd, { flex: 2 }] }, 'Destination'),
           React.createElement(Text, { style: [S.tCellHd, { flex: 2 }] }, 'Accommodation'),
@@ -276,15 +313,9 @@ function ItineraryPDF({ itinerary, costSheet }: { itinerary: any; costSheet: any
             meals.lunch && 'Lunch',
             meals.dinner && 'Dinner',
             meals.note,
-          ]
-            .filter(Boolean)
-            .join(' · ');
-          return React.createElement(
-            View,
-            { style: S.tRow, key: day.id },
-            React.createElement(
-              View,
-              { style: { width: 50, paddingHorizontal: 6 } },
+          ].filter(Boolean).join(' · ');
+          return React.createElement(View, { style: S.tRow, key: day.id },
+            React.createElement(View, { style: { width: 50, paddingHorizontal: 6 } },
               React.createElement(Text, { style: S.dayBadge }, `Day ${day.dayNumber}`),
             ),
             React.createElement(Text, { style: [S.tCell, { flex: 2, fontFamily: 'Helvetica-Bold' }] }, day.destination),
@@ -294,111 +325,61 @@ function ItineraryPDF({ itinerary, costSheet }: { itinerary: any; costSheet: any
         }),
       ),
     ),
+
     // Cost Breakdown
-    costSheet &&
-      React.createElement(
-        View,
-        { style: S.section },
-        React.createElement(Text, { style: S.sectionTitle }, 'Breakdown of Costs'),
-        costItems.length > 0 &&
-          React.createElement(
-            View,
-            { style: S.costTable },
-            React.createElement(
-              View,
-              { style: S.tHead },
-              React.createElement(Text, { style: [S.tCellHd, { flex: 2 }] }, 'Item'),
-              React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Qty'),
-              React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Unit Price'),
-              React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Total'),
-            ),
-            ...costItems.map((item: any, idx: number) =>
-              React.createElement(
-                View,
-                { style: S.tRow, key: idx },
-                React.createElement(Text, { style: [S.tCell, { flex: 2 }] }, item.description || item.name),
-                React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right' }] }, item.quantity || ''),
-                React.createElement(
-                  Text,
-                  { style: [S.tCell, { flex: 1, textAlign: 'right' }] },
-                  `$${(item.unitPrice || 0).toFixed(2)}`,
-                ),
-                React.createElement(
-                  Text,
-                  { style: [S.tCell, { flex: 1, textAlign: 'right', fontFamily: 'Helvetica-Bold' }] },
-                  `$${(item.total || 0).toFixed(2)}`,
-                ),
-              ),
-            ),
-            React.createElement(
-              View,
-              { style: [S.tRow, { backgroundColor: '#fef3c7' }] },
-              React.createElement(
-                Text,
-                { style: [S.tCell, { flex: 5, textAlign: 'right', fontFamily: 'Helvetica-Bold' }] },
-                'Total in USD',
-              ),
-              React.createElement(
-                Text,
-                { style: [S.tCell, { flex: 1, textAlign: 'right', fontFamily: 'Helvetica-Bold' }] },
-                `$${totalAmount.toFixed(2)}`,
-              ),
-            ),
+    costSheet && React.createElement(View, { style: S.section },
+      React.createElement(Text, { style: S.sectionTitle }, 'Breakdown of Costs'),
+      costItems.length > 0 && React.createElement(View, { style: S.costTable },
+        React.createElement(View, { style: S.tHead },
+          React.createElement(Text, { style: [S.tCellHd, { flex: 2 }] }, 'Item'),
+          React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Qty'),
+          React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Unit Price'),
+          React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Total'),
+        ),
+        ...costItems.map((item: any, idx: number) =>
+          React.createElement(View, { style: S.tRow, key: idx },
+            React.createElement(Text, { style: [S.tCell, { flex: 2 }] }, item.description || item.name),
+            React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right' }] }, item.quantity || ''),
+            React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right' }] }, `$${(item.unitPrice || 0).toFixed(2)}`),
+            React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right', fontFamily: 'Helvetica-Bold' }] }, `$${(item.total || 0).toFixed(2)}`),
           ),
-        costSheet.paymentInstructions &&
-          React.createElement(
-            View,
-            { style: S.paymentBox },
-            React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '💳 Payment Details'),
-            React.createElement(Text, { style: S.sideTxt }, costSheet.paymentInstructions),
-          ),
-        optionalExtras.length > 0 &&
-          React.createElement(
-            View,
-            { style: S.optionalTable },
-            React.createElement(Text, { style: S.sectionTitle }, 'Optional (not included)'),
-            React.createElement(
-              View,
-              { style: S.tHead },
-              React.createElement(Text, { style: [S.tCellHd, { flex: 2 }] }, 'Option'),
-              React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Destination'),
-              React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Price'),
-            ),
-            ...optionalExtras.map((opt: any, idx: number) =>
-              React.createElement(
-                View,
-                { style: S.tRow, key: idx },
-                React.createElement(Text, { style: [S.tCell, { flex: 2 }] }, opt.name),
-                React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right' }] }, opt.destination || ''),
-                React.createElement(
-                  Text,
-                  { style: [S.tCell, { flex: 1, textAlign: 'right' }] },
-                  `$${(opt.price || 0).toFixed(2)}`,
-                ),
-              ),
-            ),
-          ),
-        (costSheet.included || costSheet.excluded) &&
-          React.createElement(
-            View,
-            { style: { marginTop: 12 } },
-            costSheet.included &&
-              React.createElement(
-                View,
-                null,
-                React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '✓ Included'),
-                React.createElement(Text, { style: S.sideTxt }, costSheet.included),
-              ),
-            costSheet.excluded &&
-              React.createElement(
-                View,
-                { style: { marginTop: 8 } },
-                React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '✗ Excluded'),
-                React.createElement(Text, { style: S.sideTxt }, costSheet.excluded),
-              ),
-          ),
+        ),
+        React.createElement(View, { style: [S.tRow, { backgroundColor: '#fef3c7' }] },
+          React.createElement(Text, { style: [S.tCell, { flex: 5, textAlign: 'right', fontFamily: 'Helvetica-Bold' }] }, 'Total in USD'),
+          React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right', fontFamily: 'Helvetica-Bold' }] }, `$${totalAmount.toFixed(2)}`),
+        ),
       ),
-    // Page number — immediately after content, no spacer
+      costSheet.paymentInstructions && React.createElement(View, { style: S.paymentBox },
+        React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '💳 Payment Details'),
+        React.createElement(Text, { style: S.sideTxt }, costSheet.paymentInstructions),
+      ),
+      optionalExtras.length > 0 && React.createElement(View, { style: S.optionalTable },
+        React.createElement(Text, { style: S.sectionTitle }, 'Optional (not included)'),
+        React.createElement(View, { style: S.tHead },
+          React.createElement(Text, { style: [S.tCellHd, { flex: 2 }] }, 'Option'),
+          React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Destination'),
+          React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Price'),
+        ),
+        ...optionalExtras.map((opt: any, idx: number) =>
+          React.createElement(View, { style: S.tRow, key: idx },
+            React.createElement(Text, { style: [S.tCell, { flex: 2 }] }, opt.name),
+            React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right' }] }, opt.destination || ''),
+            React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right' }] }, `$${(opt.price || 0).toFixed(2)}`),
+          ),
+        ),
+      ),
+      (costSheet.included || costSheet.excluded) && React.createElement(View, { style: { marginTop: 12 } },
+        costSheet.included && React.createElement(View, null,
+          React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '✓ Included'),
+          React.createElement(Text, { style: S.sideTxt }, costSheet.included),
+        ),
+        costSheet.excluded && React.createElement(View, { style: { marginTop: 8 } },
+          React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '✗ Excluded'),
+          React.createElement(Text, { style: S.sideTxt }, costSheet.excluded),
+        ),
+      ),
+    ),
+
     React.createElement(Text, {
       style: S.pageNum,
       render: ({ pageNumber, totalPages }: any) => `${pageNumber} / ${totalPages}`,
@@ -406,164 +387,118 @@ function ItineraryPDF({ itinerary, costSheet }: { itinerary: any; costSheet: any
   );
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Day Pages (detailed) — no image limit, footer sits directly after content
+  // Day Pages — each uses a dynamically calculated height so no blank gap
   // ─────────────────────────────────────────────────────────────────────────
   const dayPages = itinerary.days.map((day: any) => {
     const meals = day.mealPlan ? JSON.parse(day.mealPlan) : {};
-    const activities = day.activities ? JSON.parse(day.activities) : [];
+    const activities: any[] = day.activities ? JSON.parse(day.activities) : [];
     const mealItems = [
       meals.breakfast && '→ Breakfast',
       meals.lunch && '→ Lunch',
       meals.dinner && '→ Dinner',
       meals.note && `→ ${meals.note}`,
     ].filter(Boolean);
-    // All images — no slice, no limit
-    const images = day.images || [];
+    const images: any[] = day.images || []; // all images, no limit
+
+    // Dynamic page height: A4 width (595pt) × computed height
+    const pageHeight = estimateDayPageHeight(day);
 
     return React.createElement(
       Page,
-      { size: 'A4', style: S.page, key: day.id },
+      { size: [595, pageHeight], style: S.page, key: day.id },
+
       // Mini header
-      React.createElement(
-        View,
-        {
-          style: {
-            backgroundColor: '#1a1a2e',
-            padding: '10 24',
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          },
+      React.createElement(View, {
+        style: {
+          backgroundColor: '#1a1a2e',
+          padding: '10 24',
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
         },
-        React.createElement(
-          Text,
-          { style: { color: '#ffffff', fontSize: 10, fontFamily: 'Helvetica-Bold' } },
+      },
+        React.createElement(Text, { style: { color: '#ffffff', fontSize: 10, fontFamily: 'Helvetica-Bold' } },
           'Jae Travel Expeditions',
         ),
         React.createElement(Text, { style: { color: '#9ca3af', fontSize: 8 } }, itinerary.title),
       ),
+
       // Day hero
-      React.createElement(
-        View,
-        { style: { backgroundColor: '#f97316', padding: '10 24', flexDirection: 'row', alignItems: 'center', gap: 8 } },
-        React.createElement(
-          Text,
-          {
-            style: {
-              backgroundColor: '#fff',
-              color: '#f97316',
-              fontSize: 8,
-              fontFamily: 'Helvetica-Bold',
-              padding: '3 7',
-              borderRadius: 10,
-            },
+      React.createElement(View, {
+        style: { backgroundColor: '#f97316', padding: '10 24', flexDirection: 'row', alignItems: 'center', gap: 8 },
+      },
+        React.createElement(Text, {
+          style: {
+            backgroundColor: '#fff',
+            color: '#f97316',
+            fontSize: 8,
+            fontFamily: 'Helvetica-Bold',
+            padding: '3 7',
+            borderRadius: 10,
           },
-          `Day ${day.dayNumber}`,
-        ),
-        React.createElement(
-          Text,
-          { style: { color: '#ffffff', fontSize: 14, fontFamily: 'Helvetica-Bold' } },
-          day.destination,
-        ),
-        day.date &&
-          React.createElement(
-            Text,
-            { style: { color: '#fed7aa', fontSize: 8, marginLeft: 'auto' } },
-            fmt(day.date),
-          ),
+        }, `Day ${day.dayNumber}`),
+        React.createElement(Text, { style: { color: '#ffffff', fontSize: 14, fontFamily: 'Helvetica-Bold' } }, day.destination),
+        day.date && React.createElement(Text, { style: { color: '#fed7aa', fontSize: 8, marginLeft: 'auto' } }, fmt(day.date)),
       ),
+
       // Main content
-      React.createElement(
-        View,
-        { style: S.daySection },
-        React.createElement(
-          View,
-          { style: S.dayGrid },
+      React.createElement(View, { style: S.daySection },
+        React.createElement(View, { style: S.dayGrid },
+
           // Left column
-          React.createElement(
-            View,
-            { style: S.dayMain },
+          React.createElement(View, { style: S.dayMain },
             day.notes && React.createElement(Text, { style: [S.body, { marginBottom: 8 }] }, day.notes),
-            activities.length > 0 &&
-              React.createElement(
-                View,
-                { style: S.actBox },
-                React.createElement(Text, { style: S.actTitle }, 'Activities'),
-                ...activities.map((a: any, i: number) =>
-                  React.createElement(
-                    Text,
-                    { key: i, style: S.actItem },
-                    a.time ? React.createElement(Text, { style: S.actTime }, `${a.time}: `) : null,
-                    `→ ${a.description}`,
+            activities.length > 0 && React.createElement(View, { style: S.actBox },
+              React.createElement(Text, { style: S.actTitle }, 'Activities'),
+              ...activities.map((a: any, i: number) =>
+                React.createElement(Text, { key: i, style: S.actItem },
+                  a.time ? React.createElement(Text, { style: S.actTime }, `${a.time}: `) : null,
+                  `→ ${a.description}`,
+                ),
+              ),
+            ),
+            images.length > 0 && React.createElement(View, { style: S.imgContainer },
+              React.createElement(Text, { style: S.imgTitle }, '📷 Gallery'),
+              React.createElement(View, { style: S.imgRow },
+                images.map((img: any) =>
+                  React.createElement(View, { key: img.id, style: S.imgCell },
+                    React.createElement(PDFImage, {
+                      src: `data:${img.mimeType};base64,${img.data}`,
+                      style: S.imgThumb,
+                    }),
+                    img.caption && React.createElement(Text, { style: S.imgCaption }, img.caption),
                   ),
                 ),
               ),
-            // All images — no limit
-            images.length > 0 &&
-              React.createElement(
-                View,
-                { style: S.imgContainer },
-                React.createElement(Text, { style: S.imgTitle }, '📷 Gallery'),
-                React.createElement(
-                  View,
-                  { style: S.imgRow },
-                  images.map((img: any) =>
-                    React.createElement(
-                      View,
-                      { key: img.id, style: S.imgCell },
-                      React.createElement(PDFImage, {
-                        src: `data:${img.mimeType};base64,${img.data}`,
-                        style: S.imgThumb,
-                      }),
-                      img.caption && React.createElement(Text, { style: S.imgCaption }, img.caption),
-                    ),
-                  ),
-                ),
-              ),
+            ),
           ),
+
           // Right column
-          React.createElement(
-            View,
-            { style: S.daySide },
-            day.accommodation &&
-              React.createElement(
-                View,
-                { style: S.sideCard },
-                React.createElement(Text, { style: S.sideLabel }, '🏕 Accommodation'),
-                React.createElement(Text, { style: S.sideTxt }, day.accommodation),
-              ),
-            mealItems.length > 0 &&
-              React.createElement(
-                View,
-                { style: S.sideCard },
-                React.createElement(Text, { style: S.sideLabel }, '🍽 Meals'),
-                ...mealItems.map((m, i) => React.createElement(Text, { key: i, style: S.sideTxt }, m)),
-              ),
+          React.createElement(View, { style: S.daySide },
+            day.accommodation && React.createElement(View, { style: S.sideCard },
+              React.createElement(Text, { style: S.sideLabel }, '🏕 Accommodation'),
+              React.createElement(Text, { style: S.sideTxt }, day.accommodation),
+            ),
+            mealItems.length > 0 && React.createElement(View, { style: S.sideCard },
+              React.createElement(Text, { style: S.sideLabel }, '🍽 Meals'),
+              ...mealItems.map((m, i) => React.createElement(Text, { key: i, style: S.sideTxt }, m)),
+            ),
           ),
         ),
       ),
-      // Footer sits directly after content — no marginTop: 'auto' gap
-      React.createElement(
-        View,
-        { style: S.footer },
-        React.createElement(
-          View,
-          { style: S.footerLeft },
+
+      // Footer — directly after content, no gap
+      React.createElement(View, { style: S.footer },
+        React.createElement(View, { style: S.footerLeft },
           React.createElement(Text, { style: S.footerBold }, 'Jae Travel Expeditions'),
           React.createElement(Text, { style: S.footerTxt }, 'jaetravelexpeditions@gmail.com'),
           React.createElement(Text, { style: S.footerTxt }, 'www.jaetravel.co.ke'),
         ),
-        React.createElement(
-          View,
-          { style: S.footerRight },
-          React.createElement(
-            Text,
-            { style: S.footerItalic },
-            '"Live life with no excuses, travel with no regret"',
-          ),
+        React.createElement(View, { style: S.footerRight },
+          React.createElement(Text, { style: S.footerItalic }, '"Live life with no excuses, travel with no regret"'),
         ),
       ),
-      // Page number immediately after footer
+
       React.createElement(Text, {
         style: S.pageNum,
         render: ({ pageNumber, totalPages }: any) => `${pageNumber} / ${totalPages}`,
