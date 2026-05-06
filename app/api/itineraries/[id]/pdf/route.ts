@@ -86,85 +86,15 @@ function safeParseJson(data: any, fallback: any[] = []) {
   return fallback;
 }
 
-/**
- * Extracts a clean base64 string from image data that may be a Buffer or a base64 string.
- * Returns null if invalid.
- */
-function getBase64FromImage(img: any): string | null {
-  if (!img.data) return null;
-  // If it's already a base64 string (may include data:image prefix)
-  if (typeof img.data === 'string') {
-    // Remove any data:image/...;base64, prefix if present
-    const base64 = img.data.replace(/^data:image\/\w+;base64,/, '');
-    return base64;
-  }
-  // If it's a Buffer (typical from Prisma binary fields)
-  if (Buffer.isBuffer(img.data)) {
-    return img.data.toString('base64');
-  }
-  return null;
-}
-
-function isValidImage(img: any): boolean {
-  const base64 = getBase64FromImage(img);
-  return !!(base64 && base64.length > 10 && img.mimeType);
-}
+// Ensure we have the base URL for image API
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
 // -----------------------------------------------------------------------------
-// Page Height Estimation Constants
+// Fixed page height – large enough to never clip
 // -----------------------------------------------------------------------------
 const PAGE_WIDTH = 595;
-const SAFETY_MARGIN = 80; // extra bottom padding to prevent clipping
-
-const COVER = {
-  header: 92, hero: 60, letterSection: 160, tableSection: 56, tableRowH: 24,
-  costSectionBase: 60, costTableHeaderH: 28, costRowH: 20, costTotalH: 20,
-  paymentBoxH: 56, optionalSectionH: 56, optionalRowH: 20, includedExcludedH: 70,
-  pageNum: 28, buffer: 32,
-};
-
-const DAY = {
-  miniHeader: 36, hero: 40, sectionPad: 28, notesLineH: 16,
-  actBoxBase: 44, actItemH: 14, imgContainerTop: 16, imgTitleH: 24,
-  imgRowH: 160, sideCardBase: 44, sideCardLineH: 14,
-  footer: 58, pageNum: 28, buffer: 100, // increased buffer
-};
-
-function estimateCoverHeight(itinerary: any, costSheet: any): number {
-  const costItems = safeParseJson(costSheet?.items || costSheet?.lineItems);
-  const optionalExtras = safeParseJson(costSheet?.optionalExtras || costSheet?.options);
-  let h = COVER.header + COVER.hero + COVER.letterSection;
-  h += COVER.tableSection + itinerary.days.length * COVER.tableRowH;
-  if (costSheet) {
-    h += COVER.costSectionBase;
-    if (costItems.length > 0) h += COVER.costTableHeaderH + costItems.length * COVER.costRowH + COVER.costTotalH;
-    if (costSheet.paymentInstructions) h += COVER.paymentBoxH;
-    if (optionalExtras.length > 0) h += COVER.optionalSectionH + optionalExtras.length * COVER.optionalRowH;
-    if (costSheet.included || costSheet.excluded) h += COVER.includedExcludedH;
-  }
-  return h + COVER.pageNum + COVER.buffer + SAFETY_MARGIN;
-}
-
-function estimateDayHeight(day: any, images: any[]): number {
-  const meals = day.mealPlan ? JSON.parse(day.mealPlan) : {};
-  const activities: any[] = day.activities ? JSON.parse(day.activities) : [];
-  const validImages = images.filter(isValidImage);
-  
-  let leftH = 0;
-  if (day.notes) leftH += Math.ceil(day.notes.length / 75) * DAY.notesLineH + 8;
-  if (activities.length > 0) leftH += DAY.actBoxBase + activities.length * DAY.actItemH + 12;
-  if (validImages.length > 0) {
-    const rows = Math.ceil(validImages.length / 3);
-    leftH += DAY.imgContainerTop + DAY.imgTitleH + rows * DAY.imgRowH;
-  }
-  
-  let rightH = 0;
-  if (day.accommodation) rightH += DAY.sideCardBase + 8;
-  const mealCount = [meals.breakfast, meals.lunch, meals.dinner, meals.note].filter(Boolean).length;
-  if (mealCount > 0) rightH += DAY.sideCardBase + (mealCount - 1) * DAY.sideCardLineH + 8;
-  
-  return DAY.miniHeader + DAY.hero + DAY.sectionPad + Math.max(leftH, rightH) + DAY.footer + DAY.pageNum + DAY.buffer + SAFETY_MARGIN;
-}
+const COVER_HEIGHT = 1100;         // generous fixed height for cover page
+const DAY_PAGE_HEIGHT = 850;       // enough for 3 rows of images + activities
 
 // -----------------------------------------------------------------------------
 // PDF Component
@@ -180,9 +110,9 @@ function ItineraryPDF({ itinerary, costSheet, imagesByDay }: {
   const costItems = safeParseJson(costSheet?.items || costSheet?.lineItems);
   const optionalExtras = safeParseJson(costSheet?.optionalExtras || costSheet?.options);
   const totalAmount = costSheet?.total || 0;
-  const coverHeight = estimateCoverHeight(itinerary, costSheet);
 
-  const firstPage = React.createElement(Page, { size: [PAGE_WIDTH, coverHeight], style: S.page, key: 'cover' },
+  // Cover page
+  const coverPage = React.createElement(Page, { size: [PAGE_WIDTH, COVER_HEIGHT], style: S.page, key: 'cover' },
     React.createElement(View, { style: S.header },
       React.createElement(View, { style: { flexDirection: 'row', alignItems: 'center', gap: 10 } },
         React.createElement(View, { style: S.headerLogo }, React.createElement(Text, { style: S.headerLogoTx }, 'JT')),
@@ -287,6 +217,7 @@ function ItineraryPDF({ itinerary, costSheet, imagesByDay }: {
     React.createElement(Text, { style: S.pageNum, render: ({ pageNumber, totalPages }: any) => `${pageNumber} / ${totalPages}` }),
   );
 
+  // Day pages
   const dayPages = itinerary.days.map((day: any) => {
     const meals = day.mealPlan ? JSON.parse(day.mealPlan) : {};
     const activities: any[] = day.activities ? JSON.parse(day.activities) : [];
@@ -297,10 +228,10 @@ function ItineraryPDF({ itinerary, costSheet, imagesByDay }: {
       meals.note && `→ ${meals.note}`,
     ].filter(Boolean);
 
-    const images = (imagesByDay[day.id] || []).filter(isValidImage);
-    const pageHeight = estimateDayHeight(day, images);
+    const images = imagesByDay[day.id] || [];
+    const hasImages = images.length > 0;
 
-    return React.createElement(Page, { size: [PAGE_WIDTH, pageHeight], style: S.page, key: day.id },
+    return React.createElement(Page, { size: [PAGE_WIDTH, DAY_PAGE_HEIGHT], style: S.page, key: day.id },
       React.createElement(View, { style: { backgroundColor: '#1a1a2e', padding: '10 24', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' } },
         React.createElement(Text, { style: { color: '#ffffff', fontSize: 10, fontFamily: 'Helvetica-Bold' } }, 'Jae Travel Expeditions'),
         React.createElement(Text, { style: { color: '#9ca3af', fontSize: 8 } }, itinerary.title),
@@ -323,22 +254,18 @@ function ItineraryPDF({ itinerary, costSheet, imagesByDay }: {
                 ),
               ),
             ),
-            images.length > 0 && React.createElement(View, { style: S.imgContainer },
+            hasImages && React.createElement(View, { style: S.imgContainer },
               React.createElement(Text, { style: S.imgTitle }, '📷 Gallery'),
               React.createElement(View, { style: S.imgRow },
-                images.map((img: any) => {
-                  const base64 = getBase64FromImage(img);
-                  if (!base64) return null;
-                  try {
-                    return React.createElement(View, { key: img.id, style: S.imgCell },
-                      React.createElement(PDFImage, { src: `data:${img.mimeType};base64,${base64}`, style: S.imgThumb }),
-                      img.caption ? React.createElement(Text, { style: S.imgCaption }, img.caption) : null,
-                    );
-                  } catch (err) {
-                    console.error(`Failed to render image ${img.id}:`, err);
-                    return null;
-                  }
-                }).filter(Boolean),
+                images.map((img: any) =>
+                  React.createElement(View, { key: img.id, style: S.imgCell },
+                    React.createElement(PDFImage, {
+                      src: `${BASE_URL}/api/images/${img.id}`,
+                      style: S.imgThumb,
+                    }),
+                    img.caption ? React.createElement(Text, { style: S.imgCaption }, img.caption) : null,
+                  )
+                ),
               ),
             ),
           ),
@@ -368,7 +295,7 @@ function ItineraryPDF({ itinerary, costSheet, imagesByDay }: {
     );
   });
 
-  return React.createElement(Document, { title: itinerary.title }, [firstPage, ...dayPages]);
+  return React.createElement(Document, { title: itinerary.title }, [coverPage, ...dayPages]);
 }
 
 // -----------------------------------------------------------------------------
@@ -376,7 +303,9 @@ function ItineraryPDF({ itinerary, costSheet, imagesByDay }: {
 // -----------------------------------------------------------------------------
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
-  if (!session) return new NextResponse('Unauthorized', { status: 401 });
+  if (!session) {
+    return new NextResponse('Unauthorized', { status: 401 });
+  }
 
   // Fetch itinerary and its days
   const itinerary = await prisma.itinerary.findUnique({
@@ -387,26 +316,20 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     },
   });
 
-  if (!itinerary) return new NextResponse('Not found', { status: 404 });
+  if (!itinerary) {
+    return new NextResponse('Not found', { status: 404 });
+  }
 
-  // Fetch images per day (one query per day to avoid row size issues)
+  // Fetch images for each day
   const imagesByDay: Record<string, any[]> = {};
   for (const day of itinerary.days) {
     const imgs = await prisma.itineraryImage.findMany({
       where: { dayId: day.id },
-      select: {
-        id: true,
-        dayId: true,
-        filename: true,
-        mimeType: true,
-        data: true,
-        caption: true,
-        createdAt: true,
-      },
+      select: { id: true, filename: true, mimeType: true, caption: true },
       orderBy: { createdAt: 'asc' },
     });
     imagesByDay[day.id] = imgs;
-    console.log(`[PDF] Day ${day.dayNumber} (${day.destination}): ${imgs.length} images found, ${imgs.filter(isValidImage).length} valid`);
+    console.log(`[PDF] Day ${day.dayNumber} (${day.destination}): ${imgs.length} images`);
   }
 
   // Fetch cost sheet
