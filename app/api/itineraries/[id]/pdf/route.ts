@@ -374,12 +374,31 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   });
 
   // Step 3: Group into a map keyed by dayId
-  const imagesByDay: Record<string, any[]> = {};
-  for (const img of allImages) {
-    if (!img.dayId) continue;
-    if (!imagesByDay[img.dayId]) imagesByDay[img.dayId] = [];
-    imagesByDay[img.dayId].push(img);
-  }
+  // Fetch per-day to avoid Postgres truncating large base64 payloads in a single IN query
+const imagesByDay: Record<string, any[]> = {};
+
+await Promise.all(
+  itinerary.days.map(async (day: any) => {
+    const imgs = await prisma.itineraryImage.findMany({
+      where: { dayId: day.id },
+      select: {
+        id: true,
+        dayId: true,
+        filename: true,
+        mimeType: true,
+        data: true,
+        caption: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    imagesByDay[day.id] = imgs;
+    console.log(`[PDF] Day ${day.dayNumber} (${day.destination}): ${imgs.length} images`);
+  }),
+);
+
+const totalFetched = Object.values(imagesByDay).reduce((sum, imgs) => sum + imgs.length, 0);
+console.log('[PDF] Total images fetched:', totalFetched);
 
   // Step 4: Log so you can see exactly what reached the renderer
   console.log('[PDF] Total ItineraryImages fetched:', allImages.length);
