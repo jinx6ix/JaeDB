@@ -137,6 +137,53 @@ const S = StyleSheet.create({
 });
 
 // ───────────────────────────────────────────────────────────────────────────
+// Constants — page width and fixed chrome heights (in PDF points)
+// ───────────────────────────────────────────────────────────────────────────
+const PAGE_WIDTH = 595; // A4 width in points
+
+const H = {
+  // Cover page chrome
+  coverHeader: 92,   // logo block + padding
+  coverHero: 56,     // orange title bar
+  coverLetterBase: 110, // salutation + 3 body lines + sign-off
+  coverLetterPerDay: 18, // each row in the summary table
+  coverTableHeader: 28,
+  coverSectionPad: 28, // top+bottom padding per section
+
+  // Cost sheet (only when present)
+  costSectionTitle: 28,
+  costTableHeader: 28,
+  costRowH: 18,
+  costTotalRow: 18,
+  paymentBox: 48,
+  optionalSectionTitle: 28,
+  optionalRowH: 18,
+  includedExcluded: 60,
+
+  // Day page chrome
+  dayMiniHeader: 36,
+  dayHero: 40,
+  daySectionPad: 28,  // 14 top + 14 bottom
+
+  // Day page content
+  notesLineH: 14,
+  actBoxBase: 44,     // title + padding overhead
+  actItemH: 12,
+  imgContainerTop: 12,
+  imgTitleH: 20,
+  imgRowH: 110,       // one row of 3 images
+
+  // Right sidebar cards
+  sideCardBase: 42,
+  sideCardLineH: 12,
+
+  // Shared footer / page number
+  footer: 58,
+  pageNum: 24,
+  buffer: 16,         // small safety buffer
+};
+
+// ───────────────────────────────────────────────────────────────────────────
 // Helpers
 // ───────────────────────────────────────────────────────────────────────────
 function fmt(date: string | Date) {
@@ -156,71 +203,77 @@ function safeParseJson(data: any, fallback: any[] = []) {
   return fallback;
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// Dynamic page height estimator (all values in PDF points, A4 width = 595pt)
-// This ensures each day page is exactly as tall as its content — no blank gap.
-// ─────────────────────────────────────────────────────────────────────────
-const PX = {
-  miniHeader: 36,
-  dayHero: 40,
-  sectionPadV: 28,        // 14 top + 14 bottom padding
-  notesLineHeight: 14,    // approx per line
-  actBoxBase: 36,         // box title + padding overhead
-  actItemH: 12,           // per activity item
-  imgContainerMarginTop: 12,
-  imgTitleH: 20,
-  imgRowH: 108,           // image row (thumb ~80 + caption + gap)
-  sideCardBase: 38,       // label + 1 line + card padding
-  sideCardLineH: 10,      // each extra line in a card
-  footerH: 58,
-  pageNumH: 24,
-  buffer: 32,             // safety buffer so nothing clips
-};
+// ───────────────────────────────────────────────────────────────────────────
+// Cover page height estimator
+// ───────────────────────────────────────────────────────────────────────────
+function estimateCoverPageHeight(itinerary: any, costSheet: any): number {
+  const days = itinerary.days;
+  const costItems = safeParseJson(costSheet?.items || costSheet?.lineItems);
+  const optionalExtras = safeParseJson(costSheet?.optionalExtras || costSheet?.options);
 
+  let h = 0;
+
+  // Header + hero
+  h += H.coverHeader + H.coverHero;
+
+  // Cover letter section
+  h += H.coverSectionPad + H.coverLetterBase;
+
+  // Day summary table section
+  h += H.coverSectionPad + H.coverTableHeader + days.length * H.coverLetterPerDay;
+
+  // Cost breakdown section (only if costSheet exists)
+  if (costSheet) {
+    h += H.coverSectionPad + H.costSectionTitle;
+    if (costItems.length > 0) {
+      h += H.costTableHeader + costItems.length * H.costRowH + H.costTotalRow;
+    }
+    if (costSheet.paymentInstructions) h += H.paymentBox;
+    if (optionalExtras.length > 0) {
+      h += H.optionalSectionTitle + H.optionalSectionTitle + optionalExtras.length * H.optionalRowH;
+    }
+    if (costSheet.included || costSheet.excluded) h += H.includedExcluded;
+  }
+
+  h += H.pageNum + H.buffer;
+
+  return h;
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Day page height estimator
+// ───────────────────────────────────────────────────────────────────────────
 function estimateDayPageHeight(day: any): number {
   const meals = day.mealPlan ? JSON.parse(day.mealPlan) : {};
   const activities: any[] = day.activities ? JSON.parse(day.activities) : [];
   const images: any[] = day.images || [];
 
-  // ── Left column ──
+  // Left column
   let leftH = 0;
-
   if (day.notes) {
-    const lines = Math.ceil(day.notes.length / 80) + 1;
-    leftH += lines * PX.notesLineHeight + 8;
+    leftH += Math.ceil(day.notes.length / 80) * H.notesLineH + 8;
   }
-
   if (activities.length > 0) {
-    leftH += PX.actBoxBase + activities.length * PX.actItemH + 12;
+    leftH += H.actBoxBase + activities.length * H.actItemH + 12;
   }
-
   if (images.length > 0) {
-    const rows = Math.ceil(images.length / 3);
-    leftH += PX.imgContainerMarginTop + PX.imgTitleH + rows * PX.imgRowH;
+    leftH += H.imgContainerTop + H.imgTitleH + Math.ceil(images.length / 3) * H.imgRowH;
   }
 
-  // ── Right column ──
+  // Right column
   let rightH = 0;
-
-  if (day.accommodation) {
-    rightH += PX.sideCardBase + 8;
-  }
-
+  if (day.accommodation) rightH += H.sideCardBase + 8;
   const mealCount = [meals.breakfast, meals.lunch, meals.dinner, meals.note].filter(Boolean).length;
-  if (mealCount > 0) {
-    rightH += PX.sideCardBase + (mealCount - 1) * PX.sideCardLineH + 8;
-  }
-
-  const contentH = Math.max(leftH, rightH);
+  if (mealCount > 0) rightH += H.sideCardBase + (mealCount - 1) * H.sideCardLineH + 8;
 
   return (
-    PX.miniHeader +
-    PX.dayHero +
-    PX.sectionPadV +
-    contentH +
-    PX.footerH +
-    PX.pageNumH +
-    PX.buffer
+    H.dayMiniHeader +
+    H.dayHero +
+    H.daySectionPad +
+    Math.max(leftH, rightH) +
+    H.footer +
+    H.pageNum +
+    H.buffer
   );
 }
 
@@ -237,11 +290,13 @@ function ItineraryPDF({ itinerary, costSheet }: { itinerary: any; costSheet: any
   const totalAmount = costSheet?.total || 0;
 
   // ─────────────────────────────────────────────────────────────────────────
-  // First Page — standard A4, content wraps naturally across multiple A4 pages
+  // Cover Page — dynamic height, same as day pages
   // ─────────────────────────────────────────────────────────────────────────
+  const coverHeight = estimateCoverPageHeight(itinerary, costSheet);
+
   const firstPage = React.createElement(
     Page,
-    { size: 'A4', style: S.page, key: 'cover' },
+    { size: [PAGE_WIDTH, coverHeight], style: S.page, key: 'cover' },
 
     // Header
     React.createElement(View, { style: S.header },
@@ -326,7 +381,7 @@ function ItineraryPDF({ itinerary, costSheet }: { itinerary: any; costSheet: any
       ),
     ),
 
-    // Cost Breakdown
+    // Cost Breakdown (only if costSheet exists)
     costSheet && React.createElement(View, { style: S.section },
       React.createElement(Text, { style: S.sectionTitle }, 'Breakdown of Costs'),
       costItems.length > 0 && React.createElement(View, { style: S.costTable },
@@ -387,7 +442,7 @@ function ItineraryPDF({ itinerary, costSheet }: { itinerary: any; costSheet: any
   );
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Day Pages — each uses a dynamically calculated height so no blank gap
+  // Day Pages — dynamic height, no blank gap
   // ─────────────────────────────────────────────────────────────────────────
   const dayPages = itinerary.days.map((day: any) => {
     const meals = day.mealPlan ? JSON.parse(day.mealPlan) : {};
@@ -398,14 +453,13 @@ function ItineraryPDF({ itinerary, costSheet }: { itinerary: any; costSheet: any
       meals.dinner && '→ Dinner',
       meals.note && `→ ${meals.note}`,
     ].filter(Boolean);
-    const images: any[] = day.images || []; // all images, no limit
+    const images: any[] = day.images || [];
 
-    // Dynamic page height: A4 width (595pt) × computed height
     const pageHeight = estimateDayPageHeight(day);
 
     return React.createElement(
       Page,
-      { size: [595, pageHeight], style: S.page, key: day.id },
+      { size: [PAGE_WIDTH, pageHeight], style: S.page, key: day.id },
 
       // Mini header
       React.createElement(View, {
@@ -487,7 +541,7 @@ function ItineraryPDF({ itinerary, costSheet }: { itinerary: any; costSheet: any
         ),
       ),
 
-      // Footer — directly after content, no gap
+      // Footer
       React.createElement(View, { style: S.footer },
         React.createElement(View, { style: S.footerLeft },
           React.createElement(Text, { style: S.footerBold }, 'Jae Travel Expeditions'),
