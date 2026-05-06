@@ -104,7 +104,8 @@ const S = StyleSheet.create({
   },
   imgRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   imgCell: { width: '30%', marginBottom: 8 },
-  imgThumb: { width: '100%', height: 'auto', minHeight: 80, objectFit: 'cover', borderRadius: 4 },
+  // FIX: explicit height instead of height:'auto' + minHeight combo
+  imgThumb: { width: '100%', height: 90, objectFit: 'cover', borderRadius: 4 },
   imgCaption: { fontSize: 7, color: '#6b7280', textAlign: 'center', marginTop: 2 },
   footer: {
     backgroundColor: '#f9fafb',
@@ -156,20 +157,24 @@ function safeParseJson(data: any, fallback: any[] = []) {
   return fallback;
 }
 
+// FIX: guard that image has valid base64 data and mimeType before rendering
+function isValidImage(img: any): boolean {
+  return !!(img && img.data && img.mimeType && img.data.length > 0);
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 // Page sizing constants (PDF points, A4 width = 595pt)
-// These are intentionally generous to prevent overflow onto a blank page.
 // ───────────────────────────────────────────────────────────────────────────
 const PAGE_WIDTH = 595;
 
 // Cover page fixed blocks
 const COVER = {
-  header: 92,          // dark nav bar with logo
-  hero: 60,            // orange title + meta row
-  letterSection: 160,  // greeting + 3 body paragraphs + sign-off + section padding
-  tableSection: 56,    // section title + table header + padding
-  tableRowH: 24,       // each day row
-  costSectionBase: 60, // "Breakdown of Costs" title + padding
+  header: 92,
+  hero: 60,
+  letterSection: 160,
+  tableSection: 56,
+  tableRowH: 24,
+  costSectionBase: 60,
   costTableHeaderH: 28,
   costRowH: 20,
   costTotalH: 20,
@@ -178,10 +183,12 @@ const COVER = {
   optionalRowH: 20,
   includedExcludedH: 70,
   pageNum: 28,
-  buffer: 24,
+  buffer: 32,
 };
 
 // Day page fixed blocks
+// FIX: bumped imgRowH from 116 → 160 to account for 90pt image + caption + margin
+// FIX: bumped buffer from 24 → 60 for reliable overflow prevention
 const DAY = {
   miniHeader: 36,
   hero: 40,
@@ -189,14 +196,14 @@ const DAY = {
   notesLineH: 16,
   actBoxBase: 44,
   actItemH: 14,
-  imgContainerTop: 12,
-  imgTitleH: 20,
-  imgRowH: 116,
+  imgContainerTop: 16,   // was 12
+  imgTitleH: 24,          // was 20
+  imgRowH: 160,           // was 116 — fits 90pt image + caption + gap per row
   sideCardBase: 44,
   sideCardLineH: 14,
   footer: 58,
   pageNum: 28,
-  buffer: 24,
+  buffer: 60,             // was 24 — generous overflow buffer
 };
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -229,11 +236,14 @@ function estimateCoverHeight(itinerary: any, costSheet: any): number {
 
 // ───────────────────────────────────────────────────────────────────────────
 // Day page height estimator
+// FIX: only count images that have valid data, use updated row height constant
 // ───────────────────────────────────────────────────────────────────────────
 function estimateDayHeight(day: any): number {
   const meals = day.mealPlan ? JSON.parse(day.mealPlan) : {};
   const activities: any[] = day.activities ? JSON.parse(day.activities) : [];
-  const images: any[] = day.images || [];
+
+  // FIX: filter to only valid images so height matches what will actually render
+  const images: any[] = (day.images || []).filter(isValidImage);
 
   // Left column
   let leftH = 0;
@@ -244,7 +254,8 @@ function estimateDayHeight(day: any): number {
     leftH += DAY.actBoxBase + activities.length * DAY.actItemH + 12;
   }
   if (images.length > 0) {
-    leftH += DAY.imgContainerTop + DAY.imgTitleH + Math.ceil(images.length / 3) * DAY.imgRowH;
+    const imgRows = Math.ceil(images.length / 3);
+    leftH += DAY.imgContainerTop + DAY.imgTitleH + imgRows * DAY.imgRowH;
   }
 
   // Right column
@@ -440,7 +451,9 @@ function ItineraryPDF({ itinerary, costSheet }: { itinerary: any; costSheet: any
       meals.dinner && '→ Dinner',
       meals.note && `→ ${meals.note}`,
     ].filter(Boolean);
-    const images: any[] = day.images || [];
+
+    // FIX: filter to only images with valid data before rendering
+    const images: any[] = (day.images || []).filter(isValidImage);
 
     const pageHeight = estimateDayHeight(day);
 
@@ -498,16 +511,20 @@ function ItineraryPDF({ itinerary, costSheet }: { itinerary: any; costSheet: any
                 ),
               ),
             ),
+            // FIX: only render gallery section when there are valid images
             images.length > 0 && React.createElement(View, { style: S.imgContainer },
               React.createElement(Text, { style: S.imgTitle }, '📷 Gallery'),
               React.createElement(View, { style: S.imgRow },
                 images.map((img: any) =>
                   React.createElement(View, { key: img.id, style: S.imgCell },
                     React.createElement(PDFImage, {
+                      // FIX: explicit data URI — guard already applied above
                       src: `data:${img.mimeType};base64,${img.data}`,
                       style: S.imgThumb,
                     }),
-                    img.caption && React.createElement(Text, { style: S.imgCaption }, img.caption),
+                    img.caption
+                      ? React.createElement(Text, { style: S.imgCaption }, img.caption)
+                      : null,
                   ),
                 ),
               ),
@@ -565,7 +582,19 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       booking: { include: { client: true } },
       days: {
         orderBy: { dayNumber: 'asc' },
-        include: { images: { orderBy: { createdAt: 'asc' } } },
+        include: {
+          // FIX: explicitly select image fields including data and mimeType
+          images: {
+            select: {
+              id: true,
+              data: true,
+              mimeType: true,
+              caption: true,
+              createdAt: true,
+            },
+            orderBy: { createdAt: 'asc' },
+          },
+        },
       },
     },
   });
@@ -577,6 +606,17 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const costSheet = await prisma.costSheet.findFirst({
     where: { bookingId: itinerary.booking.id },
   });
+
+  // DEBUG: log image counts per day so you can verify data is reaching the PDF renderer
+  console.log(
+    '[PDF] Image counts per day:',
+    itinerary.days.map(d => ({
+      day: d.dayNumber,
+      destination: d.destination,
+      totalImages: (d.images ?? []).length,
+      validImages: (d.images ?? []).filter((img: any) => img.data && img.mimeType).length,
+    })),
+  );
 
   if (process.env.NODE_ENV === 'development') {
     console.log('PDF costSheet:', JSON.stringify(costSheet, null, 2));
