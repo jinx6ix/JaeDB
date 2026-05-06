@@ -14,9 +14,9 @@ import {
   Image as PDFImage,
 } from '@react-pdf/renderer';
 
-// ───────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Styles
-// ───────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 const S = StyleSheet.create({
   page: { fontFamily: 'Helvetica', fontSize: 10, backgroundColor: '#ffffff', flexDirection: 'column' },
   header: { backgroundColor: '#1a1a2e', padding: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -70,9 +70,9 @@ const S = StyleSheet.create({
   paymentBox: { marginTop: 12, padding: 8, border: '1 solid #e5e7eb', borderRadius: 4, backgroundColor: '#f9fafb' },
 });
 
-// ───────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Helpers
-// ───────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 function fmt(date: string | Date) {
   return new Date(date).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' });
 }
@@ -80,19 +80,41 @@ function fmt(date: string | Date) {
 function safeParseJson(data: any, fallback: any[] = []) {
   if (!data) return fallback;
   if (Array.isArray(data)) return data;
-  if (typeof data === 'string') { try { return JSON.parse(data); } catch { return fallback; } }
+  if (typeof data === 'string') {
+    try { return JSON.parse(data); } catch { return fallback; }
+  }
   return fallback;
 }
 
-// ItineraryImage.data is a String (base64) in schema
-function isValidImage(img: any): boolean {
-  return !!(img && typeof img.data === 'string' && img.data.length > 10 && img.mimeType);
+/**
+ * Extracts a clean base64 string from image data that may be a Buffer or a base64 string.
+ * Returns null if invalid.
+ */
+function getBase64FromImage(img: any): string | null {
+  if (!img.data) return null;
+  // If it's already a base64 string (may include data:image prefix)
+  if (typeof img.data === 'string') {
+    // Remove any data:image/...;base64, prefix if present
+    const base64 = img.data.replace(/^data:image\/\w+;base64,/, '');
+    return base64;
+  }
+  // If it's a Buffer (typical from Prisma binary fields)
+  if (Buffer.isBuffer(img.data)) {
+    return img.data.toString('base64');
+  }
+  return null;
 }
 
-// ───────────────────────────────────────────────────────────────────────────
-// Page sizing constants
-// ───────────────────────────────────────────────────────────────────────────
+function isValidImage(img: any): boolean {
+  const base64 = getBase64FromImage(img);
+  return !!(base64 && base64.length > 10 && img.mimeType);
+}
+
+// -----------------------------------------------------------------------------
+// Page Height Estimation Constants
+// -----------------------------------------------------------------------------
 const PAGE_WIDTH = 595;
+const SAFETY_MARGIN = 80; // extra bottom padding to prevent clipping
 
 const COVER = {
   header: 92, hero: 60, letterSection: 160, tableSection: 56, tableRowH: 24,
@@ -105,7 +127,7 @@ const DAY = {
   miniHeader: 36, hero: 40, sectionPad: 28, notesLineH: 16,
   actBoxBase: 44, actItemH: 14, imgContainerTop: 16, imgTitleH: 24,
   imgRowH: 160, sideCardBase: 44, sideCardLineH: 14,
-  footer: 58, pageNum: 28, buffer: 60,
+  footer: 58, pageNum: 28, buffer: 100, // increased buffer
 };
 
 function estimateCoverHeight(itinerary: any, costSheet: any): number {
@@ -120,27 +142,33 @@ function estimateCoverHeight(itinerary: any, costSheet: any): number {
     if (optionalExtras.length > 0) h += COVER.optionalSectionH + optionalExtras.length * COVER.optionalRowH;
     if (costSheet.included || costSheet.excluded) h += COVER.includedExcludedH;
   }
-  return h + COVER.pageNum + COVER.buffer;
+  return h + COVER.pageNum + COVER.buffer + SAFETY_MARGIN;
 }
 
 function estimateDayHeight(day: any, images: any[]): number {
   const meals = day.mealPlan ? JSON.parse(day.mealPlan) : {};
   const activities: any[] = day.activities ? JSON.parse(day.activities) : [];
   const validImages = images.filter(isValidImage);
+  
   let leftH = 0;
   if (day.notes) leftH += Math.ceil(day.notes.length / 75) * DAY.notesLineH + 8;
   if (activities.length > 0) leftH += DAY.actBoxBase + activities.length * DAY.actItemH + 12;
-  if (validImages.length > 0) leftH += DAY.imgContainerTop + DAY.imgTitleH + Math.ceil(validImages.length / 3) * DAY.imgRowH;
+  if (validImages.length > 0) {
+    const rows = Math.ceil(validImages.length / 3);
+    leftH += DAY.imgContainerTop + DAY.imgTitleH + rows * DAY.imgRowH;
+  }
+  
   let rightH = 0;
   if (day.accommodation) rightH += DAY.sideCardBase + 8;
   const mealCount = [meals.breakfast, meals.lunch, meals.dinner, meals.note].filter(Boolean).length;
   if (mealCount > 0) rightH += DAY.sideCardBase + (mealCount - 1) * DAY.sideCardLineH + 8;
-  return DAY.miniHeader + DAY.hero + DAY.sectionPad + Math.max(leftH, rightH) + DAY.footer + DAY.pageNum + DAY.buffer;
+  
+  return DAY.miniHeader + DAY.hero + DAY.sectionPad + Math.max(leftH, rightH) + DAY.footer + DAY.pageNum + DAY.buffer + SAFETY_MARGIN;
 }
 
-// ───────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // PDF Component
-// ───────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 function ItineraryPDF({ itinerary, costSheet, imagesByDay }: {
   itinerary: any;
   costSheet: any;
@@ -269,7 +297,6 @@ function ItineraryPDF({ itinerary, costSheet, imagesByDay }: {
       meals.note && `→ ${meals.note}`,
     ].filter(Boolean);
 
-    // CORE FIX: images come from imagesByDay map, fetched independently in GET handler
     const images = (imagesByDay[day.id] || []).filter(isValidImage);
     const pageHeight = estimateDayHeight(day, images);
 
@@ -299,12 +326,19 @@ function ItineraryPDF({ itinerary, costSheet, imagesByDay }: {
             images.length > 0 && React.createElement(View, { style: S.imgContainer },
               React.createElement(Text, { style: S.imgTitle }, '📷 Gallery'),
               React.createElement(View, { style: S.imgRow },
-                images.map((img: any) =>
-                  React.createElement(View, { key: img.id, style: S.imgCell },
-                    React.createElement(PDFImage, { src: `data:${img.mimeType};base64,${img.data}`, style: S.imgThumb }),
-                    img.caption ? React.createElement(Text, { style: S.imgCaption }, img.caption) : null,
-                  ),
-                ),
+                images.map((img: any) => {
+                  const base64 = getBase64FromImage(img);
+                  if (!base64) return null;
+                  try {
+                    return React.createElement(View, { key: img.id, style: S.imgCell },
+                      React.createElement(PDFImage, { src: `data:${img.mimeType};base64,${base64}`, style: S.imgThumb }),
+                      img.caption ? React.createElement(Text, { style: S.imgCaption }, img.caption) : null,
+                    );
+                  } catch (err) {
+                    console.error(`Failed to render image ${img.id}:`, err);
+                    return null;
+                  }
+                }).filter(Boolean),
               ),
             ),
           ),
@@ -337,14 +371,14 @@ function ItineraryPDF({ itinerary, costSheet, imagesByDay }: {
   return React.createElement(Document, { title: itinerary.title }, [firstPage, ...dayPages]);
 }
 
-// ───────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // GET Handler
-// ───────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (!session) return new NextResponse('Unauthorized', { status: 401 });
 
-  // Step 1: Fetch itinerary + days, NO nested image include
+  // Fetch itinerary and its days
   const itinerary = await prisma.itinerary.findUnique({
     where: { id: params.id },
     include: {
@@ -355,30 +389,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   if (!itinerary) return new NextResponse('Not found', { status: 404 });
 
-  // Step 2: Fetch ALL ItineraryImages for this itinerary in ONE flat query
-  // using the correct Prisma model name: itineraryImage (matches schema model ItineraryImage)
-  const dayIds = itinerary.days.map((d: any) => d.id);
-
-  const allImages = await prisma.itineraryImage.findMany({
-    where: { dayId: { in: dayIds } },
-    select: {
-      id: true,
-      dayId: true,
-      filename: true,
-      mimeType: true,
-      data: true,
-      caption: true,
-      createdAt: true,
-    },
-    orderBy: { createdAt: 'asc' },
-  });
-
-  // Step 3: Group into a map keyed by dayId
-  // Fetch per-day to avoid Postgres truncating large base64 payloads in a single IN query
-const imagesByDay: Record<string, any[]> = {};
-
-await Promise.all(
-  itinerary.days.map(async (day: any) => {
+  // Fetch images per day (one query per day to avoid row size issues)
+  const imagesByDay: Record<string, any[]> = {};
+  for (const day of itinerary.days) {
     const imgs = await prisma.itineraryImage.findMany({
       where: { dayId: day.id },
       select: {
@@ -393,21 +406,10 @@ await Promise.all(
       orderBy: { createdAt: 'asc' },
     });
     imagesByDay[day.id] = imgs;
-    console.log(`[PDF] Day ${day.dayNumber} (${day.destination}): ${imgs.length} images`);
-  }),
-);
+    console.log(`[PDF] Day ${day.dayNumber} (${day.destination}): ${imgs.length} images found, ${imgs.filter(isValidImage).length} valid`);
+  }
 
-const totalFetched = Object.values(imagesByDay).reduce((sum, imgs) => sum + imgs.length, 0);
-console.log('[PDF] Total images fetched:', totalFetched);
-
-  // Step 4: Log so you can see exactly what reached the renderer
-  console.log('[PDF] Total ItineraryImages fetched:', allImages.length);
-  itinerary.days.forEach((d: any) => {
-    const imgs = imagesByDay[d.id] || [];
-    const valid = imgs.filter((img: any) => img.data && img.mimeType);
-    console.log(`  Day ${d.dayNumber} (${d.destination}): ${imgs.length} images, ${valid.length} valid`);
-  });
-
+  // Fetch cost sheet
   const costSheet = await prisma.costSheet.findFirst({
     where: { bookingId: itinerary.booking.id },
   });
