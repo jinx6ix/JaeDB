@@ -1,6 +1,8 @@
-// app/dashboard/clients/page.tsx
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import DeleteClientButton from '@/components/DeleteClientButton';
 
 export default async function ClientsPage({
   searchParams,
@@ -8,6 +10,8 @@ export default async function ClientsPage({
   searchParams: { q?: string };
 }) {
   const q = searchParams.q || '';
+  const session = await getServerSession(authOptions);
+  const isAdmin = (session?.user as any)?.role === 'ADMIN';
 
   const clients = await prisma.client.findMany({
     where: q
@@ -49,7 +53,7 @@ export default async function ClientsPage({
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              {['Name', 'Email', 'Phone', 'Nationality', 'Resident', 'Bookings', ''].map((h) => (
+              {['Name', 'Email', 'Phone', 'Nationality', 'Resident', 'Bookings', 'Actions'].map((h) => (
                 <th key={h} className="text-left px-4 py-3 font-medium text-gray-600">{h}</th>
               ))}
             </tr>
@@ -70,10 +74,11 @@ export default async function ClientsPage({
                     : <span className="badge-enquiry">Non-Resident</span>}
                 </td>
                 <td className="px-4 py-3 text-gray-600">{c._count.bookings}</td>
-                <td className="px-4 py-3">
-                  <div className="flex gap-2">
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <div className="flex gap-2 items-center">
                     <Link href={`/dashboard/clients/${c.id}`} className="text-orange-500 hover:underline text-xs">View</Link>
                     <Link href={`/dashboard/clients/${c.id}/edit`} className="text-gray-400 hover:text-gray-600 text-xs">Edit</Link>
+                    {isAdmin && <DeleteClientButton clientId={c.id} clientName={c.name} />}
                   </div>
                 </td>
               </tr>

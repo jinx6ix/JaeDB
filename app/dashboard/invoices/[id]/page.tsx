@@ -1,3 +1,4 @@
+// app/dashboard/invoices/[id]/page.tsx
 'use client';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -45,17 +46,16 @@ export default function InvoiceDetailPage() {
     router.push('/dashboard/invoices');
   }
 
-  if (loading) return <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"/></div>;
+  if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"/></div>;
   if (!invoice || invoice.error) return <div className="p-8 text-gray-500">Invoice not found. <Link href="/dashboard/invoices" className="text-orange-500 hover:underline">Back</Link></div>;
 
-  const lineItems: any[] = (() => { try { return JSON.parse(invoice.lineItems || '[]'); } catch { return []; } })();
   const fmt2 = (n: number) => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const balanceDue = (invoice.totalAmount || 0) - (invoice.amountPaid || 0);
   const isOverdue = invoice.status !== 'PAID' && invoice.status !== 'CANCELLED' && new Date(invoice.dueDate) < new Date();
 
   return (
     <div className="max-w-3xl space-y-5">
-      {/* Header */}
+      {/* Header with actions */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <Link href="/dashboard/invoices" className="text-gray-400 hover:text-gray-600 text-sm">← Invoices</Link>
@@ -63,7 +63,7 @@ export default function InvoiceDetailPage() {
           <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${STATUS_COLORS[invoice.status] || 'bg-gray-100 text-gray-600'}`}>{invoice.status}</span>
           {isOverdue && invoice.status !== 'PAID' && <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-red-100 text-red-600">OVERDUE</span>}
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2">
           <Link href={`/dashboard/invoices/${id}/edit`} className="btn-secondary text-sm">✏️ Edit</Link>
           <button onClick={handleDelete} disabled={deleting} className="text-red-500 hover:text-red-700 text-sm font-medium border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50">
             {deleting ? 'Deleting…' : '🗑 Delete'}
@@ -83,9 +83,9 @@ export default function InvoiceDetailPage() {
         ))}
       </div>
 
-      {/* Invoice document */}
+      {/* Invoice Document – client facing */}
       <div className="card space-y-6 print:shadow-none" id="invoice-doc">
-        {/* Top: Logo + Invoice title */}
+        {/* Logo + Title */}
         <div className="flex items-start justify-between pb-5 border-b border-gray-100">
           <div>
             <div className="flex items-center gap-3 mb-3">
@@ -132,31 +132,7 @@ export default function InvoiceDetailPage() {
           </div>
         </div>
 
-        {/* Line items */}
-        <div>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-orange-500 text-white">
-                <th className="text-left px-4 py-2.5 text-xs font-semibold rounded-tl-lg">Description</th>
-                <th className="text-center px-4 py-2.5 text-xs font-semibold w-16">Qty</th>
-                <th className="text-right px-4 py-2.5 text-xs font-semibold w-32">Unit Price</th>
-                <th className="text-right px-4 py-2.5 text-xs font-semibold w-32 rounded-tr-lg">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lineItems.map((item: any, i: number) => (
-                <tr key={i} className={`border-b border-gray-50 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-                  <td className="px-4 py-2.5 text-gray-700">{item.description}</td>
-                  <td className="px-4 py-2.5 text-center text-gray-500">{item.qty}</td>
-                  <td className="px-4 py-2.5 text-right font-mono text-gray-600">{invoice.currency} {fmt2(item.unitPrice)}</td>
-                  <td className="px-4 py-2.5 text-right font-mono font-medium text-gray-800">{invoice.currency} {fmt2(item.total)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Totals */}
+        {/* Invoice Totals – the only financial summary the client needs */}
         <div className="flex justify-end">
           <div className="w-72 space-y-2">
             <div className="flex justify-between text-sm">

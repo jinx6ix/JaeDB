@@ -48,14 +48,14 @@ export async function POST(req: NextRequest) {
         numPax:           Number(body.numPax),
         boardBasis:       body.boardBasis        || 'FB',
         currency:         body.currency          || 'USD',
-        dayRows:          JSON.stringify(body.dayRows || []),
+        dayRows:          body.dayRows,          // ✅ NO extra stringify
         fileHandlingFee:  Number(body.fileHandlingFee)  || 0,
         ecoBottle:        Number(body.ecoBottle)        || 0,
         evacInsurance:    Number(body.evacInsurance)    || 0,
         arrivalTransfer:  Number(body.arrivalTransfer)  || 0,
         departureTransfer:Number(body.departureTransfer)|| 0,
         flightCostPP:     Number(body.flightCostPP)     || 0,
-        extras:           body.extras ? JSON.stringify(body.extras) : null,
+        extras:           body.extras,           // ✅ NO extra stringify
         maasaiVillage:    Boolean(body.maasaiVillage),
         maasaiCost:       Number(body.maasaiCost) || 0,
         subtotal:         Number(body.subtotal),

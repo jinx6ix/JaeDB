@@ -11,35 +11,36 @@ export default function NewInvoicePage() {
   const preBookingId  = sp.get('bookingId')  || '';
   const preCostSheetId = sp.get('costSheetId') || '';
 
-  const [bookings,  setBookings]  = useState<any[]>([]);
+  const [bookings, setBookings] = useState<any[]>([]);
   const [selBooking, setSelBooking] = useState<any>(null);
-  const [bookingId, setBookingId]  = useState(preBookingId);
+  const [bookingId, setBookingId] = useState(preBookingId);
 
-  const [billTo,      setBillTo]      = useState('');
+  const [billTo, setBillTo] = useState('');
   const [billToEmail, setBillToEmail] = useState('');
   const [billToPhone, setBillToPhone] = useState('');
-  const [currency,    setCurrency]    = useState('USD');
+  const [currency, setCurrency] = useState('USD');
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
-  const [dueDate,     setDueDate]     = useState('');
-  const [status,      setStatus]      = useState('DRAFT');
+  const [dueDate, setDueDate] = useState('');
+  const [status, setStatus] = useState('DRAFT');
   const [depositReceived, setDepositReceived] = useState(0);
-  const [taxRate,     setTaxRate]     = useState(0);
+  const [taxRate, setTaxRate] = useState(0);
   const [paymentInstructions, setPaymentInstructions] = useState(
     'Account Name: Jae Travel Expeditions Ltd\nAccount No.: 0730285271126\nBank Name: Equity Bank\nBranch: Ngong\nSwift: EQBLKENA'
   );
-  const [notes, setNotes]   = useState('');
-  const [items,  setItems]  = useState<LineItem[]>([{ description: '', qty: 1, unitPrice: 0, total: 0 }]);
+  const [notes, setNotes] = useState('');
+  const [items, setItems] = useState<LineItem[]>([{ description: '', qty: 1, unitPrice: 0, total: 0 }]);
   const [saving, setSaving] = useState(false);
-  const [error,  setError]  = useState('');
+  const [error, setError] = useState('');
+  const [costSheetGrandTotal, setCostSheetGrandTotal] = useState<number | null>(null);
 
-  // Load bookings
+  // Load bookings list (for linking)
   useEffect(() => {
     fetch('/api/bookings?all=1').then(r => r.json()).then(d => {
       setBookings(Array.isArray(d) ? d : []);
     });
   }, []);
 
-  // Pre-fill from booking
+  // Pre-fill from booking (if any)
   useEffect(() => {
     if (!bookingId || !bookings.length) return;
     const b = bookings.find((b: any) => b.id === bookingId);
@@ -50,36 +51,32 @@ export default function NewInvoicePage() {
     setBillToPhone(b.client?.phone || '');
   }, [bookingId, bookings]);
 
-  // Pre-fill from cost sheet
+  // Pre-fill from cost sheet – use its own grand total
   useEffect(() => {
     if (!preCostSheetId) return;
     fetch(`/api/cost-sheets/${preCostSheetId}`).then(r => r.json()).then(cs => {
       if (!cs.id) return;
       setCurrency(cs.currency || 'USD');
-      // Build line items from cost sheet
-      const dayRows: any[] = (() => { try { return JSON.parse(cs.dayRows || '[]'); } catch { return []; } })();
-      const mf = 1 + cs.markupPercent / 100;
-      const newItems: LineItem[] = [];
+      setCostSheetGrandTotal(cs.totalCost); // this is the grand total already computed by the cost sheet
 
-      dayRows.forEach((row: any, i: number) => {
-        const accomAdult = (row.adultAccomTotal || row.adultTotal || 0) * mf;
-        const accomChild = (row.childAccomTotal || row.childTotal || 0) * mf;
-        const park  = (row.parkFeeAdultTotal || 0) + (row.parkFeeChildTotal || 0);
-        const trans = row.transportTotal || 0;
-        if (accomAdult + accomChild > 0) newItems.push({ description: `Day ${i+1} – ${row.hotelName || 'Accommodation'}`, qty: 1, unitPrice: accomAdult + accomChild, total: accomAdult + accomChild });
-        if (park > 0)  newItems.push({ description: `Day ${i+1} – Park Fees`, qty: 1, unitPrice: park,  total: park });
-        if (trans > 0) newItems.push({ description: `Day ${i+1} – Transport`, qty: 1, unitPrice: trans, total: trans });
-      });
+      // If no booking selected, use client info from cost sheet
+      if (!bookingId && cs.client) {
+        setBillTo(cs.client.name || '');
+        setBillToEmail(cs.client.email || '');
+        setBillToPhone(cs.client.phone || '');
+      }
 
-      if (cs.fileHandlingFee > 0) newItems.push({ description: 'File Handling Fees', qty: 1, unitPrice: cs.fileHandlingFee * mf, total: cs.fileHandlingFee * mf });
-      if (cs.ecoBottle > 0)       newItems.push({ description: 'Eco Bottle + Water', qty: 1, unitPrice: cs.ecoBottle * mf, total: cs.ecoBottle * mf });
-      if (cs.evacInsurance > 0)   newItems.push({ description: 'Evacuation Insurance', qty: 1, unitPrice: cs.evacInsurance * mf, total: cs.evacInsurance * mf });
-      if (cs.arrivalTransfer > 0) newItems.push({ description: 'Arrival Transfer', qty: 1, unitPrice: cs.arrivalTransfer * mf, total: cs.arrivalTransfer * mf });
-      if (cs.departureTransfer > 0) newItems.push({ description: 'Departure Transfer', qty: 1, unitPrice: cs.departureTransfer * mf, total: cs.departureTransfer * mf });
-
-      if (newItems.length > 0) setItems(newItems);
+      // Create a single line item for the entire costing sheet amount
+      if (cs.totalCost) {
+        setItems([{
+          description: `${cs.tourTitle || 'Safari Package'} – as per costing sheet`,
+          qty: 1,
+          unitPrice: cs.totalCost,
+          total: cs.totalCost
+        }]);
+      }
     });
-  }, [preCostSheetId]);
+  }, [preCostSheetId, bookingId]);
 
   function setItem(i: number, patch: Partial<LineItem>) {
     setItems(prev => prev.map((item, j) => {
@@ -97,12 +94,20 @@ export default function NewInvoicePage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!bookingId) { setError('Please select a booking'); return; }
+    const finalBookingId = bookingId || null;
     setSaving(true); setError('');
     const res = await fetch('/api/invoices', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bookingId, billTo, billToEmail, billToPhone, invoiceDate, dueDate, lineItems: items, subtotal, taxAmount, depositReceived, totalAmount, amountPaid: depositReceived, currency, paymentInstructions, notes, status }),
+      body: JSON.stringify({
+        bookingId: finalBookingId,
+        billTo, billToEmail, billToPhone,
+        invoiceDate, dueDate,
+        lineItems: items,
+        subtotal, taxAmount, depositReceived,
+        totalAmount, amountPaid: depositReceived,
+        currency, paymentInstructions, notes, status
+      }),
     });
     if (res.ok) {
       const inv = await res.json();
@@ -126,13 +131,13 @@ export default function NewInvoicePage() {
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && <div className="bg-red-50 text-red-700 border border-red-200 rounded-lg p-3 text-sm">{error}</div>}
 
-        {/* Booking link */}
+        {/* Booking link (optional) */}
         <div className="card space-y-4">
-          <h2 className="font-semibold text-gray-800">Link to Booking</h2>
+          <h2 className="font-semibold text-gray-800">Link to Booking (optional)</h2>
           <div>
-            <label className="label">Booking *</label>
-            <select className="input" value={bookingId} onChange={e => setBookingId(e.target.value)} required>
-              <option value="">— Select booking —</option>
+            <label className="label">Booking</label>
+            <select className="input" value={bookingId} onChange={e => setBookingId(e.target.value)}>
+              <option value="">— No booking —</option>
               {bookings.map((b: any) => <option key={b.id} value={b.id}>{b.bookingRef} · {b.client?.name}</option>)}
             </select>
           </div>
@@ -145,7 +150,7 @@ export default function NewInvoicePage() {
           )}
         </div>
 
-        {/* Bill to */}
+        {/* Bill To */}
         <div className="card space-y-4">
           <h2 className="font-semibold text-gray-800">Bill To</h2>
           <div className="grid grid-cols-2 gap-4">
@@ -155,26 +160,22 @@ export default function NewInvoicePage() {
           </div>
         </div>
 
-        {/* Invoice details */}
+        {/* Invoice Details */}
         <div className="card space-y-4">
           <h2 className="font-semibold text-gray-800">Invoice Details</h2>
           <div className="grid grid-cols-2 gap-4">
             <div><label className="label">Invoice Date</label><input type="date" className="input" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)}/></div>
             <div><label className="label">Due Date *</label><input type="date" required className="input" value={dueDate} onChange={e => setDueDate(e.target.value)}/></div>
-            <div><label className="label">Currency</label>
-              <select className="input" value={currency} onChange={e => setCurrency(e.target.value)}>
-                {['USD','KES','EUR','GBP'].map(c => <option key={c}>{c}</option>)}
-              </select>
-            </div>
-            <div><label className="label">Status</label>
-              <select className="input" value={status} onChange={e => setStatus(e.target.value)}>
-                {['DRAFT','SENT','PARTIAL','PAID','OVERDUE','CANCELLED'].map(s => <option key={s}>{s}</option>)}
-              </select>
-            </div>
+            <div><label className="label">Currency</label><select className="input" value={currency} onChange={e => setCurrency(e.target.value)}>
+              {['USD','KES','EUR','GBP'].map(c => <option key={c}>{c}</option>)}
+            </select></div>
+            <div><label className="label">Status</label><select className="input" value={status} onChange={e => setStatus(e.target.value)}>
+              {['DRAFT','SENT','PARTIAL','PAID','OVERDUE','CANCELLED'].map(s => <option key={s}>{s}</option>)}
+            </select></div>
           </div>
         </div>
 
-        {/* Line items */}
+        {/* Line Items */}
         <div className="card space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-gray-800">Line Items</h2>
@@ -182,19 +183,17 @@ export default function NewInvoicePage() {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="text-left px-3 py-2 text-xs font-medium text-gray-600">Description</th>
-                  <th className="text-center px-3 py-2 text-xs font-medium text-gray-600 w-16">Qty</th>
-                  <th className="text-right px-3 py-2 text-xs font-medium text-gray-600 w-32">Unit Price</th>
-                  <th className="text-right px-3 py-2 text-xs font-medium text-gray-600 w-32">Total</th>
-                  <th className="w-8"/>
-                </tr>
-              </thead>
+              <thead className="bg-gray-50"><tr>
+                <th className="text-left px-3 py-2 text-xs font-medium text-gray-600">Description</th>
+                <th className="text-center px-3 py-2 text-xs font-medium text-gray-600 w-16">Qty</th>
+                <th className="text-right px-3 py-2 text-xs font-medium text-gray-600 w-32">Unit Price</th>
+                <th className="text-right px-3 py-2 text-xs font-medium text-gray-600 w-32">Total</th>
+                <th className="w-8"/>
+              </tr></thead>
               <tbody>
                 {items.map((item, i) => (
                   <tr key={i} className="border-t border-gray-100">
-                    <td className="px-3 py-2"><input className="input text-sm py-1.5 w-full" value={item.description} onChange={e => setItem(i, { description: e.target.value })} placeholder="e.g. Safari Package — 7 Days"/></td>
+                    <td className="px-3 py-2"><input className="input text-sm py-1.5 w-full" value={item.description} onChange={e => setItem(i, { description: e.target.value })} placeholder="e.g. Safari Package"/></td>
                     <td className="px-3 py-2"><input type="number" min={1} className="input text-sm py-1.5 text-center w-full" value={item.qty} onChange={e => setItem(i, { qty: Number(e.target.value) })}/></td>
                     <td className="px-3 py-2"><input type="number" min={0} step="0.01" className="input text-sm py-1.5 text-right font-mono w-full" value={item.unitPrice || ''} onChange={e => setItem(i, { unitPrice: Number(e.target.value) })} placeholder="0.00"/></td>
                     <td className="px-3 py-2 text-right font-mono text-sm font-medium">{fmt2(item.total)}</td>
@@ -222,9 +221,7 @@ export default function NewInvoicePage() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-500">Deposit Received</span>
-              <div className="flex items-center gap-2">
-                <input type="number" min={0} step="0.01" value={depositReceived || ''} onChange={e => setDepositReceived(Number(e.target.value))} className="input w-32 text-sm py-1.5 text-right font-mono" placeholder="0.00"/>
-              </div>
+              <input type="number" min={0} step="0.01" value={depositReceived || ''} onChange={e => setDepositReceived(Number(e.target.value))} className="input w-32 text-sm py-1.5 text-right font-mono" placeholder="0.00"/>
             </div>
             <div className={`flex justify-between text-sm font-bold ${balanceDue > 0 ? 'text-orange-600' : 'text-green-600'}`}>
               <span>Balance Due</span>
@@ -233,7 +230,7 @@ export default function NewInvoicePage() {
           </div>
         </div>
 
-        {/* Payment instructions */}
+        {/* Payment Instructions */}
         <div className="card space-y-3">
           <h2 className="font-semibold text-gray-800">Payment Instructions</h2>
           <textarea className="input resize-none h-28 font-mono text-xs" value={paymentInstructions} onChange={e => setPaymentInstructions(e.target.value)}/>

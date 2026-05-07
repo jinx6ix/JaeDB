@@ -10,22 +10,24 @@ interface Client { id: string; name: string; agentId?: string|null; agent?: { id
 interface Agent  { id: string; name: string; company?: string|null; }
 interface Booking { id: string; bookingRef: string; clientId: string; client: { name: string }; tourPackageId?: string|null; }
 interface Hotel { id: number; name: string; stars?: number|null; county: { id: number; name: string }; }
-interface RoomPrice { id: number; ratePerPersonSharing?: number|null; singleRoomRate?: number|null; childRate?: number|null; currency: string; roomType: { id: number; name: string; maxOccupancy: number }; season: { id: number; name: string; startDate: string; endDate: string }; }
+interface RoomPrice { id: number; ratePerPersonSharing?: number|null; singleRoomRate?: number|null; childRate?: number|null; thirdAdultRate?: number|null; currency: string; roomType: { id: number; name: string; maxOccupancy: number }; season: { id: number; name: string; startDate: string; endDate: string }; }
 interface Destination { id: number; name: string; }
-interface Props { tours: Tour[]; rateCards: (RateCard & { tourPackage: Tour })[]; clients?: Client[]; agents?: Agent[]; bookings?: Booking[]; hotels?: Hotel[]; destinations?: Destination[]; }
+interface Props { tours: Tour[]; rateCards: (RateCard & { tourPackage: Tour })[]; clients?: Client[]; agents?: Agent[]; bookings?: Booking[]; hotels?: Hotel[]; destinations?: Destination[]; initialCostSheet?: any; }
 
 interface DayRow {
   destinationId: number|null;
   hotelId: string;
   hotelName: string;
-  adultAccomTotal: number;    // PER PERSON
-  childAccomTotal: number;    // PER PERSON
-  parkFeeAdultTotal: number;  // GROUP TOTAL
-  parkFeeChildTotal: number;  // GROUP TOTAL
-  transportTotal: number;     // GROUP TOTAL
+  adultAccomTotal: number;
+  childAccomTotal: number;
+  parkFeeAdultTotal: number;
+  parkFeeChildTotal: number;
+  transportTotal: number;
   hasFlight: boolean;
   flightAdultPP: number;
   flightChildPP: number;
+  isTriple: boolean;
+  selectedRateId: number|null;
   availableRates: RoomPrice[];
   ratesLoading: boolean;
 }
@@ -50,6 +52,8 @@ function emptyRow(): DayRow {
     hasFlight: false,
     flightAdultPP: 0,
     flightChildPP: 0,
+    isTriple: false,
+    selectedRateId: null,
     availableRates: [],
     ratesLoading: false,
   };
@@ -67,19 +71,24 @@ export default function RateCalculator({
   bookings = [],
   hotels: initHotels = [],
   destinations: initDests = [],
+  initialCostSheet,
 }: Props) {
-  // Local state for refreshable data
   const [localHotels, setLocalHotels] = useState<Hotel[]>(initHotels);
   const [localDests, setLocalDests] = useState<Destination[]>(initDests);
   const [localClients, setLocalClients] = useState<Client[]>(clients);
 
-  // Linking fields – client search state
+  // Cost sheet versioning
+  const [costSheetsList, setCostSheetsList] = useState<any[]>([]);
+  const [currentCostSheetId, setCurrentCostSheetId] = useState<string | null>(null);
+  const [isLoadingSheet, setIsLoadingSheet] = useState(false);
+
+  // Linking fields
   const [clientSearch, setClientSearch] = useState('');
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const clientInputRef = useRef<HTMLInputElement>(null);
   const clientDropdownRef = useRef<HTMLDivElement>(null);
   const [isCreatingClient, setIsCreatingClient] = useState(false);
-
+  const [clientId, setClientId] = useState('');
   const [agentId, setAgentId] = useState('');
   const [bookingId, setBookingId] = useState('');
   const [tourId, setTourId] = useState('');
@@ -92,7 +101,8 @@ export default function RateCalculator({
   const [currency, setCurrency] = useState('USD');
   const [boardBasis, setBoardBasis] = useState('FB');
   const [startDate, setStartDate] = useState('');
-  const [globalMarkup, setGlobalMarkup] = useState(10); // NEW: global markup percent
+  const [globalMarkup, setGlobalMarkup] = useState(10);
+  const [notes, setNotes] = useState('');
 
   // Day rows
   const [dayRows, setDayRows] = useState<DayRow[]>([emptyRow()]);
@@ -109,7 +119,7 @@ export default function RateCalculator({
   const [departureTransfer, setDepartureTransfer] = useState(false);
   const [departureTotal, setDepartureTotal] = useState(0);
 
-  // Option tables (per‑pax markups – these are separate from global markup)
+  // Option tables
   const [options, setOptions] = useState<{ pax: number; markup: number }[]>([]);
 
   // UI state
@@ -120,15 +130,12 @@ export default function RateCalculator({
   // Computed
   const numPax = numAdults + numChildren;
   const maxDisplayPax = Math.min(numPax, 8);
-  const [clientId, setClientId] = useState('');
-
-  // Filter clients based on search
   const filteredClients = localClients.filter(c =>
     c.name.toLowerCase().includes(clientSearch.toLowerCase())
   );
   const exactMatch = filteredClients.some(c => c.name.toLowerCase() === clientSearch.toLowerCase());
 
-  // Close client dropdown on outside click
+  // Close client dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (clientDropdownRef.current && !clientDropdownRef.current.contains(event.target as Node) &&
@@ -140,12 +147,9 @@ export default function RateCalculator({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Update options (per‑pax) when numPax changes
+  // Options based on numPax
   useEffect(() => {
-    if (numPax === 0) {
-      setOptions([]);
-      return;
-    }
+    if (numPax === 0) { setOptions([]); return; }
     const newLength = maxDisplayPax;
     setOptions(prev => {
       if (prev.length === newLength && prev.every((opt, idx) => opt.pax === idx + 1)) return prev;
@@ -175,6 +179,7 @@ export default function RateCalculator({
     });
   }, [numDays]);
 
+  // Auto-fill from booking
   useEffect(() => {
     if (!bookingId) return;
     const b = bookings.find((b) => b.id === bookingId);
@@ -192,7 +197,6 @@ export default function RateCalculator({
     if (c?.agentId) setAgentId(c.agentId);
   }, [clientId, localClients]);
 
-  // Reset child fields when children = 0
   useEffect(() => {
     if (numChildren === 0) {
       setDayRows(prev => prev.map(row => ({
@@ -204,19 +208,96 @@ export default function RateCalculator({
     }
   }, [numChildren]);
 
+  const fetchCostSheets = useCallback(async () => {
+    if (!clientId && !bookingId) {
+      setCostSheetsList([]);
+      return;
+    }
+    const params = new URLSearchParams();
+    if (clientId) params.append('clientId', clientId);
+    if (bookingId) params.append('bookingId', bookingId);
+    const res = await fetch(`/api/cost-sheets?${params.toString()}`);
+    const data = await res.json();
+    const sheets = Array.isArray(data) ? data : (data.data || []);
+    setCostSheetsList(sheets);
+  }, [clientId, bookingId]);
+
+  const loadCostSheet = useCallback(async (sheetId: string) => {
+    if (!sheetId) return;
+    setIsLoadingSheet(true);
+    try {
+      const res = await fetch(`/api/cost-sheets/${sheetId}`);
+      const sheet = await res.json();
+      if (!sheet.id) return;
+      setCurrentCostSheetId(sheet.id);
+      setClientId(sheet.clientId || '');
+      setClientSearch(sheet.client?.name || '');
+      setAgentId(sheet.agentId || '');
+      setBookingId(sheet.bookingId || '');
+      setTourId(sheet.booking?.tourPackageId || '');
+      setNumAdults(sheet.numAdults || 0);
+      setNumChildren(sheet.numChildren || 0);
+      setNumDays(sheet.days || 1);
+      setBoardBasis(sheet.boardBasis || 'FB');
+      setCurrency(sheet.currency || 'USD');
+      setGlobalMarkup(sheet.markupPercent || 10);
+      setFileHandling(sheet.fileHandlingFee || 0);
+      setEcoBottle(sheet.ecoBottle || 0);
+      setEvacInsurance(sheet.evacInsurance || 0);
+      setArrivalTransfer(sheet.arrivalTransfer > 0);
+      setArrivalTotal(sheet.arrivalTransfer || 0);
+      setDepartureTransfer(sheet.departureTransfer > 0);
+      setDepartureTotal(sheet.departureTransfer || 0);
+      setMaasaiVillage(!!sheet.maasaiVillage);
+      setMaasaiCostTotal(sheet.maasaiCost || 0);
+      setNotes(sheet.notes || '');
+      let extrasArr = [];
+      try { extrasArr = JSON.parse(sheet.extras || '[]'); } catch {}
+      setExtraItems(extrasArr);
+      let parsedRows = [];
+      try { parsedRows = JSON.parse(sheet.dayRows || '[]'); } catch {}
+      const newRows = parsedRows.map((row: any) => ({
+        ...emptyRow(),
+        destinationId: row.destinationId ?? null,
+        hotelId: row.hotelId || '',
+        hotelName: row.hotelName || '',
+        adultAccomTotal: row.adultAccomTotal ?? row.adultTotal ?? 0,
+        childAccomTotal: row.childAccomTotal ?? row.childTotal ?? 0,
+        parkFeeAdultTotal: row.parkFeeAdultTotal ?? 0,
+        parkFeeChildTotal: row.parkFeeChildTotal ?? 0,
+        transportTotal: row.transportTotal ?? 0,
+        hasFlight: !!row.hasFlight,
+        flightAdultPP: row.flightAdultPP ?? 0,
+        flightChildPP: row.flightChildPP ?? 0,
+        isTriple: row.isTriple ?? false,
+        selectedRateId: row.selectedRateId ?? null,
+      }));
+      setDayRows(newRows);
+    } catch (err) {
+      console.error('Failed to load cost sheet', err);
+    } finally {
+      setIsLoadingSheet(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (initialCostSheet) loadCostSheet(initialCostSheet.id);
+  }, [initialCostSheet, loadCostSheet]);
+
+  useEffect(() => {
+    fetchCostSheets();
+  }, [fetchCostSheets]);
+
   function updateRow(i: number, patch: Partial<DayRow>) {
     setDayRows((prev) => prev.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   }
 
-  // Fetch rates
   const fetchRates = useCallback(
     async (i: number, hotelId: string, board: string, date?: string) => {
       if (!hotelId) return;
       updateRow(i, { ratesLoading: true, availableRates: [] });
       try {
-        const url = `/api/safari-rates/lookup?hotelId=${hotelId}&boardBasis=${board}${
-          date ? `&date=${date}` : ''
-        }`;
+        const url = `/api/safari-rates/lookup?hotelId=${hotelId}&boardBasis=${board}${date ? `&date=${date}` : ''}`;
         const res = await fetch(url);
         const data = await res.json();
         updateRow(i, { ratesLoading: false, availableRates: data.prices || [] });
@@ -240,6 +321,8 @@ export default function RateCalculator({
       destinationId: hotel?.county?.id ?? dayRows[i].destinationId,
       adultAccomTotal: 0,
       childAccomTotal: 0,
+      selectedRateId: null,
+      isTriple: false,
     });
     if (hotelId) fetchRates(i, hotelId, boardBasis, dayDate(i));
   }
@@ -248,6 +331,7 @@ export default function RateCalculator({
     const price = dayRows[i].availableRates.find((p) => String(p.id) === priceId);
     if (!price) return;
     updateRow(i, {
+      selectedRateId: price.id,
       adultAccomTotal: price.ratePerPersonSharing || 0,
       childAccomTotal: numChildren > 0 ? (price.childRate || 0) : 0,
     });
@@ -262,16 +346,15 @@ export default function RateCalculator({
 
   const refreshData = async () => {
     const [h, d, c] = await Promise.all([
-      fetch('/api/safari-rates/hotels').then((r) => r.json()),
-      fetch('/api/safari-rates/destinations').then((r) => r.json()),
-      fetch('/api/clients').then((r) => r.json()),
+      fetch('/api/safari-rates/hotels').then(r => r.json()),
+      fetch('/api/safari-rates/destinations').then(r => r.json()),
+      fetch('/api/clients').then(r => r.json()),
     ]);
     setLocalHotels(Array.isArray(h) ? h : []);
     setLocalDests(Array.isArray(d) ? d : []);
     setLocalClients(Array.isArray(c) ? c : []);
   };
 
-  // Create new client
   const createClient = async (name: string) => {
     setIsCreatingClient(true);
     try {
@@ -298,7 +381,6 @@ export default function RateCalculator({
     }
   };
 
-  // Handle client selection from dropdown
   const handleClientSelect = async (client: Client | null, typedName: string) => {
     if (client) {
       setClientId(client.id);
@@ -314,13 +396,27 @@ export default function RateCalculator({
     }
   };
 
-  // Calculations (for display of option tables)
-  const accomPerPersonSum = dayRows.reduce((s, r) => s + r.adultAccomTotal + r.childAccomTotal, 0);
+  function getSelectedRate(row: DayRow): RoomPrice | undefined {
+    if (!row.selectedRateId) return undefined;
+    return row.availableRates.find(r => r.id === row.selectedRateId);
+  }
+
+  function getAccommodationGroupTotal(row: DayRow): number {
+    const rate = getSelectedRate(row);
+    if (row.isTriple && rate?.thirdAdultRate) {
+      return (rate.ratePerPersonSharing || 0) * 2 + (rate.thirdAdultRate || 0);
+    }
+    return (row.adultAccomTotal || 0) * numAdults;
+  }
+
+  const accomGroupTotal = dayRows.reduce((s, r) => s + getAccommodationGroupTotal(r), 0);
   const parkGroupTotal = dayRows.reduce((s, r) => s + r.parkFeeAdultTotal + r.parkFeeChildTotal, 0);
   const transportGroupTotal = dayRows.reduce((s, r) => s + r.transportTotal, 0);
   const flightGroupTotal = dayRows.reduce((s, r) => s + (r.hasFlight ? r.flightAdultPP * numAdults + r.flightChildPP * numChildren : 0), 0);
   const extrasGroupTotal = extraItems.reduce((s, e) => s + e.cost, 0) + fileHandling + ecoBottle + evacInsurance + (maasaiVillage ? maasaiCostTotal : 0) + (arrivalTransfer ? arrivalTotal : 0) + (departureTransfer ? departureTotal : 0);
   const flightAndExtrasGroupTotal = flightGroupTotal + extrasGroupTotal;
+
+  const accomPerPersonSum = dayRows.reduce((s, r) => s + r.adultAccomTotal + r.childAccomTotal, 0);
 
   const optionResults = options.map((opt) => {
     const pax = opt.pax;
@@ -335,16 +431,11 @@ export default function RateCalculator({
   const selectedAgent = agents.find((a) => a.id === agentId);
   const selectedBooking = bookings.find((b) => b.id === bookingId);
 
-  // Save handler (fixed with globalMarkup)
-  async function handleSave() {
-    setSaving(true);
-    setSaved(false);
-    setSaveError('');
-
+  function buildPayload() {
     const safe = (n: number) => (isNaN(n) ? 0 : n);
-
     const dayRowsJson = JSON.stringify(dayRows.map(r => ({
       destinationId: r.destinationId,
+      hotelId: r.hotelId,
       hotelName: r.hotelName,
       adultAccomTotal: r.adultAccomTotal,
       childAccomTotal: r.childAccomTotal,
@@ -354,29 +445,17 @@ export default function RateCalculator({
       hasFlight: r.hasFlight,
       flightAdultPP: r.flightAdultPP,
       flightChildPP: r.flightChildPP,
+      isTriple: r.isTriple,
+      selectedRateId: r.selectedRateId,
     })));
-
     const extrasJson = JSON.stringify(extraItems.filter(e => e.cost > 0));
-
-    const accomBase   = dayRows.reduce((s, r) => s + r.adultAccomTotal + r.childAccomTotal, 0);
-    const parkBase    = dayRows.reduce((s, r) => s + r.parkFeeAdultTotal + r.parkFeeChildTotal, 0);
-    const transportBase = dayRows.reduce((s, r) => s + r.transportTotal, 0);
-    const flightBase  = dayRows.reduce((s, r) => s + (r.hasFlight ? r.flightAdultPP * numAdults + r.flightChildPP * numChildren : 0), 0);
-    const extrasTotal = extraItems.reduce((s, e) => s + e.cost, 0)
-                      + fileHandling + ecoBottle + evacInsurance
-                      + (maasaiVillage ? maasaiCostTotal : 0)
-                      + (arrivalTransfer ? arrivalTotal : 0)
-                      + (departureTransfer ? departureTotal : 0);
-
-    const subtotal = accomBase + parkBase + transportBase + flightBase + extrasTotal;
-    // Use the global markup state (not the per‑pax options)
+    const subtotal = accomGroupTotal + parkGroupTotal + transportGroupTotal + flightGroupTotal + extrasGroupTotal;
     const markupAmount = subtotal * (globalMarkup / 100);
     const grandTotal = subtotal + markupAmount;
     const adultUnits = numAdults + numChildren * 0.5;
     const perAdult = adultUnits > 0 ? grandTotal / adultUnits : 0;
     const perChild = numChildren > 0 ? perAdult * 0.5 : 0;
-
-    const payload = {
+    return {
       bookingId: bookingId || null,
       clientId: clientId || null,
       agentId: agentId || null,
@@ -403,16 +482,34 @@ export default function RateCalculator({
       totalCost: safe(grandTotal),
       perAdultCost: safe(perAdult),
       perChildCost: safe(perChild),
+      notes: notes,
     };
+  }
 
+  async function handleSave() {
+    setSaving(true); setSaved(false); setSaveError('');
+    const payload = buildPayload();
     try {
-      const res = await fetch('/api/cost-sheets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      let res;
+      if (currentCostSheetId) {
+        res = await fetch(`/api/cost-sheets/${currentCostSheetId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        res = await fetch('/api/cost-sheets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      }
       if (res.ok) {
+        const updated = await res.json();
+        setCurrentCostSheetId(updated.id);
         setSaved(true);
+        await fetchCostSheets();
+        setTimeout(() => setSaved(false), 3000);
       } else {
         const err = await res.json();
         setSaveError(err.error || `Save failed (${res.status})`);
@@ -424,24 +521,87 @@ export default function RateCalculator({
     }
   }
 
-  // =============================================================================
-  // RENDER
-  // =============================================================================
+  async function handleSaveAsNew() {
+    setSaving(true); setSaved(false); setSaveError('');
+    const payload = buildPayload();
+    delete (payload as any).id;
+    try {
+      const res = await fetch('/api/cost-sheets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const newSheet = await res.json();
+        setCurrentCostSheetId(newSheet.id);
+        setSaved(true);
+        await fetchCostSheets();
+        setTimeout(() => setSaved(false), 3000);
+      } else {
+        const err = await res.json();
+        setSaveError(err.error || `Save failed (${res.status})`);
+      }
+    } catch (err: any) {
+      setSaveError(err.message || 'Network error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const currentIndex = costSheetsList.findIndex(s => s.id === currentCostSheetId);
+  const goPrev = () => { if (currentIndex > 0) loadCostSheet(costSheetsList[currentIndex - 1].id); };
+  const goNext = () => { if (currentIndex < costSheetsList.length - 1) loadCostSheet(costSheetsList[currentIndex + 1].id); };
+
   return (
     <div className="space-y-5">
       <div className="card bg-gradient-to-br from-orange-50 to-amber-50 border-orange-200">
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
           <h2 className="font-bold text-gray-800 text-lg">💰 Cost Calculator (Excel‑style)</h2>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center flex-wrap">
             <button type="button" onClick={refreshData} className="text-xs text-blue-500 hover:underline">🔄 Refresh Data</button>
-            <button onClick={handleSave} disabled={saving} className="btn-primary text-sm px-5">{saving ? 'Saving…' : '💾 Save Costing Sheet'}</button>
+            {costSheetsList.length > 0 && (
+              <div className="flex items-center gap-2">
+                <select
+                  className="input text-sm w-48"
+                  value={currentCostSheetId || ''}
+                  onChange={e => loadCostSheet(e.target.value)}
+                  disabled={isLoadingSheet}
+                >
+                  <option value="">— Select version —</option>
+                  {costSheetsList.map((s, idx) => (
+                    <option key={s.id} value={s.id}>
+                      {new Date(s.createdAt).toLocaleDateString()} – {s.tourTitle} (v{idx+1})
+                    </option>
+                  ))}
+                </select>
+                <span className="text-xs text-gray-500">
+                  {currentIndex >= 0 ? `Version ${currentIndex+1} of ${costSheetsList.length}` : ''}
+                </span>
+                <button
+                  onClick={goPrev}
+                  disabled={currentIndex <= 0 || isLoadingSheet}
+                  className="px-2 py-1 text-xs bg-gray-200 rounded disabled:opacity-50"
+                >
+                  ◀ Prev
+                </button>
+                <button
+                  onClick={goNext}
+                  disabled={currentIndex >= costSheetsList.length-1 || isLoadingSheet}
+                  className="px-2 py-1 text-xs bg-gray-200 rounded disabled:opacity-50"
+                >
+                  Next ▶
+                </button>
+              </div>
+            )}
+            <button onClick={handleSaveAsNew} disabled={saving} className="btn-secondary text-sm">📑 Save as New Version</button>
+            <button onClick={handleSave} disabled={saving} className="btn-primary text-sm">{saving ? 'Saving…' : '💾 Save Costing Sheet'}</button>
           </div>
         </div>
 
         {saved && <div className="mb-4 bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-2 text-sm">✓ Saved{selectedClientObj ? ` and linked to ${selectedClientObj.name}` : ''}.</div>}
         {saveError && <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm">{saveError}</div>}
 
-        {/* Section 1: Link to Client / Booking */}
+        {/* Section 1: Link to Client / Booking (unchanged) */}
         <div className="bg-white rounded-xl border border-orange-100 p-4 mb-5">
           <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-3">🔗 Link to Client / Booking</p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -462,26 +622,12 @@ export default function RateCalculator({
                 autoComplete="off"
               />
               {showClientDropdown && (filteredClients.length > 0 || clientSearch.trim()) && (
-                <div
-                  ref={clientDropdownRef}
-                  className="absolute z-10 mt-1 w-full max-h-60 overflow-auto bg-white border border-gray-200 rounded shadow-lg"
-                >
+                <div ref={clientDropdownRef} className="absolute z-10 mt-1 w-full max-h-60 overflow-auto bg-white border border-gray-200 rounded shadow-lg">
                   {filteredClients.map(c => (
-                    <div
-                      key={c.id}
-                      className="px-3 py-2 hover:bg-orange-50 cursor-pointer text-sm"
-                      onClick={() => handleClientSelect(c, '')}
-                    >
-                      {c.name}
-                    </div>
+                    <div key={c.id} className="px-3 py-2 hover:bg-orange-50 cursor-pointer text-sm" onClick={() => handleClientSelect(c, '')}>{c.name}</div>
                   ))}
                   {!exactMatch && clientSearch.trim() && (
-                    <div
-                      className="px-3 py-2 hover:bg-orange-50 cursor-pointer text-sm text-orange-600 border-t"
-                      onClick={() => handleClientSelect(null, clientSearch)}
-                    >
-                      + Create new client: "{clientSearch}"
-                    </div>
+                    <div className="px-3 py-2 hover:bg-orange-50 cursor-pointer text-sm text-orange-600 border-t" onClick={() => handleClientSelect(null, clientSearch)}>+ Create new client: "{clientSearch}"</div>
                   )}
                   {isCreatingClient && <div className="px-3 py-2 text-gray-400 text-sm">Creating...</div>}
                 </div>
@@ -520,7 +666,7 @@ export default function RateCalculator({
           )}
         </div>
 
-        {/* Section 2: Core settings – added global markup */}
+        {/* Section 2: Core settings */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3 mb-5">
           <div><label className="label text-xs">Adults</label><input type="number" min={0} value={numAdults} onChange={e => setNumAdults(Number(e.target.value))} className="input" /></div>
           <div><label className="label text-xs">Children</label><input type="number" min={0} value={numChildren} onChange={e => setNumChildren(Number(e.target.value))} className="input" /><p className="text-xs text-gray-400 mt-0.5">Total: {numPax}</p></div>
@@ -531,7 +677,7 @@ export default function RateCalculator({
           <div><label className="label text-xs">Markup %</label><input type="number" min={0} max={100} value={globalMarkup} onChange={e => setGlobalMarkup(Number(e.target.value))} className="input" /></div>
         </div>
 
-        {/* Section 3: Day‑by‑day table (unchanged) */}
+        {/* Section 3: Day‑by‑day table */}
         <div className="mb-5">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold text-gray-700 text-sm">🏕 Properties & Costs — Day by Day</h3>
@@ -546,6 +692,7 @@ export default function RateCalculator({
                   <th className="px-2 py-2 text-left font-semibold text-gray-600">Hotel / Accommodation</th>
                   <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Accom (per adult)</th>
                   {numChildren > 0 && <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Accom (per child)</th>}
+                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-20">Triple?</th>
                   <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Park Fees (group total)</th>
                   <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Transport (group total)</th>
                   <th className="px-2 py-2 text-center font-semibold text-gray-600 w-20">✈️</th>
@@ -563,8 +710,12 @@ export default function RateCalculator({
                   const dayDate = startDate ? new Date(new Date(startDate).getTime() + i * 86400000).toISOString().split('T')[0] : undefined;
                   const flightAdultDayTotal = row.hasFlight ? row.flightAdultPP * numAdults : 0;
                   const flightChildDayTotal = row.hasFlight ? row.flightChildPP * numChildren : 0;
-                  const dayTotalBase = (row.adultAccomTotal + row.childAccomTotal) * numPax + row.parkFeeAdultTotal + row.parkFeeChildTotal + row.transportTotal + flightAdultDayTotal + flightChildDayTotal;
-
+                  const accomGroup = getAccommodationGroupTotal(row);
+                  const dayTotalBase = accomGroup + row.parkFeeAdultTotal + row.parkFeeChildTotal + row.transportTotal + flightAdultDayTotal + flightChildDayTotal;
+                  const selectedRate = getSelectedRate(row);
+                  const displayAdultAccom = row.isTriple && selectedRate?.thirdAdultRate
+                    ? ((selectedRate.ratePerPersonSharing || 0) * 2 + selectedRate.thirdAdultRate)
+                    : (row.adultAccomTotal || 0);
                   return (
                     <tr key={i} className="hover:bg-orange-50/40">
                       <td className="px-2 py-2">
@@ -586,17 +737,41 @@ export default function RateCalculator({
                         </select>
                         {row.ratesLoading && <p className="text-orange-400 text-xs mt-1 flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin"/>Loading rates…</p>}
                         {!row.ratesLoading && row.availableRates.length > 0 && (
-                          <select className="input py-1 text-xs w-full mt-1 border-orange-200 bg-orange-50" onChange={e => onRoomPriceSelect(i, e.target.value)} defaultValue="">
+                          <select className="input py-1 text-xs w-full mt-1 border-orange-200 bg-orange-50" onChange={e => onRoomPriceSelect(i, e.target.value)} value={row.selectedRateId || ''}>
                             <option value="">↑ Pick rate → auto‑fills totals</option>
                             {row.availableRates.map(p => (
-                              <option key={p.id} value={p.id}>{p.roomType.name}: {p.ratePerPersonSharing ?? '?'}/adult · {p.childRate ?? 0}/child ({p.season?.name})</option>
+                              <option key={p.id} value={p.id}>
+                                {p.roomType.name}: {p.ratePerPersonSharing ?? '?'}/adult · {p.childRate ?? 0}/child {p.thirdAdultRate ? `· triple: ${p.thirdAdultRate}` : ''} ({p.season?.name})
+                              </option>
                             ))}
                           </select>
                         )}
                         {!row.hotelId && <input value={row.hotelName} onChange={e => updateRow(i, { hotelName: e.target.value })} className="input py-1 text-xs w-full mt-1" placeholder="Or type manually"/>}
                       </td>
-                      <td className="px-2 py-2"><input type="number" min={0} step="0.01" value={row.adultAccomTotal || ''} onChange={e => updateRow(i, { adultAccomTotal: Number(e.target.value) })} className="input py-1 text-xs font-mono text-center w-full" placeholder="0"/><span className="text-gray-400 text-xs block text-center">per adult</span></td>
+                      <td className="px-2 py-2 text-center">
+                        {row.isTriple && selectedRate?.thirdAdultRate ? (
+                          <span className="font-mono font-bold text-orange-600">
+                            {currency} {fmt2(displayAdultAccom)}
+                            <span className="block text-xs text-gray-400">(triple total)</span>
+                          </span>
+                        ) : (
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={row.adultAccomTotal || ''}
+                            onChange={e => updateRow(i, { adultAccomTotal: Number(e.target.value) })}
+                            className="input py-1 text-xs font-mono text-center w-full"
+                            placeholder="0"
+                          />
+                        )}
+                        <span className="text-gray-400 text-xs block">per adult</span>
+                      </td>
                       {numChildren > 0 && <td className="px-2 py-2"><input type="number" min={0} step="0.01" value={row.childAccomTotal || ''} onChange={e => updateRow(i, { childAccomTotal: Number(e.target.value) })} className="input py-1 text-xs font-mono text-center w-full" placeholder="0"/><span className="text-gray-400 text-xs block text-center">per child</span></td>}
+                      <td className="px-2 py-2 text-center">
+                        <input type="checkbox" checked={row.isTriple} onChange={e => updateRow(i, { isTriple: e.target.checked })} className="w-4 h-4" />
+                        <span className="text-xs text-gray-400 block">Triple room</span>
+                      </td>
                       <td className="px-2 py-2"><input type="number" min={0} step="0.01" value={row.parkFeeAdultTotal || ''} onChange={e => updateRow(i, { parkFeeAdultTotal: Number(e.target.value) })} className="input py-1 text-xs font-mono text-center w-full" placeholder="0"/></td>
                       <td className="px-2 py-2"><input type="number" min={0} step="0.01" value={row.transportTotal || ''} onChange={e => updateRow(i, { transportTotal: Number(e.target.value) })} className="input py-1 text-xs font-mono text-center w-full" placeholder="0"/></td>
                       <td className="px-2 py-2 text-center"><input type="checkbox" checked={row.hasFlight} onChange={e => updateRow(i, { hasFlight: e.target.checked })} className="w-4 h-4"/></td>
@@ -615,7 +790,7 @@ export default function RateCalculator({
           </div>
         </div>
 
-        {/* Sections 4,5,6 (extras, transfers, Maasai, additional) unchanged */}
+        {/* Extras sections (unchanged) */}
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
           <div><label className="label">File Handling Fees ({currency}) – total</label><input type="number" min={0} value={fileHandling||''} onChange={e => setFileHandling(Number(e.target.value))} className="input font-mono" placeholder="0" /></div>
           <div><label className="label">Eco Bottle + Water ({currency}) – total</label><input type="number" min={0} value={ecoBottle||''} onChange={e => setEcoBottle(Number(e.target.value))} className="input font-mono" placeholder="0" /></div>
@@ -650,11 +825,11 @@ export default function RateCalculator({
           ))}
         </div>
 
-        {/* Section 7: Totals and Option Tables (unchanged) */}
+        {/* Totals section */}
         <div className="bg-white rounded-xl border border-orange-100 overflow-hidden mb-5">
           <div className="px-4 py-2 bg-orange-50 border-b border-orange-100 font-semibold text-gray-700">📊 Totals for the calculation (no markup)</div>
           <div className="p-4 flex flex-wrap gap-4 text-sm">
-            <div><span className="text-gray-500">Accommodation (sum of daily per‑person rates):</span> {currency} {fmt2(accomPerPersonSum)}</div>
+            <div><span className="text-gray-500">Accommodation (group total):</span> {currency} {fmt2(accomGroupTotal)}</div>
             <div><span className="text-gray-500">Park Fees (group total):</span> {currency} {fmt2(parkGroupTotal)}</div>
             <div><span className="text-gray-500">Transport (group total):</span> {currency} {fmt2(transportGroupTotal)}</div>
             <div><span className="text-gray-500">Flights & Extras (group total):</span> {currency} {fmt2(flightAndExtrasGroupTotal)}</div>
@@ -665,7 +840,9 @@ export default function RateCalculator({
               <div className="p-4 text-center text-gray-400 text-sm">Enter at least 1 adult or child to see pricing options.</div>
             ) : (
               <table className="w-full text-sm">
-                <thead className="bg-gray-50"><tr><th className="p-2 text-left">Pax</th><th className="p-2 text-left">Per Person Sharing (base)</th><th className="p-2 text-left">Markup %</th><th className="p-2 text-left">Marked Up</th><th className="p-2 text-left">Profit</th></tr></thead>
+                <thead className="bg-gray-50">
+                  <tr><th className="p-2 text-left">Pax</th><th className="p-2 text-left">Per Person Sharing (base)</th><th className="p-2 text-left">Markup %</th><th className="p-2 text-left">Marked Up</th><th className="p-2 text-left">Profit</th></tr>
+                </thead>
                 <tbody>
                   {optionResults.map((opt, idx) => (
                     <tr key={opt.pax} className="border-b">

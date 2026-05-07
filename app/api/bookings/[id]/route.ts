@@ -104,12 +104,27 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
+// app/api/bookings/[id]/route.ts (replace DELETE handler)
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const role = (session.user as any)?.role;
   if (role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  await prisma.booking.delete({ where: { id: params.id } });
-  return NextResponse.json({ success: true });
+  try {
+    // Delete all related records in a transaction
+    await prisma.$transaction([
+      prisma.voucher.deleteMany({ where: { bookingId: params.id } }),
+      prisma.itineraryDay.deleteMany({ where: { itinerary: { bookingId: params.id } } }),
+      prisma.itinerary.deleteMany({ where: { bookingId: params.id } }),
+      prisma.costSheet.deleteMany({ where: { bookingId: params.id } }),
+      prisma.invoice.deleteMany({ where: { bookingId: params.id } }),
+      prisma.booking.delete({ where: { id: params.id } }),
+    ]);
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('DELETE error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }

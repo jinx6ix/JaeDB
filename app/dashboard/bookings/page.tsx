@@ -1,6 +1,8 @@
-// app/dashboard/bookings/page.tsx
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import DeleteBookingButton from '@/components/DeleteBookingButton';
 
 const STATUS_OPTIONS = ['ALL', 'ENQUIRY', 'QUOTED', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
 
@@ -12,6 +14,8 @@ const statusColors: Record<string, string> = {
 
 export default async function BookingsPage({ searchParams }: { searchParams: { status?: string; q?: string } }) {
   const { status = 'ALL', q = '' } = searchParams;
+  const session = await getServerSession(authOptions);
+  const isAdmin = (session?.user as any)?.role === 'ADMIN';
 
   const bookings = await prisma.booking.findMany({
     where: {
@@ -37,7 +41,7 @@ export default async function BookingsPage({ searchParams }: { searchParams: { s
         <Link href="/dashboard/bookings/new" className="btn-primary">+ New Booking</Link>
       </div>
 
-      {/* Filters */}
+      {/* Filters (unchanged) */}
       <div className="flex flex-wrap gap-3 items-center">
         <form className="flex gap-2">
           <input name="q" defaultValue={q} placeholder="Search ref or client…" className="input w-56" />
@@ -63,7 +67,7 @@ export default async function BookingsPage({ searchParams }: { searchParams: { s
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              {['Ref', 'Client', 'Tour', 'Dates', 'Pax', 'Amount', 'Assigned To', 'Status', ''].map(h => (
+              {['Ref', 'Client', 'Tour', 'Dates', 'Pax', 'Amount', 'Assigned To', 'Status', 'Actions'].map(h => (
                 <th key={h} className="text-left px-4 py-3 font-medium text-gray-600">{h}</th>
               ))}
             </tr>
@@ -90,8 +94,11 @@ export default async function BookingsPage({ searchParams }: { searchParams: { s
                 <td className="px-4 py-3">
                   <span className={statusColors[b.status]}>{b.status.replace('_', ' ')}</span>
                 </td>
-                <td className="px-4 py-3">
-                  <Link href={`/dashboard/bookings/${b.id}`} className="text-orange-500 hover:underline text-xs">View</Link>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <Link href={`/dashboard/bookings/${b.id}`} className="text-orange-500 hover:underline text-xs">
+                    View
+                  </Link>
+                  {isAdmin && <DeleteBookingButton bookingId={b.id} bookingRef={b.bookingRef} />}
                 </td>
               </tr>
             ))}

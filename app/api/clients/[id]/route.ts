@@ -51,6 +51,23 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   const role = (session.user as any)?.role;
   if (role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
+  // Check if client has any bookings
+  const clientWithBookings = await prisma.client.findUnique({
+    where: { id: params.id },
+    include: { _count: { select: { bookings: true } } },
+  });
+
+  if (!clientWithBookings) {
+    return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+  }
+
+  if (clientWithBookings._count.bookings > 0) {
+    return NextResponse.json(
+      { error: `Cannot delete client with ${clientWithBookings._count.bookings} existing booking(s). Delete or reassign bookings first.` },
+      { status: 400 }
+    );
+  }
+
   await prisma.client.delete({ where: { id: params.id } });
   return NextResponse.json({ success: true });
 }
