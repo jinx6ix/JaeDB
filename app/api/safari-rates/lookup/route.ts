@@ -1,5 +1,4 @@
 // app/api/safari-rates/lookup/route.ts
-// Returns hotel prices whose season contains the given date (strict match first, fallback to all)
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -22,6 +21,7 @@ export async function GET(req: NextRequest) {
     ratePerPersonSharing: true,
     singleRoomRate: true,
     childRate: true,
+    thirdAdultRate: true,   // ✅ ADD THIS
     currency: true,
     roomType: { select: { id: true, name: true, maxOccupancy: true } },
     season: { select: { id: true, name: true, startDate: true, endDate: true } },
@@ -30,36 +30,26 @@ export async function GET(req: NextRequest) {
   // 1. Try exact date match within a season
   if (dateStr) {
     const queryDate = new Date(dateStr);
-    // Normalise to midnight UTC so date-only comparison works
     queryDate.setUTCHours(0, 0, 0, 0);
-
     const prices = await prisma.sRRoomPrice.findMany({
       where: {
         boardBasis,
         roomType: { hotelId: Number(hotelId) },
-        season: {
-          startDate: { lte: queryDate },
-          endDate:   { gte: queryDate },
-        },
+        season: { startDate: { lte: queryDate }, endDate: { gte: queryDate } },
       },
       select: priceSelect,
       orderBy: { roomType: { name: 'asc' } },
     });
-
     if (prices.length > 0) {
       return NextResponse.json({ prices, matched: true, matchType: 'season' });
     }
   }
 
-  // 2. Fallback: return all prices for this hotel + board (any season)
+  // 2. Fallback: all prices
   const fallback = await prisma.sRRoomPrice.findMany({
-    where: {
-      boardBasis,
-      roomType: { hotelId: Number(hotelId) },
-    },
+    where: { boardBasis, roomType: { hotelId: Number(hotelId) } },
     select: priceSelect,
     orderBy: [{ season: { startDate: 'desc' } }, { roomType: { name: 'asc' } }],
   });
-
   return NextResponse.json({ prices: fallback, matched: false, matchType: 'fallback' });
 }

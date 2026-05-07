@@ -27,6 +27,7 @@ interface DayRow {
   flightAdultPP: number;
   flightChildPP: number;
   isTriple: boolean;
+  tripleRate: number;
   selectedRateId: number|null;
   availableRates: RoomPrice[];
   ratesLoading: boolean;
@@ -53,6 +54,7 @@ function emptyRow(): DayRow {
     flightAdultPP: 0,
     flightChildPP: 0,
     isTriple: false,
+    tripleRate: 0,
     selectedRateId: null,
     availableRates: [],
     ratesLoading: false,
@@ -270,6 +272,7 @@ export default function RateCalculator({
         flightAdultPP: row.flightAdultPP ?? 0,
         flightChildPP: row.flightChildPP ?? 0,
         isTriple: row.isTriple ?? false,
+        tripleRate: row.tripleRate ?? 0,
         selectedRateId: row.selectedRateId ?? null,
       }));
       setDayRows(newRows);
@@ -323,6 +326,7 @@ export default function RateCalculator({
       childAccomTotal: 0,
       selectedRateId: null,
       isTriple: false,
+      tripleRate: 0,
     });
     if (hotelId) fetchRates(i, hotelId, boardBasis, dayDate(i));
   }
@@ -330,10 +334,15 @@ export default function RateCalculator({
   function onRoomPriceSelect(i: number, priceId: string) {
     const price = dayRows[i].availableRates.find((p) => String(p.id) === priceId);
     if (!price) return;
+    let tripleRate = 0;
+    if (price.thirdAdultRate && price.ratePerPersonSharing) {
+      tripleRate = (price.ratePerPersonSharing * 2) + price.thirdAdultRate;
+    }
     updateRow(i, {
       selectedRateId: price.id,
       adultAccomTotal: price.ratePerPersonSharing || 0,
       childAccomTotal: numChildren > 0 ? (price.childRate || 0) : 0,
+      tripleRate: tripleRate,
     });
   }
 
@@ -402,9 +411,8 @@ export default function RateCalculator({
   }
 
   function getAccommodationGroupTotal(row: DayRow): number {
-    const rate = getSelectedRate(row);
-    if (row.isTriple && rate?.thirdAdultRate) {
-      return (rate.ratePerPersonSharing || 0) * 2 + (rate.thirdAdultRate || 0);
+    if (row.isTriple) {
+      return row.tripleRate;
     }
     return (row.adultAccomTotal || 0) * numAdults;
   }
@@ -446,6 +454,7 @@ export default function RateCalculator({
       flightAdultPP: r.flightAdultPP,
       flightChildPP: r.flightChildPP,
       isTriple: r.isTriple,
+      tripleRate: r.tripleRate,
       selectedRateId: r.selectedRateId,
     })));
     const extrasJson = JSON.stringify(extraItems.filter(e => e.cost > 0));
@@ -601,7 +610,7 @@ export default function RateCalculator({
         {saved && <div className="mb-4 bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-2 text-sm">✓ Saved{selectedClientObj ? ` and linked to ${selectedClientObj.name}` : ''}.</div>}
         {saveError && <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm">{saveError}</div>}
 
-        {/* Section 1: Link to Client / Booking (unchanged) */}
+        {/* Section 1: Link to Client / Booking */}
         <div className="bg-white rounded-xl border border-orange-100 p-4 mb-5">
           <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-3">🔗 Link to Client / Booking</p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -693,6 +702,9 @@ export default function RateCalculator({
                   <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Accom (per adult)</th>
                   {numChildren > 0 && <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Accom (per child)</th>}
                   <th className="px-2 py-2 text-center font-semibold text-gray-600 w-20">Triple?</th>
+                  {dayRows.some(r => r.isTriple) && (
+                    <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Triple Rate (per room)</th>
+                  )}
                   <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Park Fees (group total)</th>
                   <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Transport (group total)</th>
                   <th className="px-2 py-2 text-center font-semibold text-gray-600 w-20">✈️</th>
@@ -713,9 +725,9 @@ export default function RateCalculator({
                   const accomGroup = getAccommodationGroupTotal(row);
                   const dayTotalBase = accomGroup + row.parkFeeAdultTotal + row.parkFeeChildTotal + row.transportTotal + flightAdultDayTotal + flightChildDayTotal;
                   const selectedRate = getSelectedRate(row);
-                  const displayAdultAccom = row.isTriple && selectedRate?.thirdAdultRate
-                    ? ((selectedRate.ratePerPersonSharing || 0) * 2 + selectedRate.thirdAdultRate)
-                    : (row.adultAccomTotal || 0);
+                  const tripleRateDefault = (selectedRate?.thirdAdultRate && selectedRate?.ratePerPersonSharing)
+                    ? (selectedRate.ratePerPersonSharing * 2 + selectedRate.thirdAdultRate)
+                    : row.tripleRate;
                   return (
                     <tr key={i} className="hover:bg-orange-50/40">
                       <td className="px-2 py-2">
@@ -749,29 +761,48 @@ export default function RateCalculator({
                         {!row.hotelId && <input value={row.hotelName} onChange={e => updateRow(i, { hotelName: e.target.value })} className="input py-1 text-xs w-full mt-1" placeholder="Or type manually"/>}
                       </td>
                       <td className="px-2 py-2 text-center">
-                        {row.isTriple && selectedRate?.thirdAdultRate ? (
-                          <span className="font-mono font-bold text-orange-600">
-                            {currency} {fmt2(displayAdultAccom)}
-                            <span className="block text-xs text-gray-400">(triple total)</span>
-                          </span>
-                        ) : (
-                          <input
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={row.adultAccomTotal || ''}
-                            onChange={e => updateRow(i, { adultAccomTotal: Number(e.target.value) })}
-                            className="input py-1 text-xs font-mono text-center w-full"
-                            placeholder="0"
-                          />
-                        )}
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={row.adultAccomTotal || ''}
+                          onChange={e => updateRow(i, { adultAccomTotal: Number(e.target.value) })}
+                          className="input py-1 text-xs font-mono text-center w-full"
+                          placeholder="0"
+                        />
                         <span className="text-gray-400 text-xs block">per adult</span>
                       </td>
                       {numChildren > 0 && <td className="px-2 py-2"><input type="number" min={0} step="0.01" value={row.childAccomTotal || ''} onChange={e => updateRow(i, { childAccomTotal: Number(e.target.value) })} className="input py-1 text-xs font-mono text-center w-full" placeholder="0"/><span className="text-gray-400 text-xs block text-center">per child</span></td>}
                       <td className="px-2 py-2 text-center">
-                        <input type="checkbox" checked={row.isTriple} onChange={e => updateRow(i, { isTriple: e.target.checked })} className="w-4 h-4" />
+                        <input
+                          type="checkbox"
+                          checked={row.isTriple}
+                          onChange={e => {
+                            const newTriple = e.target.checked;
+                            let tripleRate = row.tripleRate;
+                            if (newTriple && tripleRate === 0 && selectedRate?.thirdAdultRate && selectedRate.ratePerPersonSharing) {
+                              tripleRate = (selectedRate.ratePerPersonSharing * 2) + selectedRate.thirdAdultRate;
+                            }
+                            updateRow(i, { isTriple: newTriple, tripleRate: newTriple ? tripleRate : 0 });
+                          }}
+                          className="w-4 h-4"
+                        />
                         <span className="text-xs text-gray-400 block">Triple room</span>
                       </td>
+                      {row.isTriple && (
+                        <td className="px-2 py-2 text-center">
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={row.tripleRate || ''}
+                            onChange={e => updateRow(i, { tripleRate: Number(e.target.value) })}
+                            className="input py-1 text-xs font-mono text-center w-full"
+                            placeholder="0"
+                          />
+                          <span className="text-gray-400 text-xs block">total for triple room</span>
+                        </td>
+                      )}
                       <td className="px-2 py-2"><input type="number" min={0} step="0.01" value={row.parkFeeAdultTotal || ''} onChange={e => updateRow(i, { parkFeeAdultTotal: Number(e.target.value) })} className="input py-1 text-xs font-mono text-center w-full" placeholder="0"/></td>
                       <td className="px-2 py-2"><input type="number" min={0} step="0.01" value={row.transportTotal || ''} onChange={e => updateRow(i, { transportTotal: Number(e.target.value) })} className="input py-1 text-xs font-mono text-center w-full" placeholder="0"/></td>
                       <td className="px-2 py-2 text-center"><input type="checkbox" checked={row.hasFlight} onChange={e => updateRow(i, { hasFlight: e.target.checked })} className="w-4 h-4"/></td>
@@ -840,9 +871,7 @@ export default function RateCalculator({
               <div className="p-4 text-center text-gray-400 text-sm">Enter at least 1 adult or child to see pricing options.</div>
             ) : (
               <table className="w-full text-sm">
-                <thead className="bg-gray-50">
-                  <tr><th className="p-2 text-left">Pax</th><th className="p-2 text-left">Per Person Sharing (base)</th><th className="p-2 text-left">Markup %</th><th className="p-2 text-left">Marked Up</th><th className="p-2 text-left">Profit</th></tr>
-                </thead>
+                <thead className="bg-gray-50"><tr><th className="p-2 text-left">Pax</th><th className="p-2 text-left">Per Person Sharing (base)</th><th className="p-2 text-left">Markup %</th><th className="p-2 text-left">Marked Up</th><th className="p-2 text-left">Profit</th></tr></thead>
                 <tbody>
                   {optionResults.map((opt, idx) => (
                     <tr key={opt.pax} className="border-b">
