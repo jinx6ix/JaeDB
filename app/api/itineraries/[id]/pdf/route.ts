@@ -84,9 +84,63 @@ function safeParseJson(data: any, fallback: any[] = []) {
   return fallback;
 }
 
-// ItineraryImage.data is a String (base64) in schema
+// Check if image has data and mimeType - be permissive
 function isValidImage(img: any): boolean {
-  return !!(img && typeof img.data === 'string' && img.data.length > 10 && img.mimeType);
+  if (!img) return false;
+  if (!img.data) return false;
+  if (!img.mimeType) return false;
+  return true;
+}
+
+// Extract pure base64 from data URL or raw base64
+function extractBase64(data: string): string | null {
+  if (!data) return null;
+  
+  if (data.startsWith('data:')) {
+    const parts = data.split(',');
+    return parts.length > 1 ? parts[1] : null;
+  }
+  
+  const cleaned = data.replace(/\s/g, '');
+  return cleaned.length > 0 ? cleaned : null;
+}
+
+// Build image src for PDF - ensure it's valid JPEG base64
+function buildImageSrc(img: any): string | null {
+  try {
+    const raw = img.data;
+    if (!raw) return null;
+    
+    if (typeof raw !== 'string') return null;
+    
+    const base64Data = extractBase64(raw);
+    if (!base64Data) return null;
+    
+    if (base64Data.length === 0) return null;
+    
+    return `data:image/jpeg;base64,${base64Data}`;
+  } catch (err) {
+    console.error(`[PDF] Error building image src for ${img.id}:`, err);
+    return null;
+  }
+}
+
+function renderImage(img: any, key: string) {
+  try {
+    const src = buildImageSrc(img);
+    if (!src) {
+      console.log(`[PDF] Skipping image ${img.id} - could not build src`);
+      return null;
+    }
+    
+    return React.createElement(View, { key, style: S.imgCell },
+      React.createElement(PDFImage, { src, style: S.imgThumb }),
+      img.caption ? React.createElement(Text, { style: S.imgCaption }, img.caption) : null,
+    );
+  } catch (err) {
+    console.error(`[PDF] Error rendering image ${img.id}:`, err);
+    return null;
+  }
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -269,9 +323,14 @@ function ItineraryPDF({ itinerary, costSheet, imagesByDay }: {
       meals.note && `→ ${meals.note}`,
     ].filter(Boolean);
 
-    // CORE FIX: images come from imagesByDay map, fetched independently in GET handler
-    const images = (imagesByDay[day.id] || []).filter(isValidImage);
-    const pageHeight = estimateDayHeight(day, images);
+    const rawImages = imagesByDay[day.id] || [];
+    const validImages = rawImages.filter(isValidImage);
+    const pageHeight = estimateDayHeight(day, validImages);
+
+    const imageElements = validImages.map((img: any, idx: number) => {
+      const el = renderImage(img, `img-${day.id}-${idx}`);
+      return el;
+    }).filter(Boolean);
 
     return React.createElement(Page, { size: [PAGE_WIDTH, pageHeight], style: S.page, key: day.id },
       React.createElement(View, { style: { backgroundColor: '#1a1a2e', padding: '10 24', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' } },
@@ -296,15 +355,10 @@ function ItineraryPDF({ itinerary, costSheet, imagesByDay }: {
                 ),
               ),
             ),
-            images.length > 0 && React.createElement(View, { style: S.imgContainer },
+            imageElements.length > 0 && React.createElement(View, { style: S.imgContainer },
               React.createElement(Text, { style: S.imgTitle }, '📷 Gallery'),
               React.createElement(View, { style: S.imgRow },
-                images.map((img: any) =>
-                  React.createElement(View, { key: img.id, style: S.imgCell },
-                    React.createElement(PDFImage, { src: `data:${img.mimeType};base64,${img.data}`, style: S.imgThumb }),
-                    img.caption ? React.createElement(Text, { style: S.imgCaption }, img.caption) : null,
-                  ),
-                ),
+                ...imageElements,
               ),
             ),
           ),
@@ -344,7 +398,6 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const session = await getServerSession(authOptions);
   if (!session) return new NextResponse('Unauthorized', { status: 401 });
 
-  // Step 1: Fetch itinerary + days, NO nested image include
   const itinerary = await prisma.itinerary.findUnique({
     where: { id: params.id },
     include: {
@@ -355,58 +408,26 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   if (!itinerary) return new NextResponse('Not found', { status: 404 });
 
-  // Step 2: Fetch ALL ItineraryImages for this itinerary in ONE flat query
-  // using the correct Prisma model name: itineraryImage (matches schema model ItineraryImage)
-  const dayIds = itinerary.days.map((d: any) => d.id);
+  const imagesByDay: Record<string, any[]> = {};
 
-  const allImages = await prisma.itineraryImage.findMany({
-    where: { dayId: { in: dayIds } },
-    select: {
-      id: true,
-      dayId: true,
-      filename: true,
-      mimeType: true,
-      data: true,
-      caption: true,
-      createdAt: true,
-    },
-    orderBy: { createdAt: 'asc' },
-  });
-
-  // Step 3: Group into a map keyed by dayId
-  // Fetch per-day to avoid Postgres truncating large base64 payloads in a single IN query
-const imagesByDay: Record<string, any[]> = {};
-
-await Promise.all(
-  itinerary.days.map(async (day: any) => {
-    const imgs = await prisma.itineraryImage.findMany({
-      where: { dayId: day.id },
-      select: {
-        id: true,
-        dayId: true,
-        filename: true,
-        mimeType: true,
-        data: true,
-        caption: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'asc' },
-    });
-    imagesByDay[day.id] = imgs;
-    console.log(`[PDF] Day ${day.dayNumber} (${day.destination}): ${imgs.length} images`);
-  }),
-);
-
-const totalFetched = Object.values(imagesByDay).reduce((sum, imgs) => sum + imgs.length, 0);
-console.log('[PDF] Total images fetched:', totalFetched);
-
-  // Step 4: Log so you can see exactly what reached the renderer
-  console.log('[PDF] Total ItineraryImages fetched:', allImages.length);
-  itinerary.days.forEach((d: any) => {
-    const imgs = imagesByDay[d.id] || [];
-    const valid = imgs.filter((img: any) => img.data && img.mimeType);
-    console.log(`  Day ${d.dayNumber} (${d.destination}): ${imgs.length} images, ${valid.length} valid`);
-  });
+  await Promise.all(
+    itinerary.days.map(async (day: any) => {
+      const imgs = await prisma.itineraryImage.findMany({
+        where: { dayId: day.id },
+        select: {
+          id: true,
+          dayId: true,
+          filename: true,
+          mimeType: true,
+          data: true,
+          caption: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+      imagesByDay[day.id] = imgs;
+    }),
+  );
 
   const costSheet = await prisma.costSheet.findFirst({
     where: { bookingId: itinerary.booking.id },

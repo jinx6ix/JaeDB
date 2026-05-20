@@ -20,6 +20,7 @@ interface DayRow {
   hotelName: string;
   adultAccomTotal: number;
   childAccomTotal: number;
+  thirdPersonRate: number;
   parkFeeAdultTotal: number;
   parkFeeChildTotal: number;
   transportTotal: number;
@@ -47,6 +48,7 @@ function emptyRow(): DayRow {
     hotelName: '',
     adultAccomTotal: 0,
     childAccomTotal: 0,
+    thirdPersonRate: 0,
     parkFeeAdultTotal: 0,
     parkFeeChildTotal: 0,
     transportTotal: 0,
@@ -265,6 +267,7 @@ export default function RateCalculator({
         hotelName: row.hotelName || '',
         adultAccomTotal: row.adultAccomTotal ?? row.adultTotal ?? 0,
         childAccomTotal: row.childAccomTotal ?? row.childTotal ?? 0,
+        thirdPersonRate: row.thirdPersonRate ?? 0,
         parkFeeAdultTotal: row.parkFeeAdultTotal ?? 0,
         parkFeeChildTotal: row.parkFeeChildTotal ?? 0,
         transportTotal: row.transportTotal ?? 0,
@@ -324,6 +327,7 @@ export default function RateCalculator({
       destinationId: hotel?.county?.id ?? dayRows[i].destinationId,
       adultAccomTotal: 0,
       childAccomTotal: 0,
+      thirdPersonRate: 0,
       selectedRateId: null,
       isTriple: false,
       tripleRate: 0,
@@ -335,6 +339,7 @@ export default function RateCalculator({
     const price = dayRows[i].availableRates.find((p) => String(p.id) === priceId);
     if (!price) return;
     let tripleRate = 0;
+    let thirdPersonRate = price.thirdAdultRate || 0;
     if (price.thirdAdultRate && price.ratePerPersonSharing) {
       tripleRate = (price.ratePerPersonSharing * 2) + price.thirdAdultRate;
     }
@@ -342,6 +347,7 @@ export default function RateCalculator({
       selectedRateId: price.id,
       adultAccomTotal: price.ratePerPersonSharing || 0,
       childAccomTotal: numChildren > 0 ? (price.childRate || 0) : 0,
+      thirdPersonRate: thirdPersonRate,
       tripleRate: tripleRate,
     });
   }
@@ -447,6 +453,7 @@ export default function RateCalculator({
       hotelName: r.hotelName,
       adultAccomTotal: r.adultAccomTotal,
       childAccomTotal: r.childAccomTotal,
+      thirdPersonRate: r.thirdPersonRate,
       parkFeeAdultTotal: r.parkFeeAdultTotal,
       parkFeeChildTotal: r.parkFeeChildTotal,
       transportTotal: r.transportTotal,
@@ -701,6 +708,7 @@ export default function RateCalculator({
                   <th className="px-2 py-2 text-left font-semibold text-gray-600">Hotel / Accommodation</th>
                   <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Accom (per adult)</th>
                   {numChildren > 0 && <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Accom (per child)</th>}
+                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">3rd Person</th>
                   <th className="px-2 py-2 text-center font-semibold text-gray-600 w-20">Triple?</th>
                   {dayRows.some(r => r.isTriple) && (
                     <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Triple Rate (per room)</th>
@@ -727,7 +735,9 @@ export default function RateCalculator({
                   const selectedRate = getSelectedRate(row);
                   const tripleRateDefault = (selectedRate?.thirdAdultRate && selectedRate?.ratePerPersonSharing)
                     ? (selectedRate.ratePerPersonSharing * 2 + selectedRate.thirdAdultRate)
-                    : row.tripleRate;
+                    : (row.adultAccomTotal > 0 && row.thirdPersonRate > 0)
+                      ? (row.adultAccomTotal * 2 + row.thirdPersonRate)
+                      : row.tripleRate;
                   return (
                     <tr key={i} className="hover:bg-orange-50/40">
                       <td className="px-2 py-2">
@@ -775,13 +785,36 @@ export default function RateCalculator({
                       {numChildren > 0 && <td className="px-2 py-2"><input type="number" min={0} step="0.01" value={row.childAccomTotal || ''} onChange={e => updateRow(i, { childAccomTotal: Number(e.target.value) })} className="input py-1 text-xs font-mono text-center w-full" placeholder="0"/><span className="text-gray-400 text-xs block text-center">per child</span></td>}
                       <td className="px-2 py-2 text-center">
                         <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={row.thirdPersonRate || ''}
+                          onChange={e => {
+                            const newThirdPersonRate = Number(e.target.value);
+                            let tripleRate = row.tripleRate;
+                            if (row.isTriple && row.adultAccomTotal > 0) {
+                              tripleRate = (row.adultAccomTotal * 2) + newThirdPersonRate;
+                            }
+                            updateRow(i, { thirdPersonRate: newThirdPersonRate, tripleRate });
+                          }}
+                          className="input py-1 text-xs font-mono text-center w-full"
+                          placeholder="0"
+                        />
+                        <span className="text-gray-400 text-xs block">3rd person</span>
+                      </td>
+                      <td className="px-2 py-2 text-center">
+                        <input
                           type="checkbox"
                           checked={row.isTriple}
                           onChange={e => {
                             const newTriple = e.target.checked;
                             let tripleRate = row.tripleRate;
-                            if (newTriple && tripleRate === 0 && selectedRate?.thirdAdultRate && selectedRate.ratePerPersonSharing) {
-                              tripleRate = (selectedRate.ratePerPersonSharing * 2) + selectedRate.thirdAdultRate;
+                            if (newTriple && tripleRate === 0) {
+                              if (selectedRate?.thirdAdultRate && selectedRate.ratePerPersonSharing) {
+                                tripleRate = (selectedRate.ratePerPersonSharing * 2) + selectedRate.thirdAdultRate;
+                              } else if (row.adultAccomTotal > 0 && row.thirdPersonRate > 0) {
+                                tripleRate = (row.adultAccomTotal * 2) + row.thirdPersonRate;
+                              }
                             }
                             updateRow(i, { isTriple: newTriple, tripleRate: newTriple ? tripleRate : 0 });
                           }}

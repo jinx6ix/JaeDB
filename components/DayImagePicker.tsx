@@ -11,11 +11,8 @@ interface ItineraryImage {
 }
 
 interface Props {
-  // Images already attached to this day (from DB)
   attachedImages: ItineraryImage[];
-  // Called when user uploads a new image or picks from library
   onImagesChange: (images: ItineraryImage[]) => void;
-  // If the day already has a DB id, we can persist immediately; otherwise caller handles it
   dayId?: string;
 }
 
@@ -48,36 +45,80 @@ export default function DayImagePicker({ attachedImages, onImagesChange, dayId }
 
     const newImages: ItineraryImage[] = [];
     for (const file of fileArr) {
-      const data = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve((reader.result as string).split(',')[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
-      const body = { dayId: dayId || null, filename: file.name, mimeType: file.type, data };
-      const res = await fetch('/api/itinerary-images', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      if (res.ok) {
-        const img = await res.json();
-        newImages.push(img);
+      try {
+        const data = await convertToJpegBase64(file);
+        const body = { 
+          dayId: dayId || null, 
+          filename: file.name.replace(/\.[^.]+$/, '.jpg'),
+          mimeType: 'image/jpeg', 
+          data 
+        };
+        const res = await fetch('/api/itinerary-images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (res.ok) {
+          const img = await res.json();
+          newImages.push(img);
+        } else {
+          console.error('Failed to upload image:', file.name, await res.text());
+        }
+      } catch (err) {
+        console.error('Error processing file:', file.name, err);
       }
     }
 
-    onImagesChange([...attachedImages, ...newImages]);
+    if (newImages.length > 0) {
+      onImagesChange([...attachedImages, ...newImages]);
+    }
     setUploading(false);
   }
 
+  function convertToJpegBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Could not get canvas context'));
+          return;
+        }
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            reject(new Error('Could not convert to JPEG'));
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        }, 'image/jpeg', 0.92);
+      };
+      img.onerror = reject;
+      img.src = URL.createObjectURL(file);
+    });
+  }
+      reader.readAsDataURL(file);
+    });
+  }
+
   async function removeImage(imgId: string) {
-    await fetch(`/api/itinerary-images/${imgId}`, { method: 'DELETE' });
-    onImagesChange(attachedImages.filter(i => i.id !== imgId));
+    try {
+      await fetch(`/api/itinerary-images/${imgId}`, { method: 'DELETE' });
+      onImagesChange(attachedImages.filter(i => i.id !== imgId));
+    } catch (err) {
+      console.error('Error removing image:', err);
+    }
   }
 
   async function pickFromLibrary(img: ItineraryImage) {
-    // Attach this existing image to the current day
     if (dayId) {
       await fetch(`/api/itinerary-images/${img.id}`, {
         method: 'PATCH',
@@ -90,7 +131,6 @@ export default function DayImagePicker({ attachedImages, onImagesChange, dayId }
     setShowLibrary(false);
   }
 
-  // Drag and drop handlers
   const onDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
   const onDragLeave = () => setIsDragging(false);
   const onDrop = (e: React.DragEvent) => {
@@ -114,7 +154,6 @@ export default function DayImagePicker({ attachedImages, onImagesChange, dayId }
         </button>
       </div>
 
-      {/* Library picker */}
       {showLibrary && (
         <div className="border border-orange-200 rounded-xl bg-orange-50 p-3">
           <div className="flex items-center justify-between mb-2">
@@ -160,7 +199,6 @@ export default function DayImagePicker({ attachedImages, onImagesChange, dayId }
         </div>
       )}
 
-      {/* Drag & drop zone */}
       <div
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
@@ -189,12 +227,11 @@ export default function DayImagePicker({ attachedImages, onImagesChange, dayId }
           <>
             <p className="text-2xl mb-1">🏞</p>
             <p className="text-xs text-gray-500">Drag & drop images here, or <span className="text-orange-500 font-medium">click to browse</span></p>
-            <p className="text-xs text-gray-400 mt-0.5">JPG, PNG, WEBP supported</p>
+            <p className="text-xs text-gray-400 mt-0.5">All image formats supported (JPG, PNG, WEBP, GIF, etc.)</p>
           </>
         )}
       </div>
 
-      {/* Attached images */}
       {attachedImages.length > 0 && (
         <div className="grid grid-cols-3 gap-2">
           {attachedImages.map(img => (

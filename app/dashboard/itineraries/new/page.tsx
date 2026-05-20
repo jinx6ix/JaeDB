@@ -35,6 +35,17 @@ interface ItineraryImage {
   dayId?: string | null;
 }
 
+interface DayData {
+  tempId: string;
+  dayNumber: number;
+  date: string;
+  destination: string;
+  accommodation: string;
+  mealPlan: { breakfast: boolean; lunch: boolean; dinner: boolean; note: string };
+  activities: string;
+  notes: string;
+}
+
 export default function NewItineraryPage() {
   const router = useRouter();
   const sp = useSearchParams();
@@ -42,12 +53,8 @@ export default function NewItineraryPage() {
 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
-  const [days, setDays] = useState<Array<{
-    dayNumber: number; date: string; destination: string;
-    accommodation: string; mealPlan: { breakfast: boolean; lunch: boolean; dinner: boolean; note: string };
-    activities: string; notes: string;
-  }>>([]);
-  const [dayImages, setDayImages] = useState<Record<number, ItineraryImage[]>>({});
+  const [days, setDays] = useState<DayData[]>([]);
+  const [dayImages, setDayImages] = useState<Record<string, ItineraryImage[]>>({});
   const [title, setTitle] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -56,11 +63,15 @@ export default function NewItineraryPage() {
     fetch('/api/bookings?withTour=1').then(r => r.json()).then((data: Booking[]) => {
       setBookings(data);
       if (preBookingId) {
-        const b = data.find(b => b.id === preBookingId);
+        const b = data.find((b: Booking) => b.id === preBookingId);
         if (b) loadBooking(b);
       }
     });
   }, [preBookingId]);
+
+  function generateTempId() {
+    return `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+  }
 
   function loadBooking(b: Booking) {
     setSelectedBooking(b);
@@ -68,12 +79,14 @@ export default function NewItineraryPage() {
     const startDate = new Date(b.startDate);
 
     if (b.tourPackage?.days?.length) {
-      setDays(b.tourPackage.days.map((d, i) => {
+      setDays(b.tourPackage.days.map((d: TourDay, i: number) => {
         const date = new Date(startDate);
         date.setDate(date.getDate() + i);
         const mp = d.mealPlan ? JSON.parse(d.mealPlan) : {};
         const acts = d.activities ? JSON.parse(d.activities) : [];
+        const tempId = generateTempId();
         return {
+          tempId,
           dayNumber: d.dayNumber,
           date: date.toISOString().split('T')[0],
           destination: d.destination?.name || d.title,
@@ -84,11 +97,17 @@ export default function NewItineraryPage() {
         };
       }));
     } else {
-      // Auto-generate blank days
-      const numDays = Math.ceil(
-        (new Date(b.startDate).getTime() - new Date(b.startDate).getTime()) / (1000 * 60 * 60 * 24)
-      ) + 1 || 1;
-      setDays([{ dayNumber: 1, date: startDate.toISOString().split('T')[0], destination: '', accommodation: '', mealPlan: { breakfast: false, lunch: false, dinner: false, note: '' }, activities: '', notes: '' }]);
+      const tempId = generateTempId();
+      setDays([{
+        tempId,
+        dayNumber: 1,
+        date: startDate.toISOString().split('T')[0],
+        destination: '',
+        accommodation: '',
+        mealPlan: { breakfast: false, lunch: false, dinner: false, note: '' },
+        activities: '',
+        notes: '',
+      }]);
     }
   }
 
@@ -96,21 +115,37 @@ export default function NewItineraryPage() {
     const last = days[days.length - 1];
     const lastDate = last ? new Date(last.date) : new Date();
     lastDate.setDate(lastDate.getDate() + 1);
+    const maxDayNumber = days.length > 0 ? Math.max(...days.map(d => d.dayNumber)) : 0;
+    const tempId = generateTempId();
     setDays([...days, {
-      dayNumber: days.length + 1,
+      tempId,
+      dayNumber: maxDayNumber + 1,
       date: lastDate.toISOString().split('T')[0],
-      destination: '', accommodation: '',
+      destination: '',
+      accommodation: '',
       mealPlan: { breakfast: false, lunch: false, dinner: false, note: '' },
-      activities: '', notes: '',
+      activities: '',
+      notes: '',
     }]);
   }
 
-  function updateDay(index: number, field: string, value: any) {
-    setDays(prev => prev.map((d, i) => i === index ? { ...d, [field]: value } : d));
+  function updateDay(tempId: string, field: string, value: any) {
+    setDays(prev => prev.map(d => d.tempId === tempId ? { ...d, [field]: value } : d));
   }
 
-  function updateMeal(index: number, meal: string, value: boolean) {
-    setDays(prev => prev.map((d, i) => i === index ? { ...d, mealPlan: { ...d.mealPlan, [meal]: value } } : d));
+  function updateMeal(tempId: string, meal: string, value: boolean) {
+    setDays(prev => prev.map(d => d.tempId === tempId ? { ...d, mealPlan: { ...d.mealPlan, [meal]: value } } : d));
+  }
+
+  function removeDay(tempId: string) {
+    const dayToRemove = days.find(d => d.tempId === tempId);
+    if (!dayToRemove) return;
+    setDays(prev => prev.filter(d => d.tempId !== tempId));
+    setDayImages(prev => {
+      const newPrev = { ...prev };
+      delete newPrev[dayToRemove.dayNumber];
+      return newPrev;
+    });
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -133,29 +168,44 @@ export default function NewItineraryPage() {
       })),
     };
 
-    const res = await fetch('/api/itineraries', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    if (res.ok) {
-      const data = await res.json();
-      // Link any uploaded images to their respective saved day IDs
-      const savedDays: any[] = data.days || [];
-      const imagePatchPromises: Promise<any>[] = [];
-      savedDays.forEach((savedDay: any, idx: number) => {
-        const imgs = dayImages[idx] || [];
-        imgs.forEach(img => {
-          imagePatchPromises.push(
-            fetch(`/api/itinerary-images/${img.id}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ dayId: savedDay.id }),
-            })
-          );
-        });
+    try {
+      const res = await fetch('/api/itineraries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
       });
-      await Promise.all(imagePatchPromises);
-      router.push(`/dashboard/itineraries/${data.id}`);
-    } else {
-      const d = await res.json();
-      setError(d.error || 'Failed to create itinerary');
+
+      if (res.ok) {
+        const data = await res.json();
+        const savedDays: any[] = data.days || [];
+        const imagePatchPromises: Promise<any>[] = [];
+
+        savedDays.forEach((savedDay: any) => {
+          const dayData = days.find(d => d.dayNumber === savedDay.dayNumber);
+          if (dayData) {
+            const imgs = dayImages[dayData.dayNumber] || [];
+            imgs.forEach(img => {
+              imagePatchPromises.push(
+                fetch(`/api/itinerary-images/${img.id}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ dayId: savedDay.id }),
+                })
+              );
+            });
+          }
+        });
+
+        await Promise.all(imagePatchPromises);
+        router.push(`/dashboard/itineraries/${data.id}`);
+      } else {
+        const d = await res.json();
+        setError(d.error || 'Failed to create itinerary');
+        setSaving(false);
+      }
+    } catch (err) {
+      console.error('Submit error:', err);
+      setError('Failed to create itinerary');
       setSaving(false);
     }
   }
@@ -175,19 +225,28 @@ export default function NewItineraryPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Booking *</label>
-              <select className="input" value={selectedBooking?.id || ''} onChange={e => {
-                const b = bookings.find(b => b.id === e.target.value);
-                if (b) loadBooking(b);
-              }}>
+              <select
+                className="input"
+                value={selectedBooking?.id || ''}
+                onChange={e => {
+                  const b = bookings.find((b: Booking) => b.id === e.target.value);
+                  if (b) loadBooking(b);
+                }}
+              >
                 <option value="">— Select Booking —</option>
-                {bookings.map(b => (
+                {bookings.map((b: Booking) => (
                   <option key={b.id} value={b.id}>{b.bookingRef} · {b.client.name}</option>
                 ))}
               </select>
             </div>
             <div>
               <label className="label">Itinerary Title</label>
-              <input className="input" value={title} onChange={e => setTitle(e.target.value)} placeholder="01 DAY Trip Masai Mara…" />
+              <input
+                className="input"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="01 DAY Trip Masai Mara…"
+              />
             </div>
           </div>
           {selectedBooking?.tourPackage && (
@@ -197,57 +256,103 @@ export default function NewItineraryPage() {
           )}
         </div>
 
-        {/* Day by Day */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-gray-800">Day by Day ({days.length} day{days.length !== 1 ? 's' : ''})</h2>
             <button type="button" onClick={addDay} className="btn-secondary text-sm">+ Add Day</button>
           </div>
 
-          {days.map((day, i) => (
-            <div key={i} className="card space-y-3">
+          {days.map((day) => (
+            <div key={day.tempId} className="card space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full">Day {day.dayNumber}</span>
-                  <input type="date" value={day.date} onChange={e => updateDay(i, 'date', e.target.value)} className="input w-40 text-sm" />
+                  <input
+                    type="date"
+                    value={day.date}
+                    onChange={e => updateDay(day.tempId, 'date', e.target.value)}
+                    className="input w-40 text-sm"
+                  />
                 </div>
                 {days.length > 1 && (
-                  <button type="button" onClick={() => setDays(days.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600 text-xs">Remove</button>
+                  <button
+                    type="button"
+                    onClick={() => removeDay(day.tempId)}
+                    className="text-red-400 hover:text-red-600 text-xs"
+                  >
+                    Remove
+                  </button>
                 )}
               </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label text-xs">Destination *</label>
-                  <input value={day.destination} onChange={e => updateDay(i, 'destination', e.target.value)} className="input" placeholder="Masai Mara National Reserve" />
+                  <input
+                    value={day.destination}
+                    onChange={e => updateDay(day.tempId, 'destination', e.target.value)}
+                    className="input"
+                    placeholder="Masai Mara National Reserve"
+                  />
                 </div>
                 <div>
                   <label className="label text-xs">Accommodation</label>
-                  <input value={day.accommodation} onChange={e => updateDay(i, 'accommodation', e.target.value)} className="input" placeholder="Ashnil Mara Camp / No accommodation" />
+                  <input
+                    value={day.accommodation}
+                    onChange={e => updateDay(day.tempId, 'accommodation', e.target.value)}
+                    className="input"
+                    placeholder="Ashnil Mara Camp / No accommodation"
+                  />
                 </div>
               </div>
+
               <div>
                 <label className="label text-xs">Activities (one per line)</label>
-                <textarea value={day.activities} onChange={e => updateDay(i, 'activities', e.target.value)} rows={3} className="input resize-none text-sm"
-                  placeholder="Early Morning: Transfer from Nairobi&#10;Mid Morning: Full day game drive&#10;Afternoon: Return to Nairobi" />
+                <textarea
+                  value={day.activities}
+                  onChange={e => updateDay(day.tempId, 'activities', e.target.value)}
+                  rows={3}
+                  className="input resize-none text-sm"
+                  placeholder="Early Morning: Transfer from Nairobi&#10;Mid Morning: Full day game drive&#10;Afternoon: Return to Nairobi"
+                />
               </div>
+
               <div className="flex items-center gap-4">
                 <span className="text-xs font-medium text-gray-600">Meals:</span>
                 {(['breakfast', 'lunch', 'dinner'] as const).map(m => (
                   <label key={m} className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
-                    <input type="checkbox" checked={day.mealPlan[m]} onChange={e => updateMeal(i, m, e.target.checked)} className="rounded" />
+                    <input
+                      type="checkbox"
+                      checked={day.mealPlan[m]}
+                      onChange={e => updateMeal(day.tempId, m, e.target.checked)}
+                      className="rounded"
+                    />
                     {m.charAt(0).toUpperCase() + m.slice(1)}
                   </label>
                 ))}
-                <input value={day.mealPlan.note} onChange={e => setDays(prev => prev.map((d, j) => j === i ? { ...d, mealPlan: { ...d.mealPlan, note: e.target.value } } : d))}
-                  className="input w-32 text-xs" placeholder="e.g. Packed lunch" />
+                <input
+                  value={day.mealPlan.note}
+                  onChange={e => setDays(prev => prev.map(d =>
+                    d.tempId === day.tempId ? { ...d, mealPlan: { ...d.mealPlan, note: e.target.value } } : d
+                  ))}
+                  className="input w-32 text-xs"
+                  placeholder="e.g. Packed lunch"
+                />
               </div>
+
               <div>
                 <label className="label text-xs">Notes</label>
-                <input value={day.notes} onChange={e => updateDay(i, 'notes', e.target.value)} className="input text-sm" placeholder="Any special notes for this day…" />
+                <input
+                  value={day.notes}
+                  onChange={e => updateDay(day.tempId, 'notes', e.target.value)}
+                  className="input text-sm"
+                  placeholder="Any special notes for this day…"
+                />
               </div>
+
               <DayImagePicker
-                attachedImages={dayImages[i] || []}
-                onImagesChange={(imgs) => setDayImages(prev => ({ ...prev, [i]: imgs }))}
+                attachedImages={dayImages[day.dayNumber] || []}
+                onImagesChange={(imgs) => setDayImages(prev => ({ ...prev, [day.dayNumber]: imgs }))}
               />
             </div>
           ))}
