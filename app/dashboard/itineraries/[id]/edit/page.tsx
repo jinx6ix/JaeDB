@@ -13,11 +13,19 @@ interface ItineraryImage {
   dayId?: string | null;
 }
 
+interface Booking {
+  id: string;
+  bookingRef: string;
+  client: { name: string };
+}
+
 export default function EditItineraryPage() {
   const router = useRouter();
   const { id } = useParams() as { id: string };
   const [itinerary, setItinerary] = useState<any>(null);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [saving, setSaving] = useState(false);
+  const [linkingBooking, setLinkingBooking] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -35,6 +43,9 @@ export default function EditItineraryPage() {
         })),
       });
     });
+    fetch('/api/bookings?withTour=1').then(r => r.json()).then(data => {
+      setBookings(Array.isArray(data) ? data : []);
+    });
   }, [id]);
 
   if (!itinerary) return (
@@ -42,6 +53,28 @@ export default function EditItineraryPage() {
       <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
+
+  async function handleLinkBooking(bookingId: string) {
+    setLinkingBooking(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/itineraries/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId: bookingId || null }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setItinerary((prev: any) => ({ ...prev, bookingId: data.bookingId, booking: data.booking }));
+      } else {
+        const d = await res.json();
+        setError(d.error || 'Failed to link booking');
+      }
+    } catch (err) {
+      setError('Failed to link booking');
+    }
+    setLinkingBooking(false);
+  }
 
   function addDay() {
     const days = itinerary.days;
@@ -142,6 +175,40 @@ export default function EditItineraryPage() {
           <label className="label">Itinerary Title</label>
           <input className="input" value={itinerary.title}
             onChange={e => setItinerary((p: any) => ({ ...p, title: e.target.value }))} />
+        </div>
+
+        <div className="card">
+          <label className="label">Link to Booking</label>
+          {itinerary.booking ? (
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-green-600 text-sm font-medium">✓ Linked to: {itinerary.booking.bookingRef} ({itinerary.booking.client?.name})</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleLinkBooking('')}
+                disabled={linkingBooking}
+                className="btn-secondary text-sm"
+              >
+                {linkingBooking ? 'Unlinking...' : 'Unlink'}
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <select
+                className="input flex-1"
+                value=""
+                onChange={e => handleLinkBooking(e.target.value)}
+                disabled={linkingBooking}
+              >
+                <option value="">— Select a booking to link —</option>
+                {bookings.map((b: Booking) => (
+                  <option key={b.id} value={b.id}>{b.bookingRef} · {b.client?.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
         </div>
 
         <div className="space-y-3">

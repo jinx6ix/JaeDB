@@ -30,6 +30,27 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   try {
     const body = await req.json();
 
+    // If only updating bookingId (no days provided), do a simple update
+    if (!body.days) {
+      const updateData: any = {};
+      if (body.bookingId !== undefined) updateData.bookingId = body.bookingId || null;
+      if (body.title) updateData.title = body.title;
+
+      const itinerary = await prisma.itinerary.update({
+        where: { id: params.id },
+        data: updateData,
+        include: {
+          booking: { include: { client: true } },
+          days: {
+            orderBy: { dayNumber: 'asc' },
+            include: { images: { orderBy: { createdAt: 'asc' } } },
+          },
+        },
+      });
+      return NextResponse.json(itinerary);
+    }
+
+    // Full update with days recreation
     // Before deleting, collect existing image IDs per dayNumber so we can re-link them
     const existingDays = await prisma.itineraryDay.findMany({
       where: { itineraryId: params.id },
@@ -59,6 +80,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       where: { id: params.id },
       data: {
         title: body.title,
+        bookingId: body.bookingId !== undefined ? body.bookingId || null : undefined,
         days: {
           create: body.days.map((d: any) => ({
             dayNumber: d.dayNumber,
@@ -72,6 +94,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         },
       },
       include: {
+        booking: { include: { client: true } },
         days: { orderBy: { dayNumber: 'asc' } },
       },
     });
@@ -95,6 +118,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const result = await prisma.itinerary.findUnique({
       where: { id: params.id },
       include: {
+        booking: { include: { client: true } },
         days: {
           orderBy: { dayNumber: 'asc' },
           include: { images: { orderBy: { createdAt: 'asc' } } },

@@ -150,12 +150,13 @@ export default function NewItineraryPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedBooking) { setError('Please select a booking'); return; }
+    if (!title.trim()) { setError('Please enter a title'); return; }
+    if (days.length === 0) { setError('Please add at least one day'); return; }
     setSaving(true);
     setError('');
 
     const body = {
-      bookingId: selectedBooking.id,
+      bookingId: selectedBooking?.id || null,
       title,
       days: days.map(d => ({
         dayNumber: d.dayNumber,
@@ -224,7 +225,7 @@ export default function NewItineraryPage() {
           <h2 className="font-semibold text-gray-800">Itinerary Setup</h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="label">Booking *</label>
+              <label className="label">Booking (optional)</label>
               <select
                 className="input"
                 value={selectedBooking?.id || ''}
@@ -233,14 +234,14 @@ export default function NewItineraryPage() {
                   if (b) loadBooking(b);
                 }}
               >
-                <option value="">— Select Booking —</option>
+                <option value="">— No booking (standalone itinerary) —</option>
                 {bookings.map((b: Booking) => (
                   <option key={b.id} value={b.id}>{b.bookingRef} · {b.client.name}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="label">Itinerary Title</label>
+              <label className="label">Itinerary Title *</label>
               <input
                 className="input"
                 value={title}

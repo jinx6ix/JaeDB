@@ -105,9 +105,6 @@ export default function DayImagePicker({ attachedImages, onImagesChange, dayId }
       img.src = URL.createObjectURL(file);
     });
   }
-      reader.readAsDataURL(file);
-    });
-  }
 
   async function removeImage(imgId: string) {
     try {
@@ -211,6 +208,7 @@ export default function DayImagePicker({ attachedImages, onImagesChange, dayId }
         }`}
       >
         <input
+          title='input'
           ref={fileInputRef}
           type="file"
           accept="image/*"

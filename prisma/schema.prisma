@@ -179,11 +179,11 @@ model Booking {
 
 model Itinerary {
   id        String         @id @default(cuid())
-  bookingId String         @unique
+  bookingId String?  @unique           // 👈 add this
   title     String
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
-  booking   Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  booking   Booking?       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   days      ItineraryDay[]
 }
 

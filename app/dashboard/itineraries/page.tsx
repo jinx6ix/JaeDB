@@ -34,9 +34,16 @@ export default async function ItinerariesPage() {
           <div key={it.id} className="card hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="font-semibold text-gray-900">{it.title}</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-gray-900">{it.title}</h3>
+                  {it.booking ? (
+                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Linked</span>
+                  ) : (
+                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">Standalone</span>
+                  )}
+                </div>
                 <p className="text-sm text-gray-500 mt-0.5">
-                  {it.booking.bookingRef} · {it.booking.client.name}
+                  {it.booking ? `${it.booking.bookingRef} · ${it.booking.client?.name}` : 'Not linked to a booking'}
                 </p>
                 <p className="text-xs text-gray-400 mt-1">
                   {it._count.days} day{it._count.days !== 1 ? 's' : ''}

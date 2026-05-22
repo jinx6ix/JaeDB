@@ -11,9 +11,23 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
+    // If bookingId provided, check if an itinerary already exists for this booking
+    if (body.bookingId) {
+      const existingItinerary = await prisma.itinerary.findUnique({
+        where: { bookingId: body.bookingId },
+      });
+
+      // If exists, delete it first to allow recreation
+      if (existingItinerary) {
+        await prisma.itinerary.delete({
+          where: { id: existingItinerary.id },
+        });
+      }
+    }
+
     const itinerary = await prisma.itinerary.create({
       data: {
-        bookingId: body.bookingId,
+        bookingId: body.bookingId || null,
         title: body.title,
         days: {
           create: body.days.map((d: any) => ({
