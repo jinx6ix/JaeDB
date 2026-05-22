@@ -30,7 +30,10 @@ export default async function RatesPage() {
           <h1 className="text-2xl font-bold text-gray-900">Rates & Costing</h1>
           <p className="text-gray-500 text-sm mt-0.5">Build a linked costing sheet for any client</p>
         </div>
-        <Link href="/dashboard/costing/new" className="btn-primary">+ New Rate Card</Link>
+        <div className="flex gap-2">
+          <a href="/api/rate-cards/csv" className="btn-secondary text-sm">⬇ Download CSV</a>
+          <Link href="/dashboard/costing/new" className="btn-primary">+ New Rate Card</Link>
+        </div>
       </div>
 
       {/* Interactive Cost Calculator */}

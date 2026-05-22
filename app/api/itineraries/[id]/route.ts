@@ -23,6 +23,25 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   return NextResponse.json(itinerary);
 }
 
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const itinerary = await prisma.itinerary.findUnique({ where: { id: params.id } });
+  if (!itinerary) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  // Detach images before deleting days
+  await prisma.itineraryImage.updateMany({
+    where: { day: { itineraryId: params.id } },
+    data: { dayId: null },
+  });
+
+  await prisma.itineraryDay.deleteMany({ where: { itineraryId: params.id } });
+  await prisma.itinerary.delete({ where: { id: params.id } });
+
+  return NextResponse.json({ success: true });
+}
+
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

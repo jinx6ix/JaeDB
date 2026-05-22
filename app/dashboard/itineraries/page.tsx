@@ -1,6 +1,7 @@
 // app/dashboard/itineraries/page.tsx
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
+import DeleteItineraryButton from '@/components/DeleteItineraryButton';
 
 export default async function ItinerariesPage() {
   const itineraries = await prisma.itinerary.findMany({
@@ -52,6 +53,7 @@ export default async function ItinerariesPage() {
               </div>
               <div className="flex gap-2">
                 <Link href={`/dashboard/itineraries/${it.id}`} className="btn-secondary text-sm">View</Link>
+                <DeleteItineraryButton id={it.id} title={it.title} />
               </div>
             </div>
           </div>

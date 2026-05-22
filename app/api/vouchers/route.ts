@@ -40,6 +40,28 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const userId = (session.user as any).id;
+    
+    // Log session info for debugging
+    console.log('[Voucher API] Session user:', {
+      id: userId,
+      email: (session.user as any).email,
+      name: (session.user as any).name
+    });
+
+    // Verify the user exists in the database
+    const dbUser = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+    
+    if (!dbUser) {
+      console.error('[Voucher API] User not found in database:', userId);
+      return NextResponse.json({ 
+        error: 'Session user not found in database. Please log out and log in again.' 
+      }, { status: 422 });
+    }
+    
+    // Use the database user's ID for the voucher
+    const finalUserId = dbUser.id;
 
     // Generate voucher number — flights get F suffix e.g. JTE120726F
     const refDate = body.checkIn       ? new Date(body.checkIn)
@@ -71,7 +93,7 @@ export async function POST(req: NextRequest) {
         agentId: body.agentId || null,
         propertyId: body.propertyId || null,
         vehicleId: body.vehicleId || null,
-        createdById: userId,
+        createdById: finalUserId,
         hotelName: body.hotelName || null,
         roomType: body.roomType || null,
         clientName: body.clientName || null,

@@ -105,20 +105,21 @@ function extractBase64(data: string): string | null {
   return cleaned.length > 0 ? cleaned : null;
 }
 
-// Build image src for PDF - ensure it's valid JPEG base64
+// Build image src for PDF - use actual mimeType from image
 function buildImageSrc(img: any): string | null {
   try {
     const raw = img.data;
     if (!raw) return null;
-    
+
     if (typeof raw !== 'string') return null;
-    
+
     const base64Data = extractBase64(raw);
     if (!base64Data) return null;
-    
+
     if (base64Data.length === 0) return null;
-    
-    return `data:image/jpeg;base64,${base64Data}`;
+
+    const mimeType = (img.mimeType && img.mimeType.startsWith('image/')) ? img.mimeType : 'image/jpeg';
+    return `data:${mimeType};base64,${base64Data}`;
   } catch (err) {
     console.error(`[PDF] Error building image src for ${img.id}:`, err);
     return null;
@@ -132,7 +133,7 @@ function renderImage(img: any, key: string) {
       console.log(`[PDF] Skipping image ${img.id} - could not build src`);
       return null;
     }
-    
+
     return React.createElement(View, { key, style: S.imgCell },
       React.createElement(PDFImage, { src, style: S.imgThumb }),
       img.caption ? React.createElement(Text, { style: S.imgCaption }, img.caption) : null,
@@ -140,6 +141,25 @@ function renderImage(img: any, key: string) {
   } catch (err) {
     console.error(`[PDF] Error rendering image ${img.id}:`, err);
     return null;
+  }
+}
+
+async function processImageForPDF(img: any): Promise<any> {
+  const mimeType = (img.mimeType && img.mimeType.startsWith('image/')) ? img.mimeType : 'image/jpeg';
+  if (mimeType === 'image/jpeg' || mimeType === 'image/png') {
+    return img;
+  }
+  try {
+    const { Jimp } = await import('jimp');
+    const base64Data = extractBase64(img.data) || '';
+    const imageBuffer = Buffer.from(base64Data, 'base64');
+    const image = await Jimp.read(imageBuffer);
+    const jpegBuffer = await (image as any).write('image/jpeg');
+    const jpegBase64 = jpegBuffer.toString('base64');
+    return { ...img, data: `data:image/jpeg;base64,${jpegBase64}`, mimeType: 'image/jpeg' };
+  } catch (err) {
+    console.error(`[PDF] Failed to convert image ${img.id} to JPEG:`, err);
+    return img;
   }
 }
 
@@ -425,7 +445,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         },
         orderBy: { createdAt: 'asc' },
       });
-      imagesByDay[day.id] = imgs;
+      const processed = await Promise.all(imgs.map(processImageForPDF));
+      imagesByDay[day.id] = processed;
     }),
   );
 

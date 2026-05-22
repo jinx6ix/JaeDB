@@ -207,10 +207,12 @@ export default function CostSheetDetailPage() {
   const currentCurrency = editable.currency || sheet.currency;
   const mf = 1 + (editable.markupPercent / 100);
   let recalcSubtotal = 0;
+  const numPax = editable.numAdults + editable.numChildren;
   editable.dayRows.forEach(row => {
     const adultAccom = row.adultAccomTotal ?? 0;
     const childAccom = row.childAccomTotal ?? 0;
-    recalcSubtotal += adultAccom + childAccom + (row.parkFeeAdultTotal || 0) + (row.parkFeeChildTotal || 0) + (row.transportTotal || 0);
+    const transportPP = numPax > 0 ? (row.transportTotal || 0) / numPax : 0;
+    recalcSubtotal += adultAccom + childAccom + (row.parkFeeAdultTotal || 0) + (row.parkFeeChildTotal || 0) + transportPP;
     if (row.hasFlight) recalcSubtotal += (row.flightAdultPP || 0) * editable.numAdults + (row.flightChildPP || 0) * editable.numChildren;
   });
   recalcSubtotal += editable.fileHandlingFee + editable.ecoBottle + editable.evacInsurance + editable.arrivalTransfer + editable.departureTransfer + editable.maasaiCost;
@@ -234,10 +236,17 @@ export default function CostSheetDetailPage() {
           <h1 className="text-2xl font-bold text-gray-900">{isEditing ? 'Edit Cost Sheet' : sheet.tourTitle}</h1>
         </div>
         <div className="flex gap-2">
-          {!isEditing ? <button onClick={() => setIsEditing(true)} className="btn-secondary text-sm">✏️ Edit Inline</button> : <>
-            <button onClick={handleSave} disabled={saving} className="btn-primary text-sm">{saving ? 'Saving…' : '💾 Save Changes'}</button>
-            <button onClick={() => setIsEditing(false)} className="btn-secondary text-sm">Cancel</button>
-          </>}
+          {!isEditing ? (
+            <>
+              <button onClick={() => setIsEditing(true)} className="btn-secondary text-sm">✏️ Edit Inline</button>
+              <a href={`/api/cost-sheets/${id}/csv`} target="_blank" className="btn-primary text-sm">⬇ Download CSV</a>
+            </>
+          ) : (
+            <>
+              <button onClick={handleSave} disabled={saving} className="btn-primary text-sm">{saving ? 'Saving…' : '💾 Save Changes'}</button>
+              <button onClick={() => setIsEditing(false)} className="btn-secondary text-sm">Cancel</button>
+            </>
+          )}
         </div>
       </div>
       {saveMessage && <div className={`rounded-lg px-4 py-2 text-sm ${saveMessage.startsWith('Error') ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>{saveMessage}</div>}
@@ -293,9 +302,11 @@ export default function CostSheetDetailPage() {
               const parkA = row.parkFeeAdultTotal || 0;
               const parkC = row.parkFeeChildTotal || 0;
               const transport = row.transportTotal || 0;
+              const numPax = editable.numAdults + editable.numChildren;
+              const transportPerPax = numPax > 0 ? transport / numPax : 0;
               let flightA = 0, flightC = 0;
               if (row.hasFlight) { flightA = (row.flightAdultPP || 0) * editable.numAdults; flightC = (row.flightChildPP || 0) * editable.numChildren; }
-              const dayTotal = adultTotal + childTotal + parkA + parkC + transport + flightA + flightC;
+              const dayTotal = adultTotal + childTotal + parkA + parkC + transportPerPax + flightA + flightC;
 
               // Destination dropdown
               const handleDestinationChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -337,7 +348,7 @@ export default function CostSheetDetailPage() {
                 <td className="px-2 py-1 text-right">{isEditing ? <input type="number" step="0.01" className="input text-xs w-20 text-right" value={row.childAccomTotal || 0} onChange={e => updateDayRow(idx, 'childAccomTotal', Number(e.target.value))} /> : <span className="font-mono">{editable.numChildren ? `${currentCurrency} ${fmt2(childTotal)}` : '—'}</span>}</td>
                 <td className="px-2 py-1 text-right">{isEditing ? <input type="number" step="0.01" className="input text-xs w-20 text-right" value={row.parkFeeAdultTotal || 0} onChange={e => updateDayRow(idx, 'parkFeeAdultTotal', Number(e.target.value))} /> : <span className="font-mono text-green-600">{currentCurrency} {fmt2(parkA)}</span>}</td>
                 <td className="px-2 py-1 text-right">{isEditing ? <input type="number" step="0.01" className="input text-xs w-20 text-right" value={row.parkFeeChildTotal || 0} onChange={e => updateDayRow(idx, 'parkFeeChildTotal', Number(e.target.value))} /> : <span className="font-mono text-green-600">{editable.numChildren ? `${currentCurrency} ${fmt2(parkC)}` : '—'}</span>}</td>
-                <td className="px-2 py-1 text-right">{isEditing ? <input type="number" step="0.01" className="input text-xs w-20 text-right" value={row.transportTotal || 0} onChange={e => updateDayRow(idx, 'transportTotal', Number(e.target.value))} /> : <span className="font-mono text-green-600">{currentCurrency} {fmt2(transport)}</span>}</td>
+                <td className="px-2 py-1 text-right">{isEditing ? <input type="number" step="0.01" className="input text-xs w-20 text-right" value={row.transportTotal || 0} onChange={e => updateDayRow(idx, 'transportTotal', Number(e.target.value))} /> : <span className="font-mono text-green-600">{currentCurrency} {fmt2(transportPerPax)}</span>}</td>
                 <td className="px-2 py-1 text-center">{isEditing ? <input type="checkbox" checked={!!row.hasFlight} onChange={e => updateDayRow(idx, 'hasFlight', e.target.checked)} /> : row.hasFlight ? '✈️' : '—'}</td>
                 <td className="px-2 py-1 text-right">{isEditing && row.hasFlight ? <input type="number" step="0.01" className="input text-xs w-20 text-right" value={row.flightAdultPP || 0} onChange={e => updateDayRow(idx, 'flightAdultPP', Number(e.target.value))} /> : row.hasFlight ? <span className="font-mono">{currentCurrency} {fmt2(row.flightAdultPP || 0)}</span> : '—'}</td>
                 <td className="px-2 py-1 text-right">{isEditing && row.hasFlight ? <input type="number" step="0.01" className="input text-xs w-20 text-right" value={row.flightChildPP || 0} onChange={e => updateDayRow(idx, 'flightChildPP', Number(e.target.value))} /> : row.hasFlight ? <span className="font-mono">{currentCurrency} {fmt2(row.flightChildPP || 0)}</span> : '—'}</td>
