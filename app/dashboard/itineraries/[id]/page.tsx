@@ -46,7 +46,7 @@ export default async function ItineraryDetailPage({ params }: { params: { id: st
               <div className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center font-bold">JT</div>
               <div>
                 <p className="font-bold">Jae Travel Expeditions</p>
-                <p className="text-orange-400 text-sm">Proposal Ref: #{b.bookingRef}</p>
+                <p className="text-orange-400 text-sm">Proposal Ref: #{b?.bookingRef || 'Standalone'}</p>
               </div>
             </div>
             <div className="text-right text-sm text-gray-300">
@@ -60,25 +60,38 @@ export default async function ItineraryDetailPage({ params }: { params: { id: st
           <h2 className="text-2xl font-bold text-white">{itinerary.title}</h2>
           <div className="flex gap-8 mt-2 text-orange-100 text-sm">
             <span>Tour Length: <strong className="text-white">{itinerary.days.length} Day{itinerary.days.length !== 1 ? 's' : ''} / {Math.max(0, itinerary.days.length - 1)} Night{itinerary.days.length !== 2 ? 's' : ''}</strong></span>
-            <span>Travelers: <strong className="text-white">{b.numAdults}x {b.isResident ? 'Residents' : 'Non Residents'}</strong></span>
-            <span>Start: <strong className="text-white">{new Date(b.startDate).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })}</strong></span>
+            {b && (
+              <>
+                <span>Travelers: <strong className="text-white">{b.numAdults}x {b.isResident ? 'Residents' : 'Non Residents'}</strong></span>
+                <span>Start: <strong className="text-white">{new Date(b.startDate).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })}</strong></span>
+              </>
+            )}
           </div>
         </div>
 
         {/* Cover letter */}
-        <div className="px-8 py-6 border-b border-gray-100">
-          <p className="font-semibold text-gray-800 mb-3">Dear {b.client.name},</p>
-          <p className="text-gray-600 text-sm leading-relaxed mb-2">
-            Thank you for giving us the opportunity to prepare this custom-made quote for your {itinerary.title}.
-          </p>
-          <p className="text-gray-600 text-sm leading-relaxed mb-2">
-            As you can see from our detailed proposal, your tour begins in Nairobi on {new Date(b.startDate).toLocaleDateString('en-KE', { dateStyle: 'long' })} and runs for {itinerary.days.length} day{itinerary.days.length !== 1 ? 's' : ''} and {Math.max(0, itinerary.days.length - 1)} night{itinerary.days.length !== 2 ? 's' : ''}.
-          </p>
-          <p className="text-gray-600 text-sm leading-relaxed">
-            Please let us know if you have any questions, or if you would like any further details.
-          </p>
-          <p className="text-gray-600 text-sm mt-3">Best regards,</p>
-        </div>
+        {b && (
+          <div className="px-8 py-6 border-b border-gray-100">
+            <p className="font-semibold text-gray-800 mb-3">Dear {b.client?.name || 'Guest'},</p>
+            <p className="text-gray-600 text-sm leading-relaxed mb-2">
+              Thank you for giving us the opportunity to prepare this custom-made quote for your {itinerary.title}.
+            </p>
+            <p className="text-gray-600 text-sm leading-relaxed mb-2">
+              As you can see from our detailed proposal, your tour begins in Nairobi on {new Date(b.startDate).toLocaleDateString('en-KE', { dateStyle: 'long' })} and runs for {itinerary.days.length} day{itinerary.days.length !== 1 ? 's' : ''} and {Math.max(0, itinerary.days.length - 1)} night{itinerary.days.length !== 2 ? 's' : ''}.
+            </p>
+            <p className="text-gray-600 text-sm leading-relaxed">
+              Please let us know if you have any questions, or if you would like any further details.
+            </p>
+            <p className="text-gray-600 text-sm mt-3">Best regards,</p>
+          </div>
+        )}
+        {!b && (
+          <div className="px-8 py-6 border-b border-gray-100">
+            <p className="text-gray-600 text-sm leading-relaxed">
+              This is a standalone itinerary. Please contact us for more details about booking this tour.
+            </p>
+          </div>
+        )}
 
         {/* Day-by-Day Summary Table */}
         <div className="px-8 py-6 border-b border-gray-100">

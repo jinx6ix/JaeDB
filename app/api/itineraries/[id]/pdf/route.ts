@@ -430,7 +430,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   );
 
   const costSheet = await prisma.costSheet.findFirst({
-    where: { bookingId: itinerary.booking.id },
+    where: { bookingId: itinerary.booking?.id },
   });
 
   try {
