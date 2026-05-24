@@ -23,13 +23,14 @@ export async function GET(req: NextRequest) {
     where: {
       ...(bookingId ? { bookingId } : {}),
       ...(status    ? { status }    : {}),
-      ...(clientId  ? { booking: { clientId } } : {}),
+      ...(clientId  ? { clientId }  : {}),
     },
     orderBy: { createdAt: 'desc' },
     include: {
       booking: {
         include: { client: { select: { id: true, name: true, email: true } } },
       },
+      client: { select: { id: true, name: true, email: true } },
     },
   });
   return NextResponse.json(invoices);
@@ -45,7 +46,6 @@ export async function POST(req: NextRequest) {
     // Auto-generate invoice number
     let invoiceNo = body.invoiceNo;
     if (!invoiceNo) {
-      // Ensure uniqueness
       let attempts = 0;
       while (attempts < 10) {
         const candidate = genInvoiceNo();
@@ -58,11 +58,12 @@ export async function POST(req: NextRequest) {
     const invoice = await prisma.invoice.create({
       data: {
         invoiceNo,
-        bookingId:           body.bookingId,
+        bookingId:           body.bookingId        || null,
+        clientId:            body.clientId         || null,
         billTo:              body.billTo,
-        billToEmail:         body.billToEmail         || null,
-        billToPhone:         body.billToPhone         || null,
-        invoiceDate:         body.invoiceDate ? new Date(body.invoiceDate) : new Date(),
+        billToEmail:         body.billToEmail      || null,
+        billToPhone:         body.billToPhone      || null,
+        invoiceDate:         body.invoiceDate      ? new Date(body.invoiceDate) : new Date(),
         dueDate:             new Date(body.dueDate),
         lineItems:           JSON.stringify(body.lineItems || []),
         subtotal:            Number(body.subtotal),
@@ -75,7 +76,10 @@ export async function POST(req: NextRequest) {
         notes:               body.notes                || null,
         status:              body.status               || 'DRAFT',
       },
-      include: { booking: { include: { client: true } } },
+      include: {
+        booking: { include: { client: true } },
+        client: true,
+      },
     });
     return NextResponse.json(invoice, { status: 201 });
   } catch (e: any) {

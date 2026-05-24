@@ -27,10 +27,16 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
   // Invoices loaded separately
   let invoices: any[] = [];
   try {
+    // Get invoices for this booking OR for this client (standalone)
     invoices = await prisma.invoice.findMany({
-      where: { bookingId: params.id },
+      where: {
+        OR: [
+          { bookingId: params.id },
+          { clientId: booking.clientId },
+        ],
+      },
       orderBy: { createdAt: 'desc' },
-      select: { id: true, invoiceNo: true, totalAmount: true, amountPaid: true, depositReceived: true, currency: true, status: true, dueDate: true },
+      select: { id: true, invoiceNo: true, totalAmount: true, amountPaid: true, depositReceived: true, currency: true, status: true, dueDate: true, bookingId: true, clientId: true },
     });
   } catch {
     // silently skip
@@ -158,7 +164,10 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
                     const statusColor = inv.status === 'PAID' ? 'bg-green-100 text-green-700' : inv.status === 'OVERDUE' || overdue ? 'bg-red-100 text-red-600' : inv.status === 'SENT' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600';
                     return (
                       <tr key={inv.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-2.5 font-mono text-xs font-bold text-gray-800">{inv.invoiceNo}</td>
+                        <td className="px-4 py-2.5">
+                          <span className="font-mono text-xs font-bold text-gray-800">{inv.invoiceNo}</span>
+                          {!inv.bookingId && <span className="ml-1 text-xs bg-gray-100 text-gray-500 px-1 rounded">Standalone</span>}
+                        </td>
                         <td className="px-4 py-2.5 font-mono text-xs">{inv.currency} {Number(inv.totalAmount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                         <td className="px-4 py-2.5 font-mono text-xs text-green-600">{inv.depositReceived > 0 ? `${inv.currency} ${Number(inv.depositReceived).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '—'}</td>
                         <td className={`px-4 py-2.5 font-mono text-xs font-bold ${balance > 0 ? 'text-orange-600' : 'text-green-600'}`}>{balance > 0 ? `${inv.currency} ${balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '✓ Paid'}</td>

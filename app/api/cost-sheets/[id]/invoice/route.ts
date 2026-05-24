@@ -1,0 +1,221 @@
+// app/api/cost-sheets/[id]/invoice/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+
+function genInvoiceNo() {
+  const y = new Date().getFullYear();
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  return `INV-${y}-${rand}`;
+}
+
+function parseDayRows(raw: any): any[] {
+  if (!raw) return [];
+  let parsed = raw;
+  if (typeof raw === 'string') {
+    try { parsed = JSON.parse(raw); } catch { return []; }
+  }
+  if (Array.isArray(parsed)) return parsed;
+  if (parsed && typeof parsed === 'object') return Object.values(parsed);
+  return [];
+}
+
+function parseExtras(raw: any): any[] {
+  if (!raw) return [];
+  let parsed = raw;
+  if (typeof raw === 'string') {
+    try { parsed = JSON.parse(raw); } catch { return []; }
+  }
+  if (Array.isArray(parsed)) return parsed;
+  if (parsed && typeof parsed === 'object') return Object.values(parsed);
+  return [];
+}
+
+export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  try {
+    let body: any = {};
+    const contentType = req.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      try {
+        body = await req.json();
+      } catch {
+        // Empty or invalid JSON body - use empty object
+        body = {};
+      }
+    }
+
+    const costSheet = await prisma.costSheet.findUnique({
+      where: { id: params.id },
+      include: { client: true, agent: true, booking: true },
+    });
+
+    if (!costSheet) return NextResponse.json({ error: 'Cost sheet not found' }, { status: 404 });
+
+    const dayRows = parseDayRows(costSheet.dayRows);
+    const extras = parseExtras(costSheet.extras);
+
+    const numAdults = Number(costSheet.numAdults) || 1;
+    const numChildren = Number(costSheet.numChildren) || 0;
+    const numPax = numAdults + numChildren;
+
+    // Use the stored totals from cost sheet
+    const storedSubtotal = Number(costSheet.subtotal) || 0;
+    const storedMarkup = Number(costSheet.markupAmount) || 0;
+    const storedTotal = Number(costSheet.totalCost) || 0;
+
+    // Build line items using stored cost sheet data
+    const items: any[] = [];
+
+    // Calculate totals from dayRows
+    // adultAccomTotal and childAccomTotal are per person per day
+    // park fees are per person per day
+    // transportTotal is per day total
+    let accomTotal = 0, parkTotal = 0, transportTotal = 0, flightTotal = 0;
+    dayRows.forEach((row: any) => {
+      accomTotal += (Number(row.adultAccomTotal) || 0) * numAdults + (Number(row.childAccomTotal) || 0) * numChildren;
+      parkTotal += Number(row.parkFeeAdultTotal || 0) + Number(row.parkFeeChildTotal || 0);
+      transportTotal += Number(row.transportTotal || 0);
+      if (row.hasFlight) {
+        flightTotal += (Number(row.flightAdultPP || 0) * numAdults) + (Number(row.flightChildPP || 0) * numChildren);
+      }
+    });
+
+    // Transport: divide by numPax to get per person rate for line item display
+    const transportPerPax = numPax > 0 ? transportTotal / numPax : transportTotal;
+
+    if (accomTotal > 0) {
+      items.push({
+        description: `Accommodation (${costSheet.days} days, ${numAdults}A${numChildren > 0 ? ` + ${numChildren}C` : ''})`,
+        quantity: 1,
+        unitPrice: accomTotal,
+        total: accomTotal,
+      });
+    }
+
+    if (parkTotal > 0) {
+      items.push({
+        description: `Park Fees (${costSheet.days} days, ${numAdults}A${numChildren > 0 ? ` + ${numChildren}C` : ''})`,
+        quantity: 1,
+        unitPrice: parkTotal,
+        total: parkTotal,
+      });
+    }
+
+    if (transportTotal > 0) {
+      items.push({
+        description: `Transport (${costSheet.days} days, ${numPax} pax)`,
+        quantity: numPax,
+        unitPrice: transportPerPax,
+        total: transportTotal,
+      });
+    }
+
+    if (flightTotal > 0) {
+      items.push({
+        description: `Flight Costs (${numAdults}A${numChildren > 0 ? ` + ${numChildren}C` : ''})`,
+        quantity: 1,
+        unitPrice: flightTotal,
+        total: flightTotal,
+      });
+    }
+
+    // Fixed costs / extras
+    if (Number(costSheet.fileHandlingFee) > 0) {
+      items.push({ description: 'File Handling Fee', quantity: 1, unitPrice: Number(costSheet.fileHandlingFee), total: Number(costSheet.fileHandlingFee) });
+    }
+    if (Number(costSheet.ecoBottle) > 0) {
+      items.push({ description: 'Eco Steel Bottle + Mineral Water', quantity: 1, unitPrice: Number(costSheet.ecoBottle), total: Number(costSheet.ecoBottle) });
+    }
+    if (Number(costSheet.evacInsurance) > 0) {
+      items.push({ description: 'Evacuation Insurance', quantity: 1, unitPrice: Number(costSheet.evacInsurance), total: Number(costSheet.evacInsurance) });
+    }
+    if (Number(costSheet.arrivalTransfer) > 0) {
+      items.push({ description: 'Arrival Transfer', quantity: 1, unitPrice: Number(costSheet.arrivalTransfer), total: Number(costSheet.arrivalTransfer) });
+    }
+    if (Number(costSheet.departureTransfer) > 0) {
+      items.push({ description: 'Departure Transfer', quantity: 1, unitPrice: Number(costSheet.departureTransfer), total: Number(costSheet.departureTransfer) });
+    }
+    if (costSheet.maasaiVillage) {
+      items.push({ description: 'Maasai Village Visit', quantity: 1, unitPrice: Number(costSheet.maasaiCost) || 0, total: Number(costSheet.maasaiCost) || 0 });
+    }
+
+    // Add custom extras
+    extras.forEach((extra: any) => {
+      if (Number(extra.cost) > 0) {
+        items.push({ description: extra.label || 'Extra Item', quantity: 1, unitPrice: Number(extra.cost), total: Number(extra.cost) });
+      }
+    });
+
+    // If no items from day rows, use the stored totalCost as single line item
+    if (items.length === 0) {
+      items.push({
+        description: `${costSheet.tourTitle || 'Safari Package'} - Total Cost`,
+        quantity: 1,
+        unitPrice: storedTotal,
+        total: storedTotal,
+      });
+    }
+
+    // Use stored cost sheet totals for the invoice
+    const safeNum = (n: any) => (typeof n === 'number' && !isNaN(n)) ? n : 0;
+    const subtotal = storedSubtotal > 0 ? storedSubtotal : safeNum(items.reduce((s: number, i: any) => s + safeNum(i.total), 0));
+    const markupPercent = safeNum(costSheet.markupPercent) || 10;
+    const markupAmount = storedMarkup > 0 ? storedMarkup : (subtotal * markupPercent / 100);
+    const totalAmount = storedTotal > 0 ? storedTotal : safeNum(subtotal + markupAmount);
+
+    console.log('[Create Invoice] Items:', JSON.stringify(items));
+    console.log('[Create Invoice] Subtotal:', subtotal, 'Markup:', markupAmount, 'Total:', totalAmount);
+    console.log('[Create Invoice] Cost sheet stored - subtotal:', storedSubtotal, 'markup:', storedMarkup, 'total:', storedTotal);
+
+    // Generate invoice number
+    let invoiceNo = genInvoiceNo();
+    let attempts = 0;
+    while (attempts < 10) {
+      const existing = await prisma.invoice.findUnique({ where: { invoiceNo } });
+      if (!existing) break;
+      invoiceNo = genInvoiceNo();
+      attempts++;
+    }
+
+    // Determine due date (30 days from now by default)
+    const dueDate = body.dueDate ? new Date(body.dueDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    const invoice = await prisma.invoice.create({
+      data: {
+        invoiceNo,
+        bookingId: costSheet.bookingId || null,
+        clientId: costSheet.clientId || null,
+        costSheetId: costSheet.id,
+        billTo: costSheet.client?.name || body.billTo || 'Client',
+        billToEmail: costSheet.client?.email || null,
+        billToPhone: costSheet.client?.phone || null,
+        invoiceDate: new Date(),
+        dueDate,
+        lineItems: JSON.stringify(items),
+        subtotal,
+        taxAmount: 0,
+        depositReceived: 0,
+        totalAmount,
+        amountPaid: 0,
+        currency: costSheet.currency || 'USD',
+        paymentInstructions: body.paymentInstructions || 'Account Name: Jae Travel Expeditions Ltd\nAccount No.: 0730285271126\nBank Name: Equity Bank\nBranch: Ngong\nSwift: EQBLKENA',
+        notes: `Generated from Cost Sheet: ${costSheet.tourTitle}`,
+        status: 'DRAFT',
+      },
+      include: {
+        booking: { include: { client: true } },
+        client: true,
+        costSheet: true,
+      },
+    });
+
+    return NextResponse.json(invoice, { status: 201 });
+  } catch (e: any) {
+    console.error('[Create Invoice from CostSheet] Error:', e);
+    return NextResponse.json({ error: e.message || 'Internal server error' }, { status: 500 });
+  }
+}

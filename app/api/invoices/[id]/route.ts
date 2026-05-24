@@ -10,7 +10,11 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   const invoice = await prisma.invoice.findUnique({
     where: { id: params.id },
-    include: { booking: { include: { client: { include: { agent: true } }, tourPackage: true } } },
+    include: {
+      booking: { include: { client: { include: { agent: true } }, tourPackage: true } },
+      client: { include: { agent: true } },
+      costSheet: true,
+    },
   });
   if (!invoice) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json(invoice);
@@ -25,15 +29,18 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const invoice = await prisma.invoice.update({
       where: { id: params.id },
       data: {
-        billTo:              body.billTo,
+        billTo:              body.billTo              ?? undefined,
         billToEmail:         body.billToEmail         ?? undefined,
         billToPhone:         body.billToPhone         ?? undefined,
+        clientId:            body.clientId            ?? undefined,
+        bookingId:           body.bookingId           !== undefined ? (body.bookingId || null) : undefined,
+        costSheetId:         body.costSheetId         !== undefined ? (body.costSheetId || null) : undefined,
         invoiceDate:         body.invoiceDate ? new Date(body.invoiceDate) : undefined,
         dueDate:             body.dueDate ? new Date(body.dueDate) : undefined,
         lineItems:           body.lineItems ? JSON.stringify(body.lineItems) : undefined,
         subtotal:            body.subtotal  !== undefined ? Number(body.subtotal)  : undefined,
         taxAmount:           body.taxAmount !== undefined ? Number(body.taxAmount) : undefined,
-        depositReceived:     body.depositReceived !== undefined ? Number(body.depositReceived) : undefined,
+        depositReceived:    body.depositReceived !== undefined ? Number(body.depositReceived) : undefined,
         totalAmount:         body.totalAmount !== undefined ? Number(body.totalAmount) : undefined,
         amountPaid:          body.amountPaid  !== undefined ? Number(body.amountPaid)  : undefined,
         currency:            body.currency   ?? undefined,

@@ -13,9 +13,11 @@ export default function EditInvoicePage() {
   const [saving,   setSaving]   = useState(false);
   const [error,    setError]    = useState('');
   const [bookings, setBookings] = useState<any[]>([]);
+  const [clients,  setClients]  = useState<any[]>([]);
 
   // Form fields
   const [bookingId,   setBookingId]   = useState('');
+  const [clientId,    setClientId]    = useState('');
   const [billTo,      setBillTo]      = useState('');
   const [billToEmail, setBillToEmail] = useState('');
   const [billToPhone, setBillToPhone] = useState('');
@@ -28,16 +30,19 @@ export default function EditInvoicePage() {
   const [paymentInstructions, setPaymentInstructions] = useState('');
   const [notes,       setNotes]       = useState('');
   const [items,       setItems]       = useState<LineItem[]>([]);
-  const [originalTax, setOriginalTax] = useState(0); // stored tax amount for back-calc
+  const [originalTax, setOriginalTax] = useState(0);
 
   useEffect(() => {
     Promise.all([
       fetch(`/api/invoices/${id}`).then(r => r.json()),
       fetch('/api/bookings?all=1').then(r => r.json()),
-    ]).then(([inv, bks]) => {
+      fetch('/api/clients').then(r => r.json()),
+    ]).then(([inv, bks, cls]) => {
       if (!inv.id) { setLoading(false); return; }
       setBookings(Array.isArray(bks) ? bks : []);
+      setClients(Array.isArray(cls) ? cls : []);
       setBookingId(inv.bookingId || '');
+      setClientId(inv.clientId || '');
       setBillTo(inv.billTo || '');
       setBillToEmail(inv.billToEmail || '');
       setBillToPhone(inv.billToPhone || '');
@@ -50,7 +55,6 @@ export default function EditInvoicePage() {
       setNotes(inv.notes || '');
       setOriginalTax(inv.taxAmount || 0);
 
-      // Back-calculate tax rate from stored amounts
       const sub = inv.subtotal || 0;
       if (sub > 0 && inv.taxAmount > 0) {
         setTaxRate(Math.round((inv.taxAmount / sub) * 100));
@@ -88,7 +92,9 @@ export default function EditInvoicePage() {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        bookingId, billTo, billToEmail, billToPhone,
+        bookingId: bookingId || null,
+        clientId: clientId || null,
+        billTo, billToEmail, billToPhone,
         invoiceDate, dueDate, status,
         lineItems: items, subtotal, taxAmount, totalAmount,
         depositReceived, amountPaid: depositReceived,
@@ -122,15 +128,24 @@ export default function EditInvoicePage() {
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && <div className="bg-red-50 text-red-700 border border-red-200 rounded-lg p-3 text-sm">{error}</div>}
 
-        {/* Booking */}
+        {/* Booking / Client Link */}
         <div className="card space-y-4">
-          <h2 className="font-semibold text-gray-800">Booking Link</h2>
-          <div>
-            <label className="label">Booking</label>
-            <select className="input" value={bookingId} onChange={e => setBookingId(e.target.value)}>
-              <option value="">— Select booking —</option>
-              {bookings.map((b: any) => <option key={b.id} value={b.id}>{b.bookingRef} · {b.client?.name}</option>)}
-            </select>
+          <h2 className="font-semibold text-gray-800">Link to Booking or Client (optional)</h2>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Booking</label>
+              <select className="input" value={bookingId} onChange={e => setBookingId(e.target.value)}>
+                <option value="">— No booking —</option>
+                {bookings.map((b: any) => <option key={b.id} value={b.id}>{b.bookingRef} · {b.client?.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">Or Client</label>
+              <select className="input" value={clientId} onChange={e => setClientId(e.target.value)}>
+                <option value="">— No client link —</option>
+                {clients.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
           </div>
         </div>
 

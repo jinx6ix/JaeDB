@@ -53,6 +53,7 @@ model Client {
   agent       Agent?      @relation(fields: [agentId], references: [id])
   costSheets  CostSheet[]
   vouchers    Voucher[]
+  invoices    Invoice[]
 }
 
 model Destination {
@@ -263,27 +264,31 @@ model Voucher {
 }
 
 model Invoice {
-  id                  String   @id @default(cuid())
-  invoiceNo           String   @unique
-  bookingId           String
+  id                  String    @id @default(cuid())
+  invoiceNo           String    @unique
+  bookingId           String?
+  clientId            String?
+  costSheetId         String?
   billTo              String
   billToEmail         String?
   billToPhone         String?
-  invoiceDate         DateTime @default(now())
+  invoiceDate         DateTime  @default(now())
   dueDate             DateTime
   lineItems           String
   subtotal            Float
-  taxAmount           Float    @default(0)
-  depositReceived     Float    @default(0)
+  taxAmount           Float     @default(0)
+  depositReceived     Float     @default(0)
   totalAmount         Float
-  amountPaid          Float    @default(0)
-  currency            String   @default("KES")
+  amountPaid          Float     @default(0)
+  currency            String    @default("KES")
   paymentInstructions String?
   notes               String?
-  status              String   @default("DRAFT")
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  booking             Booking  @relation(fields: [bookingId], references: [id])
+  status              String    @default("DRAFT")
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  booking             Booking?  @relation(fields: [bookingId], references: [id])
+  client              Client?   @relation(fields: [clientId], references: [id])
+  costSheet           CostSheet? @relation(fields: [costSheetId], references: [id])
 }
 
 model CostSheet {
@@ -322,6 +327,7 @@ model CostSheet {
   agent             Agent?   @relation(fields: [agentId], references: [id])
   booking           Booking? @relation(fields: [bookingId], references: [id])
   client            Client?  @relation(fields: [clientId], references: [id])
+  invoices          Invoice[]
 }
 
 model SRCounty {
@@ -390,10 +396,22 @@ model SRRoomPrice {
   currency             String     @default("USD")
   notes                String?
   updatedAt            DateTime   @updatedAt
-  thirdAdultRate       Float?     @map("third_adult_rate")   // 👈 ADD THIS
+  thirdAdultRate       Float?     @map("third_adult_rate")
   roomType             SRRoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
   season               SRSeason   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
 
   @@unique([roomTypeId, seasonId, boardBasis])
   @@map("sr_room_prices")
+}
+
+model Log {
+  id        String   @id @default(cuid())
+  level     String   @default("INFO")
+  message   String
+  context   String?
+  userId    String?
+  userEmail String?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
 }

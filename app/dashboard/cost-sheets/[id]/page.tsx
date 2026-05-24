@@ -82,6 +82,7 @@ export default function CostSheetDetailPage() {
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [creatingInvoice, setCreatingInvoice] = useState(false);
   const [clientName, setClientName] = useState('');
   const [agentName, setAgentName] = useState('');
   const [destinations, setDestinations] = useState<Destination[]>([]);
@@ -164,6 +165,25 @@ export default function CostSheetDetailPage() {
   const addExtra = () => setEditable(prev => ({ ...prev, extras: [...prev.extras, { label: '', cost: 0 }] }));
   const removeExtra = (idx: number) => setEditable(prev => ({ ...prev, extras: prev.extras.filter((_, i) => i !== idx) }));
 
+  const handleCreateInvoice = async () => {
+    if (!confirm('Create an invoice from this cost sheet? This will generate line items based on the costing data.')) return;
+    setCreatingInvoice(true);
+    try {
+      const res = await fetch(`/api/cost-sheets/${id}/invoice`, { method: 'POST' });
+      if (res.ok) {
+        const invoice = await res.json();
+        router.push(`/dashboard/invoices/${invoice.id}`);
+      } else {
+        const err = await res.json();
+        alert(`Failed to create invoice: ${err.error}`);
+      }
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
+    } finally {
+      setCreatingInvoice(false);
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true); setSaveMessage('');
     const dayRowsArray = editable.dayRows;
@@ -206,19 +226,39 @@ export default function CostSheetDetailPage() {
 
   const currentCurrency = editable.currency || sheet.currency;
   const mf = 1 + (editable.markupPercent / 100);
-  let recalcSubtotal = 0;
   const numPax = editable.numAdults + editable.numChildren;
+  const adultUnits = editable.numAdults + editable.numChildren * 0.5;
+
+  // Use stored totals from DB - these are the authoritative values
+  const storedSubtotal = Number(sheet.subtotal) || 0;
+  const storedMarkup = Number(sheet.markupAmount) || 0;
+  const storedTotal = Number(sheet.totalCost) || 0;
+  const storedPerAdult = Number(sheet.perAdultCost) || 0;
+  const storedPerChild = Number(sheet.perChildCost) || 0;
+
+  // Recalculate from dayRows to show breakdown (uses proper group vs per-person logic)
+  // adultAccomTotal/childAccomTotal = per person per day → multiply by numAdults/numChildren for group total
+  // parkFeeAdultTotal/parkFeeChildTotal = already GROUP totals per day
+  // transportTotal = already GROUP total per day → divide by numPax for per-person display
+  let accomGroupTotal = 0, parkGroupTotal = 0, transportGroupTotal = 0, flightGroupTotal = 0;
   editable.dayRows.forEach(row => {
-    const adultAccom = row.adultAccomTotal ?? 0;
-    const childAccom = row.childAccomTotal ?? 0;
-    const transportPP = numPax > 0 ? (row.transportTotal || 0) / numPax : 0;
-    recalcSubtotal += adultAccom + childAccom + (row.parkFeeAdultTotal || 0) + (row.parkFeeChildTotal || 0) + transportPP;
-    if (row.hasFlight) recalcSubtotal += (row.flightAdultPP || 0) * editable.numAdults + (row.flightChildPP || 0) * editable.numChildren;
+    accomGroupTotal += (row.adultAccomTotal || 0) * editable.numAdults + (row.childAccomTotal || 0) * editable.numChildren;
+    parkGroupTotal += (row.parkFeeAdultTotal || 0) + (row.parkFeeChildTotal || 0);
+    transportGroupTotal += row.transportTotal || 0;
+    if (row.hasFlight) {
+      flightGroupTotal += (row.flightAdultPP || 0) * editable.numAdults + (row.flightChildPP || 0) * editable.numChildren;
+    }
   });
-  recalcSubtotal += editable.fileHandlingFee + editable.ecoBottle + editable.evacInsurance + editable.arrivalTransfer + editable.departureTransfer + editable.maasaiCost;
-  editable.extras.forEach(e => recalcSubtotal += e.cost || 0);
-  const markupAmount = recalcSubtotal * (editable.markupPercent / 100);
-  const grandTotal = recalcSubtotal + markupAmount;
+
+  // Calculate extras/f固定费用
+  let extrasTotal = editable.fileHandlingFee + editable.ecoBottle + editable.evacInsurance +
+    editable.arrivalTransfer + editable.departureTransfer + (editable.maasaiVillage ? editable.maasaiCost : 0);
+  editable.extras.forEach(e => extrasTotal += e.cost || 0);
+
+  const calcSubtotal = accomGroupTotal + parkGroupTotal + transportGroupTotal + flightGroupTotal + extrasTotal;
+  const calcMarkup = storedMarkup > 0 ? storedMarkup : calcSubtotal * (editable.markupPercent / 100);
+  const calcGrandTotal = calcSubtotal + calcMarkup;
+  const calcPerAdult = adultUnits > 0 ? calcGrandTotal / adultUnits : 0;
 
   // Helper to filter hotels by selected destination
   const getFilteredHotels = (destName: string | null | undefined) => {
@@ -239,7 +279,10 @@ export default function CostSheetDetailPage() {
           {!isEditing ? (
             <>
               <button onClick={() => setIsEditing(true)} className="btn-secondary text-sm">✏️ Edit Inline</button>
-              <a href={`/api/cost-sheets/${id}/csv`} target="_blank" className="btn-primary text-sm">⬇ Download CSV</a>
+              <button onClick={handleCreateInvoice} disabled={creatingInvoice} className="btn-primary text-sm">
+                {creatingInvoice ? '⏳ Creating...' : '🧾 Create Invoice'}
+              </button>
+              <a href={`/api/cost-sheets/${id}/csv`} target="_blank" className="btn-secondary text-sm">⬇ Download CSV</a>
             </>
           ) : (
             <>
@@ -295,18 +338,22 @@ export default function CostSheetDetailPage() {
             <th className="px-2 py-2 text-right text-xs">Day Total</th>
           </tr></thead>
             <tbody>{editable.dayRows.map((row, idx) => {
-              const adultBase = row.adultAccomTotal ?? 0;
-              const childBase = row.childAccomTotal ?? 0;
-              const adultTotal = adultBase * mf;
-              const childTotal = childBase * mf;
+              // adultAccomTotal/childAccomTotal = per person per day rates (stored as-is)
+              // parkFeeAdultTotal/ChildTotal = GROUP totals per day (stored as-is)
+              // transportTotal = GROUP total per day (stored as-is)
+              // Markup (mf) is applied to the entire subtotal at the bottom, NOT per row
+              const adultPP = row.adultAccomTotal || 0;
+              const childPP = row.childAccomTotal || 0;
+              const adultGroup = adultPP * editable.numAdults;
+              const childGroup = childPP * editable.numChildren;
               const parkA = row.parkFeeAdultTotal || 0;
               const parkC = row.parkFeeChildTotal || 0;
               const transport = row.transportTotal || 0;
-              const numPax = editable.numAdults + editable.numChildren;
               const transportPerPax = numPax > 0 ? transport / numPax : 0;
-              let flightA = 0, flightC = 0;
-              if (row.hasFlight) { flightA = (row.flightAdultPP || 0) * editable.numAdults; flightC = (row.flightChildPP || 0) * editable.numChildren; }
-              const dayTotal = adultTotal + childTotal + parkA + parkC + transportPerPax + flightA + flightC;
+              const flightAPerGroup = row.hasFlight ? (row.flightAdultPP || 0) * editable.numAdults : 0;
+              const flightCPerGroup = row.hasFlight ? (row.flightChildPP || 0) * editable.numChildren : 0;
+              // dayTotal = sum of group totals WITHOUT markup (markup applied at subtotal level)
+              const dayTotal = adultGroup + childGroup + parkA + parkC + transport + flightAPerGroup + flightCPerGroup;
 
               // Destination dropdown
               const handleDestinationChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -344,14 +391,14 @@ export default function CostSheetDetailPage() {
                     <input className="input text-xs w-40 mt-1" value={row.hotelName} onChange={e => updateDayRow(idx, 'hotelName', e.target.value)} placeholder="Custom hotel name" />
                   )}
                 </td>
-                <td className="px-2 py-1 text-right">{isEditing ? <input type="number" step="0.01" className="input text-xs w-20 text-right" value={row.adultAccomTotal || 0} onChange={e => updateDayRow(idx, 'adultAccomTotal', Number(e.target.value))} /> : <span className="font-mono">{currentCurrency} {fmt2(adultTotal)}</span>}</td>
-                <td className="px-2 py-1 text-right">{isEditing ? <input type="number" step="0.01" className="input text-xs w-20 text-right" value={row.childAccomTotal || 0} onChange={e => updateDayRow(idx, 'childAccomTotal', Number(e.target.value))} /> : <span className="font-mono">{editable.numChildren ? `${currentCurrency} ${fmt2(childTotal)}` : '—'}</span>}</td>
+                <td className="px-2 py-1 text-right">{isEditing ? <input type="number" step="0.01" className="input text-xs w-20 text-right" value={row.adultAccomTotal || 0} onChange={e => updateDayRow(idx, 'adultAccomTotal', Number(e.target.value))} /> : <span className="font-mono">{currentCurrency} {fmt2(adultGroup)} <span className="text-xs text-gray-400">(@{fmt2(adultPP)}/pp)</span></span>}</td>
+                <td className="px-2 py-1 text-right">{isEditing ? <input type="number" step="0.01" className="input text-xs w-20 text-right" value={row.childAccomTotal || 0} onChange={e => updateDayRow(idx, 'childAccomTotal', Number(e.target.value))} /> : <span className="font-mono">{editable.numChildren ? `${currentCurrency} ${fmt2(childGroup)} <span className="text-xs text-gray-400">(@${fmt2(childPP)}/pp)</span>` : '—'}</span>}</td>
                 <td className="px-2 py-1 text-right">{isEditing ? <input type="number" step="0.01" className="input text-xs w-20 text-right" value={row.parkFeeAdultTotal || 0} onChange={e => updateDayRow(idx, 'parkFeeAdultTotal', Number(e.target.value))} /> : <span className="font-mono text-green-600">{currentCurrency} {fmt2(parkA)}</span>}</td>
                 <td className="px-2 py-1 text-right">{isEditing ? <input type="number" step="0.01" className="input text-xs w-20 text-right" value={row.parkFeeChildTotal || 0} onChange={e => updateDayRow(idx, 'parkFeeChildTotal', Number(e.target.value))} /> : <span className="font-mono text-green-600">{editable.numChildren ? `${currentCurrency} ${fmt2(parkC)}` : '—'}</span>}</td>
-                <td className="px-2 py-1 text-right">{isEditing ? <input type="number" step="0.01" className="input text-xs w-20 text-right" value={row.transportTotal || 0} onChange={e => updateDayRow(idx, 'transportTotal', Number(e.target.value))} /> : <span className="font-mono text-green-600">{currentCurrency} {fmt2(transportPerPax)}</span>}</td>
+                <td className="px-2 py-1 text-right">{isEditing ? <input type="number" step="0.01" className="input text-xs w-20 text-right" value={row.transportTotal || 0} onChange={e => updateDayRow(idx, 'transportTotal', Number(e.target.value))} /> : <span className="font-mono text-green-600">{currentCurrency} {fmt2(transport)} <span className="text-xs text-gray-400">({fmt2(transportPerPax)}/pax)</span></span>}</td>
                 <td className="px-2 py-1 text-center">{isEditing ? <input type="checkbox" checked={!!row.hasFlight} onChange={e => updateDayRow(idx, 'hasFlight', e.target.checked)} /> : row.hasFlight ? '✈️' : '—'}</td>
-                <td className="px-2 py-1 text-right">{isEditing && row.hasFlight ? <input type="number" step="0.01" className="input text-xs w-20 text-right" value={row.flightAdultPP || 0} onChange={e => updateDayRow(idx, 'flightAdultPP', Number(e.target.value))} /> : row.hasFlight ? <span className="font-mono">{currentCurrency} {fmt2(row.flightAdultPP || 0)}</span> : '—'}</td>
-                <td className="px-2 py-1 text-right">{isEditing && row.hasFlight ? <input type="number" step="0.01" className="input text-xs w-20 text-right" value={row.flightChildPP || 0} onChange={e => updateDayRow(idx, 'flightChildPP', Number(e.target.value))} /> : row.hasFlight ? <span className="font-mono">{currentCurrency} {fmt2(row.flightChildPP || 0)}</span> : '—'}</td>
+                <td className="px-2 py-1 text-right">{isEditing && row.hasFlight ? <input type="number" step="0.01" className="input text-xs w-20 text-right" value={row.flightAdultPP || 0} onChange={e => updateDayRow(idx, 'flightAdultPP', Number(e.target.value))} /> : row.hasFlight ? <span className="font-mono">{currentCurrency} {fmt2(flightAPerGroup)}</span> : '—'}</td>
+                <td className="px-2 py-1 text-right">{isEditing && row.hasFlight ? <input type="number" step="0.01" className="input text-xs w-20 text-right" value={row.flightChildPP || 0} onChange={e => updateDayRow(idx, 'flightChildPP', Number(e.target.value))} /> : row.hasFlight ? <span className="font-mono">{currentCurrency} {fmt2(flightCPerGroup)}</span> : '—'}</td>
                 <td className="px-2 py-1 text-right font-mono font-bold">{currentCurrency} {fmt2(dayTotal)}</td>
               </tr>);
             })}</tbody></table></div>
@@ -373,19 +420,34 @@ export default function CostSheetDetailPage() {
             </div>
           ) : (
             <div className="space-y-1 text-sm text-gray-600">
-              {editable.fileHandlingFee > 0 && <p>File Handling: {currentCurrency} {fmt2(editable.fileHandlingFee * mf)}</p>}
-              {editable.ecoBottle > 0 && <p>Eco Bottle: {currentCurrency} {fmt2(editable.ecoBottle * mf)}</p>}
-              {editable.evacInsurance > 0 && <p>Evac Insurance: {currentCurrency} {fmt2(editable.evacInsurance * mf)}</p>}
-              {editable.arrivalTransfer > 0 && <p>Arrival Transfer: {currentCurrency} {fmt2(editable.arrivalTransfer * mf)}</p>}
-              {editable.departureTransfer > 0 && <p>Departure Transfer: {currentCurrency} {fmt2(editable.departureTransfer * mf)}</p>}
-              {editable.maasaiVillage && <p>Maasai Village: {currentCurrency} {fmt2(editable.maasaiCost * mf)}</p>}
-              {editable.extras.map((e, i) => <p key={i}>{e.label}: {currentCurrency} {fmt2(e.cost * mf)}</p>)}
+              {editable.fileHandlingFee > 0 && <p>File Handling: {currentCurrency} {fmt2(editable.fileHandlingFee)}</p>}
+              {editable.ecoBottle > 0 && <p>Eco Bottle: {currentCurrency} {fmt2(editable.ecoBottle)}</p>}
+              {editable.evacInsurance > 0 && <p>Evac Insurance: {currentCurrency} {fmt2(editable.evacInsurance)}</p>}
+              {editable.arrivalTransfer > 0 && <p>Arrival Transfer: {currentCurrency} {fmt2(editable.arrivalTransfer)}</p>}
+              {editable.departureTransfer > 0 && <p>Departure Transfer: {currentCurrency} {fmt2(editable.departureTransfer)}</p>}
+              {editable.maasaiVillage && <p>Maasai Village: {currentCurrency} {fmt2(editable.maasaiCost)}</p>}
+              {editable.extras.map((e, i) => <p key={i}>{e.label}: {currentCurrency} {fmt2(e.cost)}</p>)}
             </div>
           )}
         </div>
 
         {/* Totals */}
-        <div className="flex justify-end"><div className="w-80 space-y-2"><div className="flex justify-between"><span>Subtotal (excl. markup)</span><span className="font-mono">{currentCurrency} {fmt2(recalcSubtotal)}</span></div><div className="flex justify-between text-orange-600"><span>Markup ({editable.markupPercent}%)</span><span className="font-mono">{currentCurrency} {fmt2(markupAmount)}</span></div><div className="flex justify-between text-base font-bold border-t pt-2"><span>Grand Total</span><span className="font-mono">{currentCurrency} {fmt2(grandTotal)}</span></div></div></div>
+        <div className="flex justify-end"><div className="w-80 space-y-2">
+          {editable.numChildren > 0 && <div className="flex justify-between text-sm"><span>Per Child Cost</span><span className="font-mono">{currentCurrency} {fmt2(storedPerChild)}</span></div>}
+          <div className="flex justify-between text-base font-bold border-t-2 border-orange-200 pt-2">
+            <span>Per Adult Cost</span><span className="font-mono text-orange-600">{currentCurrency} {fmt2(storedPerAdult)}</span>
+          </div>
+          <div className="border-t pt-2 space-y-1">
+            <div className="flex justify-between text-xs text-gray-500"><span>Accommodation</span><span className="font-mono">{currentCurrency} {fmt2(accomGroupTotal)}</span></div>
+            <div className="flex justify-between text-xs text-gray-500"><span>Park Fees</span><span className="font-mono">{currentCurrency} {fmt2(parkGroupTotal)}</span></div>
+            <div className="flex justify-between text-xs text-gray-500"><span>Transport</span><span className="font-mono">{currentCurrency} {fmt2(transportGroupTotal)}</span></div>
+            <div className="flex justify-between text-xs text-gray-500"><span>Flights</span><span className="font-mono">{currentCurrency} {fmt2(flightGroupTotal)}</span></div>
+            <div className="flex justify-between text-xs text-gray-500"><span>Extras & Fees</span><span className="font-mono">{currentCurrency} {fmt2(extrasTotal)}</span></div>
+            <div className="flex justify-between text-sm"><span>Subtotal</span><span className="font-mono">{currentCurrency} {fmt2(storedSubtotal)}</span></div>
+            <div className="flex justify-between text-sm text-orange-600"><span>Markup ({editable.markupPercent}%)</span><span className="font-mono">{currentCurrency} {fmt2(storedMarkup)}</span></div>
+            <div className="flex justify-between text-sm font-bold border-t pt-1"><span>Grand Total</span><span className="font-mono">{currentCurrency} {fmt2(storedTotal)}</span></div>
+          </div>
+        </div></div>
 
         {/* Notes */}
         <div><label className="text-xs font-bold text-gray-500 uppercase">Notes</label>{isEditing ? <textarea className="input w-full mt-1" rows={3} value={editable.notes} onChange={e => setEditable({...editable, notes: e.target.value})} /> : sheet.notes && <div className="bg-yellow-50 p-3 rounded text-sm mt-1">{sheet.notes}</div>}</div>
@@ -393,7 +455,7 @@ export default function CostSheetDetailPage() {
         <div className="border-t pt-4 flex justify-between text-xs text-gray-400"><span>Jae Travel Expeditions · www.jaetravel.co.ke</span><span>Cost Sheet #{sheet.id.slice(-8).toUpperCase()}</span></div>
       </div>
 
-      <div className="flex gap-3 print:hidden"><button onClick={() => window.print()} className="btn-secondary text-sm">🖨 Print / Save PDF</button>{sheet.booking && <Link href={`/dashboard/invoices/new?bookingId=${sheet.booking.id}&costSheetId=${sheet.id}`} className="btn-primary text-sm">🧾 Create Invoice</Link>}</div>
+      <div className="flex gap-3 print:hidden"><button onClick={() => window.print()} className="btn-secondary text-sm">🖨 Print / Save PDF</button><button onClick={handleCreateInvoice} disabled={creatingInvoice} className="btn-primary text-sm">{creatingInvoice ? '⏳ Creating...' : '🧾 Create Invoice'}</button></div>
     </div>
   );
 }
