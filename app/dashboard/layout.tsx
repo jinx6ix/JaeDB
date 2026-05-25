@@ -47,11 +47,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const filteredNav = nav.filter(n => !n.adminOnly || isAdmin);
 
   return (
-    <div className="min-h-screen flex bg-gray-50">
+    <div className="h-screen flex bg-gray-50 overflow-hidden">
       {/* Sidebar */}
-      <aside className={`${sidebarOpen ? 'w-60' : 'w-16'} bg-[#1a1a2e] text-white flex flex-col transition-all duration-300 flex-shrink-0`}>
+      <aside className={`${sidebarOpen ? 'w-60' : 'w-16'} bg-[#1a1a2e] text-white flex flex-col transition-all duration-300 flex-shrink-0 overflow-hidden`}>
         {/* Logo */}
-        <div className="p-4 border-b border-white/10 flex items-center gap-3">
+        <div className="p-4 border-b border-white/10 flex items-center gap-3 flex-shrink-0">
           <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0">
             JT
           </div>
@@ -85,7 +85,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         {/* User info */}
-        <div className="p-3 border-t border-white/10">
+        <div className="p-3 border-t border-white/10 flex-shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-orange-500/30 rounded-full flex items-center justify-center text-orange-400 font-bold text-xs flex-shrink-0">
               {userName.charAt(0).toUpperCase()}
@@ -109,9 +109,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* Main */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top bar */}
-        <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-10">
+        <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100"
@@ -133,7 +133,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-y-auto p-6">
           {children}
         </main>
       </div>
