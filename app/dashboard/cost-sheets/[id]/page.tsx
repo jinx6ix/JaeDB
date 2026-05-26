@@ -186,6 +186,50 @@ export default function CostSheetDetailPage() {
     }
   };
 
+  const currentCurrency = editable.currency || sheet.currency;
+  const mf = 1 + (editable.markupPercent / 100);
+  const numPax = editable.numAdults + editable.numChildren;
+  const adultUnits = editable.numAdults + editable.numChildren * 0.5;
+
+  const storedSubtotal = Number(sheet.subtotal) || 0;
+  const storedMarkup = Number(sheet.markupAmount) || 0;
+  const storedTotal = Number(sheet.totalCost) || 0;
+  const storedPerAdult = Number(sheet.perAdultCost) || 0;
+  const storedPerChild = Number(sheet.perChildCost) || 0;
+
+  let accomPerPersonSum = 0;
+  let parkGroupTotal = 0;
+  let transportGroupTotal = 0;
+  let flightGroupTotal = 0;
+  editable.dayRows.forEach(row => {
+    const adultPP = row.adultAccomTotal || 0;
+    const childPP = row.childAccomTotal || 0;
+    const singleRate = row.singleRoomRate || 0;
+    let accomGroup = 0;
+    if (editable.numAdults === 1 && singleRate > 0) {
+      accomGroup = singleRate;
+    } else if (editable.numAdults > 1 && singleRate > 0) {
+      accomGroup = adultPP * (editable.numAdults - 1) + singleRate;
+    } else {
+      accomGroup = adultPP * editable.numAdults + childPP * editable.numChildren;
+    }
+    accomPerPersonSum += accomGroup / numPax;
+    parkGroupTotal += (row.parkFeeAdultTotal || 0) + (row.parkFeeChildTotal || 0);
+    transportGroupTotal += row.transportTotal || 0;
+    if (row.hasFlight) {
+      flightGroupTotal += (row.flightAdultPP || 0) * editable.numAdults + (row.flightChildPP || 0) * editable.numChildren;
+    }
+  });
+
+  let extrasTotal = editable.fileHandlingFee + editable.ecoBottle + editable.evacInsurance +
+    editable.arrivalTransfer + editable.departureTransfer + (editable.maasaiVillage ? editable.maasaiCost : 0);
+  editable.extras.forEach(e => extrasTotal += e.cost || 0);
+
+  const transportPerPax = numPax > 0 ? transportGroupTotal / numPax : 0;
+  const calcSubtotal = accomPerPersonSum + parkGroupTotal + transportPerPax + extrasTotal + flightGroupTotal;
+  const calcMarkup = storedMarkup > 0 ? storedMarkup : calcSubtotal * (editable.markupPercent / 100);
+  const calcGrandTotal = calcSubtotal + calcMarkup;
+
   const handleSave = async () => {
     setSaving(true); setSaveMessage('');
     const dayRowsArray = editable.dayRows;
@@ -193,7 +237,7 @@ export default function CostSheetDetailPage() {
 
     const numPaxToUse = editable.numAdults + editable.numChildren;
 
-let accomPerPersonSum = 0;
+    let accomPerPersonSum = 0;
     let parkGroupTotal = 0;
     let transportGroupTotal = 0;
     let flightGroupTotal = 0;
@@ -221,13 +265,28 @@ let accomPerPersonSum = 0;
       editable.arrivalTransfer + editable.departureTransfer + (editable.maasaiVillage ? editable.maasaiCost : 0);
     editable.extras.forEach(e => extrasTotal += e.cost || 0);
 
-    const transportPerAdult = numPax > 0 ? transportGroupTotal / numPax : 0;
-    const calcSubtotal = accomPerPersonSum + parkGroupTotal + transportPerAdult + extrasTotal + flightGroupTotal;
-  const calcMarkup = storedMarkup > 0 ? storedMarkup : calcSubtotal * (editable.markupPercent / 100);
-  const calcGrandTotal = calcSubtotal + calcMarkup;
-  const calcPerAdult = adultUnits > 0 ? calcGrandTotal / adultUnits : 0;
+    const transportPerAdult = numPaxToUse > 0 ? transportGroupTotal / numPaxToUse : 0;
+    const subtotal = accomPerPersonSum + parkGroupTotal + transportPerAdult + extrasTotal + flightGroupTotal;
+    const totalCost = subtotal * mf;
+    const perAdultCost = totalCost;
+    const perChildCost = perAdultCost * 0.5;
 
-  // Helper to filter hotels by selected destination
+    const payload = {
+      ...editable,
+      dayRows: JSON.stringify(dayRowsArray),
+      extras: JSON.stringify(extrasArray),
+      subtotal, markupAmount: totalCost - subtotal, totalCost, perAdultCost, perChildCost,
+      numPax: numPaxToUse,
+    };
+
+    try {
+      const res = await fetch(`/api/cost-sheets/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (res.ok) { setSaveMessage('Saved successfully'); setIsEditing(false); await fetchSheet(); setTimeout(() => setSaveMessage(''), 3000); }
+      else { const err = await res.json(); setSaveMessage(`Error: ${err.error || 'Save failed'}`); }
+    } catch (err: any) { setSaveMessage(`Network error: ${err.message}`); }
+    finally { setSaving(false); }
+  };
+
   const getFilteredHotels = (destName: string | null | undefined) => {
     if (!destName) return hotels;
     const dest = destinations.find(d => d.name === destName);
@@ -422,10 +481,10 @@ let accomPerPersonSum = 0;
         {/* Notes */}
         <div><label className="text-xs font-bold text-gray-500 uppercase">Notes</label>{isEditing ? <textarea className="input w-full mt-1" rows={3} value={editable.notes} onChange={e => setEditable({...editable, notes: e.target.value})} /> : sheet.notes && <div className="bg-yellow-50 p-3 rounded text-sm mt-1">{sheet.notes}</div>}</div>
 
-        <div className="border-t pt-4 flex justify-between text-xs text-gray-400"><span>Jae Travel Expeditions · www.jaetravel.co.ke</span><span>Cost Sheet #{sheet.id.slice(-8).toUpperCase()}</span></div>
+<div className="border-t pt-4 flex justify-between text-xs text-gray-400"><span>Jae Travel Expeditions · www.jaetravel.co.ke</span><span>Cost Sheet #{sheet.id.slice(-8).toUpperCase()}</span></div>
       </div>
 
       <div className="flex gap-3 print:hidden"><button onClick={() => window.print()} className="btn-secondary text-sm">🖨 Print / Save PDF</button><button onClick={handleCreateInvoice} disabled={creatingInvoice} className="btn-primary text-sm">{creatingInvoice ? '⏳ Creating...' : '🧾 Create Invoice'}</button></div>
     </div>
   );
-}}
+}
