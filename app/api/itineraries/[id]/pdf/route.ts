@@ -153,6 +153,11 @@ async function processImageForPDF(img: any): Promise<any> {
     const { Jimp } = await import('jimp');
     const base64Data = extractBase64(img.data) || '';
     const imageBuffer = Buffer.from(base64Data, 'base64');
+    // Skip PDF files (PDF magic bytes: %PDF = 0x25 0x50 0x44 0x46)
+    if (imageBuffer.length >= 4 && imageBuffer[0] === 0x25 && imageBuffer[1] === 0x50 && imageBuffer[2] === 0x44 && imageBuffer[3] === 0x46) {
+      console.error(`[PDF] Skipping PDF file: ${img.filename || img.id}`);
+      return img;
+    }
     const image = await Jimp.read(imageBuffer);
     const jpegBuffer = await (image as any).write('image/jpeg');
     const jpegBase64 = jpegBuffer.toString('base64');

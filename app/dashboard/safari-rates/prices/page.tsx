@@ -57,16 +57,22 @@ export default function PricesPage() {
   const [deletingSeasonId, setDeletingSeasonId] = useState<number|null>(null);
 
   async function load() {
-    const [h,r,s,p] = await Promise.all([
-      fetch('/api/safari-rates/hotels').then(x=>x.json()),
-      fetch('/api/safari-rates/room-types').then(x=>x.json()),
-      fetch('/api/safari-rates/seasons').then(x=>x.json()),
-      fetch('/api/safari-rates/prices').then(x=>x.json()),
-    ]);
-    setHotels(Array.isArray(h)?h:[]);
-    setRooms(Array.isArray(r)?r:[]);
-    setSeasons(Array.isArray(s)?s:[]);
-    setPrices(Array.isArray(p)?p:[]);
+    try {
+      const [hRes, rRes, sRes, pRes] = await Promise.all([
+        fetch('/api/safari-rates/hotels'),
+        fetch('/api/safari-rates/room-types'),
+        fetch('/api/safari-rates/seasons'),
+        fetch('/api/safari-rates/prices'),
+      ]);
+      if (!hRes.ok || !rRes.ok || !sRes.ok || !pRes.ok) throw new Error('Failed to load data');
+      const [h, r, s, p] = await Promise.all([hRes.json(), rRes.json(), sRes.json(), pRes.json()]);
+      setHotels(Array.isArray(h) ? h : []);
+      setRooms(Array.isArray(r) ? r : []);
+      setSeasons(Array.isArray(s) ? s : []);
+      setPrices(Array.isArray(p) ? p : []);
+    } catch (err: any) {
+      alert('Failed to load: ' + err.message);
+    }
   }
 
   useEffect(()=>{ load(); },[]);

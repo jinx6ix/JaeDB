@@ -1,4 +1,5 @@
 'use client';
+import React from 'react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 
@@ -21,27 +22,57 @@ export default function HotelsPage() {
   const [savingRoom, setSavingRoom] = useState(false);
 
   async function load() {
-    const [h, c] = await Promise.all([
-      fetch('/api/safari-rates/hotels').then(r=>r.json()),
-      fetch('/api/safari-rates/counties').then(r=>r.json()),
-    ]);
-    setHotels(Array.isArray(h)?h:[]); setCounties(Array.isArray(c)?c:[]);
+    try {
+      const [hRes, cRes] = await Promise.all([
+        fetch('/api/safari-rates/hotels'),
+        fetch('/api/safari-rates/counties'),
+      ]);
+      if (!hRes.ok || !cRes.ok) throw new Error('Failed to load data');
+      const [h, c] = await Promise.all([hRes.json(), cRes.json()]);
+      setHotels(Array.isArray(h) ? h : []);
+      setCounties(Array.isArray(c) ? c : []);
+    } catch (err: any) {
+      alert('Failed to load: ' + err.message);
+      setHotels([]);
+      setCounties([]);
+    }
   }
 
-  useEffect(()=>{ load(); },[]);
+  useEffect(() => { load(); }, []);
 
   async function loadRooms(hotelId: number) {
-    const rooms = await fetch(`/api/safari-rates/room-types?hotelId=${hotelId}`).then(r => r.json());
-    setHotelRooms(p => ({ ...p, [hotelId]: Array.isArray(rooms) ? rooms : [] }));
+    try {
+      const roomsRes = await fetch(`/api/safari-rates/room-types?hotelId=${hotelId}`);
+      const rooms = await roomsRes.json();
+      setHotelRooms(p => ({ ...p, [hotelId]: Array.isArray(rooms) ? rooms : [] }));
+    } catch (err) {
+      console.error('Failed to load rooms', err);
+    }
   }
 
   async function save(e: React.FormEvent) {
-    e.preventDefault(); setSaving(true);
-    await fetch('/api/safari-rates/hotels', {
-      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(form),
-    });
-    setSaving(false); setShowForm(false); setForm({countyId:'',name:'',stars:'',category:'Lodge'});
-    load();
+    e.preventDefault();
+    if (!form.countyId) { alert('Please select a destination'); return; }
+    if (!form.name.trim()) { alert('Please enter a hotel name'); return; }
+    setSaving(true);
+    try {
+      const res = await fetch('/api/safari-rates/hotels', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ ...form, countyId: Number(form.countyId), stars: form.stars ? Number(form.stars) : null }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed to save hotel' }));
+        throw new Error(err.error || 'Failed to save hotel');
+      }
+      setShowForm(false);
+      setForm({countyId:'',name:'',stars:'',category:'Lodge'});
+      await load();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSaving(false);
+    }
   }
   async function saveRoom(e: React.FormEvent, hotelId: number) {
     e.preventDefault();
@@ -153,9 +184,9 @@ export default function HotelsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {filtered.map(h=>(
-              <>
-                <tr key={h.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => toggleHotel(h.id)}>
+            {filtered.map(h => (
+              <React.Fragment key={h.id}>
+                <tr className="hover:bg-gray-50 cursor-pointer" onClick={() => toggleHotel(h.id)}>
                   <td className="px-4 py-2.5 font-medium text-gray-800">{h.name}</td>
                   <td className="px-4 py-2.5 text-gray-500">{h.category||'—'}</td>
                   <td className="px-4 py-2.5 text-yellow-500 text-sm">{h.stars?'★'.repeat(h.stars):'—'}</td>
@@ -166,7 +197,7 @@ export default function HotelsPage() {
                   </td>
                 </tr>
                 {expandedHotel === h.id && (
-                  <tr key={`${h.id}-rooms`}>
+                  <tr>
                     <td colSpan={5} className="px-6 py-3 bg-orange-50 border-b border-orange-100">
                       <div className="flex items-center justify-between mb-2">
                         <p className="text-xs font-semibold text-gray-700">Room Types — {h.name}</p>
@@ -203,7 +234,7 @@ export default function HotelsPage() {
                     </td>
                   </tr>
                 )}
-              </>
+              </React.Fragment>
             ))}
           </tbody>
         </table>

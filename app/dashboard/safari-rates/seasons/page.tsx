@@ -24,12 +24,24 @@ export default function SeasonsPage() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   async function load() {
-    const [h,s] = await Promise.all([
-      fetch('/api/safari-rates/hotels').then(r=>r.json()),
-      fetch('/api/safari-rates/seasons').then(r=>r.json()),
-    ]);
-    setHotels(Array.isArray(h)?h:[]); 
-    setSeasons(Array.isArray(s)?s:[]);
+    try {
+      const [h, s] = await Promise.all([
+        fetch('/api/safari-rates/hotels').then(async r => {
+          if (!r.ok) throw new Error('Failed to load hotels');
+          return r.json();
+        }),
+        fetch('/api/safari-rates/seasons').then(async r => {
+          if (!r.ok) throw new Error('Failed to load seasons');
+          return r.json();
+        }),
+      ]);
+      setHotels(Array.isArray(h) ? h : []);
+      setSeasons(Array.isArray(s) ? s : []);
+    } catch (err: any) {
+      alert('Failed to load data: ' + err.message);
+      setHotels([]);
+      setSeasons([]);
+    }
   }
   useEffect(()=>{ load(); },[]);
 
@@ -40,17 +52,21 @@ export default function SeasonsPage() {
   );
 
   async function save(e: React.FormEvent) {
-    e.preventDefault(); 
+    e.preventDefault();
+    if (!form.hotelId) { alert('Please select a hotel'); return; }
+    if (!form.name.trim()) { alert('Please enter a season name'); return; }
+    if (!form.startDate || !form.endDate) { alert('Please enter start and end dates'); return; }
     setSaving(true);
     try {
       const res = await fetch('/api/safari-rates/seasons', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify(form)
+        body:JSON.stringify({ ...form, hotelId: Number(form.hotelId) })
       });
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Failed to add season');
+        let msg = 'Failed to add season';
+        try { const err = await res.json(); msg = err.error || msg; } catch {}
+        throw new Error(msg);
       }
       setShowForm(false);
       setForm({hotelId:'',name:'',startDate:'',endDate:''});
