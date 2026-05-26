@@ -9,6 +9,7 @@ interface DayRow {
   hotelName?: string;
   adultAccomTotal?: number;
   childAccomTotal?: number;
+  singleRoomRate?: number;
   parkFeeAdultTotal?: number;
   parkFeeChildTotal?: number;
   transportTotal?: number;
@@ -50,6 +51,7 @@ function parseDayRows(raw: unknown, fallbackDays: number): DayRow[] {
     hotelName: row.hotelName ?? '',
     adultAccomTotal: row.adultCostPP ?? row.adultAccomTotal ?? row.adultTotal ?? 0,
     childAccomTotal: row.childCostPP ?? row.childAccomTotal ?? row.childTotal ?? 0,
+    singleRoomRate: row.singleRoomRate ?? 0,
     parkFeeAdultTotal: row.parkFeeAdultPP ?? row.parkFeeAdultTotal ?? 0,
     parkFeeChildTotal: row.parkFeeChildPP ?? row.parkFeeChildTotal ?? 0,
     transportTotal: row.transportPP ?? row.transportTotal ?? 0,
@@ -189,28 +191,45 @@ export default function CostSheetDetailPage() {
     const dayRowsArray = editable.dayRows;
     const extrasArray = editable.extras;
 
-    let accomBase = 0, parkBase = 0, transportBase = 0, flightBase = 0;
+    const numPaxToUse = editable.numAdults + editable.numChildren;
+
+    let accomPerPersonSum = 0;
+    let parkGroupTotal = 0;
+    let transportGroupTotal = 0;
+    let flightGroupTotal = 0;
     dayRowsArray.forEach(row => {
-      accomBase += (row.adultAccomTotal || 0) + (row.childAccomTotal || 0);
-      parkBase += (row.parkFeeAdultTotal || 0) + (row.parkFeeChildTotal || 0);
-      transportBase += row.transportTotal || 0;
-      if (row.hasFlight) flightBase += (row.flightAdultPP || 0) * editable.numAdults + (row.flightChildPP || 0) * editable.numChildren;
+      const adultPP = row.adultAccomTotal || 0;
+      const childPP = row.childAccomTotal || 0;
+      const singleRate = row.singleRoomRate || 0;
+      if (editable.numAdults === 1 && singleRate > 0) {
+        accomPerPersonSum += singleRate;
+      } else if (editable.numAdults > 1 && singleRate > 0) {
+        accomPerPersonSum += adultPP * (editable.numAdults - 1) + singleRate;
+      } else {
+        accomPerPersonSum += adultPP * editable.numAdults + childPP * editable.numChildren;
+      }
+      parkGroupTotal += (row.parkFeeAdultTotal || 0) + (row.parkFeeChildTotal || 0);
+      transportGroupTotal += row.transportTotal || 0;
+      if (row.hasFlight) flightGroupTotal += (row.flightAdultPP || 0) * editable.numAdults + (row.flightChildPP || 0) * editable.numChildren;
     });
+
+    const transportPerPax = numPaxToUse > 0 ? transportGroupTotal / numPaxToUse : 0;
+
     const extrasTotal = extrasArray.reduce((s, e) => s + (e.cost || 0), 0) + editable.fileHandlingFee + editable.ecoBottle + editable.evacInsurance +
       editable.arrivalTransfer + editable.departureTransfer + (editable.maasaiVillage ? editable.maasaiCost : 0);
-    const subtotal = accomBase + parkBase + transportBase + flightBase + extrasTotal;
-    const markupAmount = subtotal * (editable.markupPercent / 100);
-    const totalCost = subtotal + markupAmount;
-    const adultUnits = editable.numAdults + editable.numChildren * 0.5;
-    const perAdult = adultUnits > 0 ? totalCost / adultUnits : 0;
-    const perChild = editable.numChildren > 0 ? perAdult * 0.5 : 0;
+
+    const subtotal = accomPerPersonSum + parkGroupTotal + transportPerPax + extrasTotal + flightGroupTotal;
+    const mf = 1 + (editable.markupPercent / 100);
+    const totalCost = subtotal * mf;
+    const perAdultCost = totalCost;
+    const perChildCost = perAdultCost * 0.5;
 
     const payload = {
       ...editable,
       dayRows: JSON.stringify(dayRowsArray),
       extras: JSON.stringify(extrasArray),
-      subtotal, markupAmount, totalCost, perAdultCost: perAdult, perChildCost: perChild,
-      numPax: editable.numAdults + editable.numChildren,
+      subtotal, markupAmount: totalCost - subtotal, totalCost, perAdultCost, perChildCost,
+      numPax: numPaxToUse,
     };
 
     try {
@@ -240,9 +259,18 @@ export default function CostSheetDetailPage() {
   // adultAccomTotal/childAccomTotal = per person per day → multiply by numAdults/numChildren for group total
   // parkFeeAdultTotal/parkFeeChildTotal = already GROUP totals per day
   // transportTotal = already GROUP total per day → divide by numPax for per-person display
-  let accomGroupTotal = 0, parkGroupTotal = 0, transportGroupTotal = 0, flightGroupTotal = 0;
+  let accomPerPersonSum = 0, parkGroupTotal = 0, transportGroupTotal = 0, flightGroupTotal = 0;
   editable.dayRows.forEach(row => {
-    accomGroupTotal += (row.adultAccomTotal || 0) * editable.numAdults + (row.childAccomTotal || 0) * editable.numChildren;
+    const adultPP = row.adultAccomTotal || 0;
+    const childPP = row.childAccomTotal || 0;
+    const singleRate = row.singleRoomRate || 0;
+    if (editable.numAdults === 1 && singleRate > 0) {
+      accomPerPersonSum += singleRate;
+    } else if (editable.numAdults > 1 && singleRate > 0) {
+      accomPerPersonSum += adultPP * (editable.numAdults - 1) + singleRate;
+    } else {
+      accomPerPersonSum += adultPP * editable.numAdults + childPP * editable.numChildren;
+    }
     parkGroupTotal += (row.parkFeeAdultTotal || 0) + (row.parkFeeChildTotal || 0);
     transportGroupTotal += row.transportTotal || 0;
     if (row.hasFlight) {
@@ -250,12 +278,12 @@ export default function CostSheetDetailPage() {
     }
   });
 
-  // Calculate extras/f固定费用
   let extrasTotal = editable.fileHandlingFee + editable.ecoBottle + editable.evacInsurance +
     editable.arrivalTransfer + editable.departureTransfer + (editable.maasaiVillage ? editable.maasaiCost : 0);
   editable.extras.forEach(e => extrasTotal += e.cost || 0);
 
-  const calcSubtotal = accomGroupTotal + parkGroupTotal + transportGroupTotal + flightGroupTotal + extrasTotal;
+  const transportPerPax = numPax > 0 ? transportGroupTotal / numPax : 0;
+  const calcSubtotal = accomPerPersonSum + parkGroupTotal + transportPerPax + extrasTotal + flightGroupTotal;
   const calcMarkup = storedMarkup > 0 ? storedMarkup : calcSubtotal * (editable.markupPercent / 100);
   const calcGrandTotal = calcSubtotal + calcMarkup;
   const calcPerAdult = adultUnits > 0 ? calcGrandTotal / adultUnits : 0;
@@ -329,6 +357,7 @@ export default function CostSheetDetailPage() {
             <th className="px-2 py-2 text-left text-xs">Hotel</th>
             <th className="px-2 py-2 text-right text-xs">Accom Adult</th>
             <th className="px-2 py-2 text-right text-xs">Accom Child</th>
+            <th className="px-2 py-2 text-right text-xs">Single Room</th>
             <th className="px-2 py-2 text-right text-xs">Park Adult</th>
             <th className="px-2 py-2 text-right text-xs">Park Child</th>
             <th className="px-2 py-2 text-right text-xs">Transport</th>
@@ -338,31 +367,32 @@ export default function CostSheetDetailPage() {
             <th className="px-2 py-2 text-right text-xs">Day Total</th>
           </tr></thead>
             <tbody>{editable.dayRows.map((row, idx) => {
-              // adultAccomTotal/childAccomTotal = per person per day rates (stored as-is)
-              // parkFeeAdultTotal/ChildTotal = GROUP totals per day (stored as-is)
-              // transportTotal = GROUP total per day (stored as-is)
-              // Markup (mf) is applied to the entire subtotal at the bottom, NOT per row
+              // Formula: accom/pax + parkFees(as-is) + transport/pax + flights
               const adultPP = row.adultAccomTotal || 0;
               const childPP = row.childAccomTotal || 0;
-              const adultGroup = adultPP * editable.numAdults;
-              const childGroup = childPP * editable.numChildren;
+              const singleRate = row.singleRoomRate || 0;
+              let accomPerDay = 0;
+              if (editable.numAdults === 1 && singleRate > 0) {
+                accomPerDay = singleRate;
+              } else if (editable.numAdults > 1 && singleRate > 0) {
+                accomPerDay = adultPP * (editable.numAdults - 1) + singleRate;
+              } else {
+                accomPerDay = adultPP * editable.numAdults + childPP * editable.numChildren;
+              }
               const parkA = row.parkFeeAdultTotal || 0;
               const parkC = row.parkFeeChildTotal || 0;
               const transport = row.transportTotal || 0;
               const transportPerPax = numPax > 0 ? transport / numPax : 0;
               const flightAPerGroup = row.hasFlight ? (row.flightAdultPP || 0) * editable.numAdults : 0;
               const flightCPerGroup = row.hasFlight ? (row.flightChildPP || 0) * editable.numChildren : 0;
-              // dayTotal = sum of group totals WITHOUT markup (markup applied at subtotal level)
-              const dayTotal = adultGroup + childGroup + parkA + parkC + transport + flightAPerGroup + flightCPerGroup;
+              // dayTotal = (accom/pax) + parkFees + (transport/pax) + flights (extras are global, shown separately)
+              const dayTotal = accomPerDay / numPax + parkA + parkC + transportPerPax + flightAPerGroup + flightCPerGroup;
 
-              // Destination dropdown
               const handleDestinationChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
                 const selectedName = e.target.value;
                 updateDayRow(idx, 'destinationName', selectedName || null);
-                // Also reset hotel when destination changes
                 updateDayRow(idx, 'hotelName', '');
               };
-              // Hotel dropdown with "other" option
               const filteredHotels = getFilteredHotels(row.destinationName);
               const handleHotelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
                 const selectedName = e.target.value;
@@ -391,8 +421,9 @@ export default function CostSheetDetailPage() {
                     <input className="input text-xs w-40 mt-1" value={row.hotelName} onChange={e => updateDayRow(idx, 'hotelName', e.target.value)} placeholder="Custom hotel name" />
                   )}
                 </td>
-                <td className="px-2 py-1 text-right">{isEditing ? <input type="number" step="0.01" className="input text-xs w-20 text-right" value={row.adultAccomTotal || 0} onChange={e => updateDayRow(idx, 'adultAccomTotal', Number(e.target.value))} /> : <span className="font-mono">{currentCurrency} {fmt2(adultGroup)} <span className="text-xs text-gray-400">(@{fmt2(adultPP)}/pp)</span></span>}</td>
-                <td className="px-2 py-1 text-right">{isEditing ? <input type="number" step="0.01" className="input text-xs w-20 text-right" value={row.childAccomTotal || 0} onChange={e => updateDayRow(idx, 'childAccomTotal', Number(e.target.value))} /> : <span className="font-mono">{editable.numChildren ? `${currentCurrency} ${fmt2(childGroup)} <span className="text-xs text-gray-400">(@${fmt2(childPP)}/pp)</span>` : '—'}</span>}</td>
+                <td className="px-2 py-1 text-right">{isEditing ? <input type="number" step="0.01" className="input text-xs w-20 text-right" value={row.adultAccomTotal || 0} onChange={e => updateDayRow(idx, 'adultAccomTotal', Number(e.target.value))} /> : <span className="font-mono">{currentCurrency} {fmt2(adultPP * editable.numAdults)} <span className="text-xs text-gray-400">(@{fmt2(adultPP)}/pp)</span></span>}</td>
+                <td className="px-2 py-1 text-right">{isEditing ? <input type="number" step="0.01" className="input text-xs w-20 text-right" value={row.childAccomTotal || 0} onChange={e => updateDayRow(idx, 'childAccomTotal', Number(e.target.value))} /> : <span className="font-mono">{editable.numChildren ? `${currentCurrency} ${fmt2(childPP * editable.numChildren)} <span className="text-xs text-gray-400">(@${fmt2(childPP)}/pp)</span>` : '—'}</span>}</td>
+                <td className="px-2 py-1 text-right">{isEditing ? <input type="number" step="0.01" className="input text-xs w-20 text-right" value={row.singleRoomRate || 0} onChange={e => updateDayRow(idx, 'singleRoomRate', Number(e.target.value))} /> : <span className="font-mono text-blue-600">{row.singleRoomRate ? `${currentCurrency} ${fmt2(row.singleRoomRate)}` : '—'}</span>}</td>
                 <td className="px-2 py-1 text-right">{isEditing ? <input type="number" step="0.01" className="input text-xs w-20 text-right" value={row.parkFeeAdultTotal || 0} onChange={e => updateDayRow(idx, 'parkFeeAdultTotal', Number(e.target.value))} /> : <span className="font-mono text-green-600">{currentCurrency} {fmt2(parkA)}</span>}</td>
                 <td className="px-2 py-1 text-right">{isEditing ? <input type="number" step="0.01" className="input text-xs w-20 text-right" value={row.parkFeeChildTotal || 0} onChange={e => updateDayRow(idx, 'parkFeeChildTotal', Number(e.target.value))} /> : <span className="font-mono text-green-600">{editable.numChildren ? `${currentCurrency} ${fmt2(parkC)}` : '—'}</span>}</td>
                 <td className="px-2 py-1 text-right">{isEditing ? <input type="number" step="0.01" className="input text-xs w-20 text-right" value={row.transportTotal || 0} onChange={e => updateDayRow(idx, 'transportTotal', Number(e.target.value))} /> : <span className="font-mono text-green-600">{currentCurrency} {fmt2(transport)} <span className="text-xs text-gray-400">({fmt2(transportPerPax)}/pax)</span></span>}</td>
@@ -438,14 +469,14 @@ export default function CostSheetDetailPage() {
             <span>Per Adult Cost</span><span className="font-mono text-orange-600">{currentCurrency} {fmt2(storedPerAdult)}</span>
           </div>
           <div className="border-t pt-2 space-y-1">
-            <div className="flex justify-between text-xs text-gray-500"><span>Accommodation</span><span className="font-mono">{currentCurrency} {fmt2(accomGroupTotal)}</span></div>
+            <div className="flex justify-between text-xs text-gray-500"><span>Accommodation (group)</span><span className="font-mono">{currentCurrency} {fmt2(accomPerPersonSum)}</span></div>
             <div className="flex justify-between text-xs text-gray-500"><span>Park Fees</span><span className="font-mono">{currentCurrency} {fmt2(parkGroupTotal)}</span></div>
-            <div className="flex justify-between text-xs text-gray-500"><span>Transport</span><span className="font-mono">{currentCurrency} {fmt2(transportGroupTotal)}</span></div>
+            <div className="flex justify-between text-xs text-gray-500"><span>Transport</span><span className="font-mono">{currentCurrency} {fmt2(transportGroupTotal)} <span className="text-gray-400">({fmt2(transportPerPax)}/pax)</span></span></div>
             <div className="flex justify-between text-xs text-gray-500"><span>Flights</span><span className="font-mono">{currentCurrency} {fmt2(flightGroupTotal)}</span></div>
             <div className="flex justify-between text-xs text-gray-500"><span>Extras & Fees</span><span className="font-mono">{currentCurrency} {fmt2(extrasTotal)}</span></div>
-            <div className="flex justify-between text-sm"><span>Subtotal</span><span className="font-mono">{currentCurrency} {fmt2(storedSubtotal)}</span></div>
-            <div className="flex justify-between text-sm text-orange-600"><span>Markup ({editable.markupPercent}%)</span><span className="font-mono">{currentCurrency} {fmt2(storedMarkup)}</span></div>
-            <div className="flex justify-between text-sm font-bold border-t pt-1"><span>Grand Total</span><span className="font-mono">{currentCurrency} {fmt2(storedTotal)}</span></div>
+            <div className="flex justify-between text-sm"><span>Subtotal (per adult)</span><span className="font-mono">{currentCurrency} {fmt2(calcSubtotal)}</span></div>
+            <div className="flex justify-between text-sm text-orange-600"><span>Markup ({editable.markupPercent}%)</span><span className="font-mono">{currentCurrency} {fmt2(calcMarkup)}</span></div>
+            <div className="flex justify-between text-sm font-bold border-t pt-1"><span>Grand Total</span><span className="font-mono">{currentCurrency} {fmt2(calcGrandTotal)}</span></div>
           </div>
         </div></div>
 

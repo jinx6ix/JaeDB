@@ -20,6 +20,7 @@ interface DayRow {
   hotelName: string;
   adultAccomTotal: number;
   childAccomTotal: number;
+  singleRoomRate: number;
   thirdPersonRate: number;
   parkFeeAdultTotal: number;
   parkFeeChildTotal: number;
@@ -48,6 +49,7 @@ function emptyRow(): DayRow {
     hotelName: '',
     adultAccomTotal: 0,
     childAccomTotal: 0,
+    singleRoomRate: 0,
     thirdPersonRate: 0,
     parkFeeAdultTotal: 0,
     parkFeeChildTotal: 0,
@@ -327,6 +329,7 @@ export default function RateCalculator({
       destinationId: hotel?.county?.id ?? dayRows[i].destinationId,
       adultAccomTotal: 0,
       childAccomTotal: 0,
+      singleRoomRate: 0,
       thirdPersonRate: 0,
       selectedRateId: null,
       isTriple: false,
@@ -347,6 +350,7 @@ export default function RateCalculator({
       selectedRateId: price.id,
       adultAccomTotal: price.ratePerPersonSharing || 0,
       childAccomTotal: numChildren > 0 ? (price.childRate || 0) : 0,
+      singleRoomRate: price.singleRoomRate || 0,
       thirdPersonRate: thirdPersonRate,
       tripleRate: tripleRate,
     });
@@ -420,6 +424,12 @@ export default function RateCalculator({
     if (row.isTriple) {
       return row.tripleRate;
     }
+    if (numAdults === 1 && row.singleRoomRate > 0) {
+      return row.singleRoomRate;
+    }
+    if (numAdults > 1 && row.singleRoomRate > 0) {
+      return (row.adultAccomTotal || 0) * numAdults + row.singleRoomRate;
+    }
     return (row.adultAccomTotal || 0) * numAdults;
   }
 
@@ -435,7 +445,7 @@ export default function RateCalculator({
   const optionResults = options.map((opt) => {
     const pax = opt.pax;
     const basePerPerson = accomPerPersonSum + parkGroupTotal + transportGroupTotal / pax + flightAndExtrasGroupTotal;
-    const markedUp = basePerPerson * (1 + opt.markup / 100);
+    const markedUp = basePerPerson * (1 + globalMarkup / 100);
     const profit = markedUp - basePerPerson;
     return { ...opt, perPersonBase: basePerPerson, markedUp, profit };
   });
@@ -453,6 +463,7 @@ export default function RateCalculator({
       hotelName: r.hotelName,
       adultAccomTotal: r.adultAccomTotal,
       childAccomTotal: r.childAccomTotal,
+      singleRoomRate: r.singleRoomRate,
       thirdPersonRate: r.thirdPersonRate,
       parkFeeAdultTotal: r.parkFeeAdultTotal,
       parkFeeChildTotal: r.parkFeeChildTotal,
@@ -708,6 +719,7 @@ export default function RateCalculator({
                   <th className="px-2 py-2 text-left font-semibold text-gray-600">Hotel / Accommodation</th>
                   <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Accom (per adult)</th>
                   {numChildren > 0 && <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Accom (per child)</th>}
+                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Single Room</th>
                   <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">3rd Person</th>
                   <th className="px-2 py-2 text-center font-semibold text-gray-600 w-20">Triple?</th>
                   {dayRows.some(r => r.isTriple) && (
@@ -783,6 +795,18 @@ export default function RateCalculator({
                         <span className="text-gray-400 text-xs block">per adult</span>
                       </td>
                       {numChildren > 0 && <td className="px-2 py-2"><input type="number" min={0} step="0.01" value={row.childAccomTotal || ''} onChange={e => updateRow(i, { childAccomTotal: Number(e.target.value) })} className="input py-1 text-xs font-mono text-center w-full" placeholder="0"/><span className="text-gray-400 text-xs block text-center">per child</span></td>}
+                      <td className="px-2 py-2 text-center">
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={row.singleRoomRate || ''}
+                          onChange={e => updateRow(i, { singleRoomRate: Number(e.target.value) })}
+                          className="input py-1 text-xs font-mono text-center w-full"
+                          placeholder="0"
+                        />
+                        <span className="text-gray-400 text-xs block">single room</span>
+                      </td>
                       <td className="px-2 py-2 text-center">
                         <input
                           type="number"
@@ -910,7 +934,7 @@ export default function RateCalculator({
                     <tr key={opt.pax} className="border-b">
                       <td className="p-2 font-medium">{opt.pax} people</td>
                       <td className="p-2 font-mono">{currency} {fmt2(opt.perPersonBase)}</td>
-                      <td className="p-2"><input type="number" min={0} step={1} value={opt.markup} onChange={e => setOptions(prev => prev.map((o,i) => i===idx ? {...o, markup:Number(e.target.value)} : o))} className="input w-20 text-center"/></td>
+                      <td className="p-2 font-mono text-gray-500">{globalMarkup}%</td>
                       <td className="p-2 font-mono">{currency} {fmt2(opt.markedUp)}</td>
                       <td className={`p-2 font-mono ${opt.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{currency} {fmt2(opt.profit)}</td>
                     </tr>
