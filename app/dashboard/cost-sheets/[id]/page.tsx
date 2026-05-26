@@ -428,4 +428,4 @@ let accomPerPersonSum = 0;
       <div className="flex gap-3 print:hidden"><button onClick={() => window.print()} className="btn-secondary text-sm">🖨 Print / Save PDF</button><button onClick={handleCreateInvoice} disabled={creatingInvoice} className="btn-primary text-sm">{creatingInvoice ? '⏳ Creating...' : '🧾 Create Invoice'}</button></div>
     </div>
   );
-}
+}}
