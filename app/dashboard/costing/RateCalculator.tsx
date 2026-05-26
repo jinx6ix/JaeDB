@@ -428,7 +428,7 @@ export default function RateCalculator({
       return row.singleRoomRate;
     }
     if (numAdults > 1 && row.singleRoomRate > 0) {
-      return (row.adultAccomTotal || 0) * numAdults + row.singleRoomRate;
+      return (row.adultAccomTotal || 0) * (numAdults - 1) + row.singleRoomRate;
     }
     return (row.adultAccomTotal || 0) * numAdults;
   }
@@ -444,7 +444,9 @@ export default function RateCalculator({
 
   const optionResults = options.map((opt) => {
     const pax = opt.pax;
-    const basePerPerson = accomPerPersonSum + parkGroupTotal + transportGroupTotal / pax + flightAndExtrasGroupTotal;
+    const accomTotal = dayRows.reduce((s, r) => s + getAccommodationGroupTotal(r), 0);
+    const transportTotal = dayRows.reduce((s, r) => s + r.transportTotal, 0);
+    const basePerPerson = (accomTotal / numAdults) + parkGroupTotal + (transportTotal / numAdults) + flightAndExtrasGroupTotal;
     const markedUp = basePerPerson * (1 + globalMarkup / 100);
     const profit = markedUp - basePerPerson;
     return { ...opt, perPersonBase: basePerPerson, markedUp, profit };
@@ -743,7 +745,7 @@ export default function RateCalculator({
                   const flightAdultDayTotal = row.hasFlight ? row.flightAdultPP * numAdults : 0;
                   const flightChildDayTotal = row.hasFlight ? row.flightChildPP * numChildren : 0;
                   const accomGroup = getAccommodationGroupTotal(row);
-                  const dayTotalBase = accomGroup + row.parkFeeAdultTotal + row.parkFeeChildTotal + row.transportTotal + flightAdultDayTotal + flightChildDayTotal;
+                  const dayTotalBase = (getAccommodationGroupTotal(row) / numAdults) + row.parkFeeAdultTotal + row.parkFeeChildTotal + (row.transportTotal / numAdults) + flightAdultDayTotal + flightChildDayTotal;
                   const selectedRate = getSelectedRate(row);
                   const tripleRateDefault = (selectedRate?.thirdAdultRate && selectedRate?.ratePerPersonSharing)
                     ? (selectedRate.ratePerPersonSharing * 2 + selectedRate.thirdAdultRate)
