@@ -61,11 +61,47 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const numAdults = Number(costSheet.numAdults) || 1;
     const numChildren = Number(costSheet.numChildren) || 0;
     const numPax = numAdults + numChildren;
+    const mf = 1 + (Number(costSheet.markupPercent) || 10) / 100;
 
-    // Use the stored totals from cost sheet
-    const storedSubtotal = Number(costSheet.subtotal) || 0;
-    const storedMarkup = Number(costSheet.markupAmount) || 0;
-    const storedTotal = Number(costSheet.totalCost) || 0;
+    // Recalculate from dayRows using same formula as handleSave
+    let accomPerPersonSum = 0;
+    let parkGroupTotal = 0;
+    let transportGroupTotal = 0;
+    let flightGroupTotal = 0;
+    dayRows.forEach((row: any) => {
+      const adultPP = Number(row.adultAccomTotal) || 0;
+      const childPP = Number(row.childAccomTotal) || 0;
+      const singleRate = Number(row.singleRoomRate) || 0;
+      let accomGroup = 0;
+      if (numAdults === 1 && singleRate > 0) {
+        accomGroup = singleRate;
+      } else if (numAdults > 1 && singleRate > 0) {
+        accomGroup = adultPP * (numAdults - 1) + singleRate;
+      } else {
+        accomGroup = adultPP * numAdults + childPP * numChildren;
+      }
+      accomPerPersonSum += accomGroup / numPax;
+      parkGroupTotal += Number(row.parkFeeAdultTotal || 0) + Number(row.parkFeeChildTotal || 0);
+      transportGroupTotal += Number(row.transportTotal || 0);
+      if (row.hasFlight) {
+        flightGroupTotal += (Number(row.flightAdultPP || 0) * numAdults) + (Number(row.flightChildPP || 0) * numChildren);
+      }
+    });
+
+    let extrasTotal =
+      Number(costSheet.fileHandlingFee || 0) +
+      Number(costSheet.ecoBottle || 0) +
+      Number(costSheet.evacInsurance || 0) +
+      Number(costSheet.arrivalTransfer || 0) +
+      Number(costSheet.departureTransfer || 0) +
+      (costSheet.maasaiVillage ? Number(costSheet.maasaiCost || 0) : 0);
+    extras.forEach((e: any) => { extrasTotal += Number(e.cost) || 0; });
+
+    const transportPerPax = numPax > 0 ? transportGroupTotal / numPax : 0;
+    const subtotal = accomPerPersonSum + parkGroupTotal + transportPerPax + extrasTotal + flightGroupTotal;
+    const totalCost = subtotal * mf;
+    const perAdultCost = subtotal;
+    const perChildCost = subtotal * 0.5;
 
     // Build line items using stored cost sheet data
     const items: any[] = [];

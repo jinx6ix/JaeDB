@@ -21,7 +21,17 @@ let logoSrc: any = null;
 try {
   const logoPath = path.join(process.cwd(), 'public', 'logo.jpg');
   const logoBuffer = readFileSync(logoPath);
-  logoSrc = { data: logoBuffer, format: 'jpeg' };
+  // Detect actual file type from magic bytes
+  if (logoBuffer[0] === 0xFF && logoBuffer[1] === 0xD8 && logoBuffer[2] === 0xFF) {
+    // JPEG: FF D8 FF
+    logoSrc = { data: logoBuffer, format: 'jpeg' as const };
+  } else if (logoBuffer[0] === 0x89 && logoBuffer[1] === 0x50 && logoBuffer[2] === 0x4E && logoBuffer[3] === 0x47) {
+    // PNG: 89 50 4E 47
+    logoSrc = { data: logoBuffer, format: 'png' as const };
+  } else if (logoBuffer[0] === 0x52 && logoBuffer[1] === 0x49 && logoBuffer[2] === 0x46 && logoBuffer[3] === 0x46) {
+    // WEBP: 52 49 46 46 ... 57 45 42 50
+    logoSrc = { data: logoBuffer, format: 'png' as const };
+  }
 } catch (e) {}
 
 const S = StyleSheet.create({
