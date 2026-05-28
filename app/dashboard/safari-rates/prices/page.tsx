@@ -319,7 +319,10 @@ export default function PricesPage() {
           <Link href="/dashboard/safari-rates" className="text-gray-400 hover:text-gray-600 text-sm">← Safari Rates</Link>
           <h1 className="text-2xl font-bold text-gray-900 mt-1">Enter Contract Prices</h1>
         </div>
-        <button onClick={()=>setShowForm(!showForm)} className="btn-primary">+ Add Price</button>
+        <div className="flex gap-2">
+          <Link href="/dashboard/safari-rates/hotels" className="btn-secondary text-sm">🏨 Manage Hotels</Link>
+          <button onClick={()=>setShowForm(!showForm)} className="btn-primary">+ Add Price</button>
+        </div>
       </div>
 
       {showForm && (
