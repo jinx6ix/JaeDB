@@ -279,6 +279,7 @@ export default function RateCalculator({
         isTriple: row.isTriple ?? false,
         tripleRate: row.tripleRate ?? 0,
         selectedRateId: row.selectedRateId ?? null,
+        singleRoomRate: row.singleRoomRate ?? 0,
       }));
       setDayRows(newRows);
     } catch (err) {

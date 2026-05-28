@@ -2,11 +2,15 @@
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 
+export const dynamic = 'force-dynamic';
+
 export default async function SafariRatesPage() {
-  const [hotelCount, countyCount, priceCount] = await Promise.all([
+  const [hotelCount, countyCount, priceCount, roomTypeCount, seasonCount] = await Promise.all([
     prisma.sRHotel.count(),
     prisma.sRCounty.count(),
     prisma.sRRoomPrice.count(),
+    prisma.sRRoomType.count(),
+    prisma.sRSeason.count(),
   ]);
 
   const recentHotels = await prisma.sRHotel.findMany({
@@ -30,11 +34,13 @@ export default async function SafariRatesPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-5 gap-4">
         {[
           { label: 'Hotels / Camps', value: hotelCount, icon: '🏕️', href: '/dashboard/safari-rates/hotels' },
           { label: 'Destinations', value: countyCount, icon: '📍', href: '/dashboard/safari-rates/search' },
           { label: 'Price Entries', value: priceCount, icon: '💰', href: '/dashboard/safari-rates/prices' },
+          { label: 'Room Types', value: roomTypeCount, icon: '🛏️', href: '/dashboard/safari-rates/hotels' },
+          { label: 'Seasons', value: seasonCount, icon: '📅', href: '/dashboard/safari-rates/seasons' },
         ].map(s => (
           <Link key={s.label} href={s.href} className="card hover:shadow-md transition-shadow">
             <div className="flex items-center gap-3">

@@ -30,6 +30,12 @@ export default function PricesPage() {
   const [editingId, setEditingId] = useState<number|null>(null);
   const [form, setForm] = useState({ roomTypeId:'', seasonId:'', boardBasis:'FB', ratePerPersonSharing:'', singleRoomRate:'', childRate:'', thirdAdultRate:'', currency:'USD' });
 
+  // Hotel search filter for the Add Price form dropdown
+  const [hotelSearch, setHotelSearch] = useState('');
+  const filteredHotelsForSelect = hotels.filter(h =>
+    !hotelSearch || h.name.toLowerCase().includes(hotelSearch.toLowerCase()) || h.county.name.toLowerCase().includes(hotelSearch.toLowerCase())
+  );
+
   // Global search filter (applies to price table + management cards)
   const [globalHotelSearch, setGlobalHotelSearch] = useState('');
 
@@ -129,6 +135,7 @@ export default function PricesPage() {
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+      await load(); // reload all data including hotels so new room appears in dropdown
       const roomsRes = await fetch('/api/safari-rates/room-types');
       const updatedRooms = await roomsRes.json();
       setRooms(Array.isArray(updatedRooms) ? updatedRooms : []);
@@ -156,9 +163,7 @@ export default function PricesPage() {
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error || 'Update failed');
-      const roomsRes = await fetch('/api/safari-rates/room-types');
-      const updatedRooms = await roomsRes.json();
-      setRooms(Array.isArray(updatedRooms) ? updatedRooms : []);
+      await load();
       setEditingRoom(null);
       setNewRoomName('');
       setNewRoomMaxOccupancy('2');
@@ -198,6 +203,7 @@ export default function PricesPage() {
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+      await load(); // reload all data including hotels so new season appears in dropdown
       const seasonsRes = await fetch('/api/safari-rates/seasons');
       const updatedSeasons = await seasonsRes.json();
       setSeasons(Array.isArray(updatedSeasons) ? updatedSeasons : []);
@@ -230,9 +236,7 @@ export default function PricesPage() {
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error || 'Update failed');
-      const seasonsRes = await fetch('/api/safari-rates/seasons');
-      const updatedSeasons = await seasonsRes.json();
-      setSeasons(Array.isArray(updatedSeasons) ? updatedSeasons : []);
+      await load();
       setEditingSeason(null);
       setNewSeasonName('');
       setNewSeasonStart('');
@@ -307,9 +311,35 @@ export default function PricesPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Hotel (to filter rooms/seasons) *</label>
-              <select required className="input" value={selHotel} onChange={e=>setSelHotel(e.target.value)}>
-                <option value="">— Select a hotel first —</option>
-                {hotels.map(h=><option key={h.id} value={h.id}>{h.name} · {h.county.name}</option>)}
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search hotel name..."
+                  className="input w-full pr-8"
+                  value={hotelSearch}
+                  onChange={e => setHotelSearch(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={() => { setHotelSearch(''); setSelHotel(''); }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
+                  style={{ display: hotelSearch ? 'block' : 'none' }}
+                >
+                  ×
+                </button>
+              </div>
+              <select
+                required
+                className="input"
+                value={selHotel}
+                onChange={e => setSelHotel(e.target.value)}
+                size={Math.min(filteredHotelsForSelect.length + 1, 8)}
+                style={{ height: 'auto' }}
+              >
+                <option value="">— Select a hotel —</option>
+                {filteredHotelsForSelect.map(h => (
+                  <option key={h.id} value={h.id}>{h.name} · {h.county.name}</option>
+                ))}
               </select>
             </div>
             <div>

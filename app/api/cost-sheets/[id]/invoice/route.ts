@@ -97,65 +97,52 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       (costSheet.maasaiVillage ? Number(costSheet.maasaiCost || 0) : 0);
     extras.forEach((e: any) => { extrasTotal += Number(e.cost) || 0; });
 
-    const transportPerPax = numPax > 0 ? transportGroupTotal / numPax : 0;
-    const subtotal = accomPerPersonSum + parkGroupTotal + transportPerPax + extrasTotal + flightGroupTotal;
+    const transportGroupPerPax = numPax > 0 ? transportGroupTotal / numPax : 0;
+    const subtotal = accomPerPersonSum + parkGroupTotal + transportGroupPerPax + extrasTotal + flightGroupTotal;
     const totalCost = subtotal * mf;
     const perAdultCost = subtotal;
     const perChildCost = subtotal * 0.5;
 
-    // Build line items using stored cost sheet data
+    // Build line items using the correct per-person totals (matching stored calculation)
     const items: any[] = [];
 
-    // Calculate totals from dayRows
-    // adultAccomTotal and childAccomTotal are per person per day
-    // park fees are per person per day
-    // transportTotal is per day total
-    let accomTotal = 0, parkTotal = 0, transportTotal = 0, flightTotal = 0;
-    dayRows.forEach((row: any) => {
-      accomTotal += (Number(row.adultAccomTotal) || 0) * numAdults + (Number(row.childAccomTotal) || 0) * numChildren;
-      parkTotal += Number(row.parkFeeAdultTotal || 0) + Number(row.parkFeeChildTotal || 0);
-      transportTotal += Number(row.transportTotal || 0);
-      if (row.hasFlight) {
-        flightTotal += (Number(row.flightAdultPP || 0) * numAdults) + (Number(row.flightChildPP || 0) * numChildren);
-      }
-    });
+    const accomLineTotal = accomPerPersonSum * numPax;
+    const transportLinePerPax = transportGroupPerPax;
+    const transportLineTotal = transportGroupTotal;
 
-    // Transport: divide by numPax to get per person rate for line item display
-    const transportPerPax = numPax > 0 ? transportTotal / numPax : transportTotal;
-
-    if (accomTotal > 0) {
+    if (accomLineTotal > 0) {
       items.push({
         description: `Accommodation (${costSheet.days} days, ${numAdults}A${numChildren > 0 ? ` + ${numChildren}C` : ''})`,
         quantity: 1,
-        unitPrice: accomTotal,
-        total: accomTotal,
+        unitPrice: accomLineTotal,
+        total: accomLineTotal,
       });
     }
 
-    if (parkTotal > 0) {
+    if (parkGroupTotal > 0) {
       items.push({
         description: `Park Fees (${costSheet.days} days, ${numAdults}A${numChildren > 0 ? ` + ${numChildren}C` : ''})`,
         quantity: 1,
-        unitPrice: parkTotal,
-        total: parkTotal,
+        unitPrice: parkGroupTotal,
+        total: parkGroupTotal,
       });
     }
 
-    if (transportTotal > 0) {
+    if (transportLineTotal > 0) {
       items.push({
         description: `Transport (${costSheet.days} days, ${numPax} pax)`,
         quantity: numPax,
-        unitPrice: transportPerPax,
-        total: transportTotal,
+        unitPrice: transportLinePerPax,
+        total: transportLineTotal,
       });
     }
 
-    if (flightTotal > 0) {
+    if (flightGroupTotal > 0) {
       items.push({
         description: `Flight Costs (${numAdults}A${numChildren > 0 ? ` + ${numChildren}C` : ''})`,
         quantity: 1,
-        unitPrice: flightTotal,
-        total: flightTotal,
+        unitPrice: flightGroupTotal,
+        total: flightGroupTotal,
       });
     }
 
@@ -186,26 +173,23 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       }
     });
 
-    // If no items from day rows, use the stored totalCost as single line item
+    // If no items from day rows, use totalCost as single line item
     if (items.length === 0) {
       items.push({
         description: `${costSheet.tourTitle || 'Safari Package'} - Total Cost`,
         quantity: 1,
-        unitPrice: storedTotal,
-        total: storedTotal,
+        unitPrice: totalCost,
+        total: totalCost,
       });
     }
 
-    // Use stored cost sheet totals for the invoice
-    const safeNum = (n: any) => (typeof n === 'number' && !isNaN(n)) ? n : 0;
-    const subtotal = storedSubtotal > 0 ? storedSubtotal : safeNum(items.reduce((s: number, i: any) => s + safeNum(i.total), 0));
-    const markupPercent = safeNum(costSheet.markupPercent) || 10;
-    const markupAmount = storedMarkup > 0 ? storedMarkup : (subtotal * markupPercent / 100);
-    const totalAmount = storedTotal > 0 ? storedTotal : safeNum(subtotal + markupAmount);
+    const markupPercent = Number(costSheet.markupPercent) || 10;
+    const markupAmount = totalCost - subtotal;
+    const totalAmount = totalCost;
 
     console.log('[Create Invoice] Items:', JSON.stringify(items));
     console.log('[Create Invoice] Subtotal:', subtotal, 'Markup:', markupAmount, 'Total:', totalAmount);
-    console.log('[Create Invoice] Cost sheet stored - subtotal:', storedSubtotal, 'markup:', storedMarkup, 'total:', storedTotal);
+    console.log('[Create Invoice] Markup%:', markupPercent);
 
     // Generate invoice number
     let invoiceNo = genInvoiceNo();

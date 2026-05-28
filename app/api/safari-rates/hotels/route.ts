@@ -9,10 +9,20 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
+  const id = searchParams.get('id');
   const destinationId = searchParams.get('destinationId');
   const dateStr = searchParams.get('date');
   const boardBasis = searchParams.get('boardBasis');
   const sort = searchParams.get('sort'); // 'price_asc' or 'price_desc'
+
+  // Single hotel fetch
+  if (id) {
+    const hotel = await prisma.sRHotel.findUnique({
+      where: { id: Number(id) },
+      include: { county: true, _count: { select: { roomTypes: true } } },
+    });
+    return NextResponse.json(hotel || {});
+  }
 
   // If no filters, return standard hotel list (original behavior)
   if (!destinationId && !dateStr && !boardBasis) {
@@ -87,8 +97,15 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if ((session.user as any)?.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const body = await req.json();
+  const countyIdNum = Number(body.countyId);
+  const name = body.name?.trim();
+  if (!countyIdNum || !name) return NextResponse.json({ error: 'countyId and name are required' }, { status: 400 });
+
+  const existing = await prisma.sRHotel.findFirst({ where: { countyId: countyIdNum, name } });
+  if (existing) return NextResponse.json({ error: 'A hotel with this name already exists in this destination' }, { status: 409 });
+
   const hotel = await prisma.sRHotel.create({
-    data: { countyId: Number(body.countyId), name: body.name, stars: body.stars ? Number(body.stars) : null, category: body.category || null },
+    data: { countyId: countyIdNum, name, stars: body.stars ? Number(body.stars) : null, category: body.category || null },
     include: { county: true },
   });
   return NextResponse.json(hotel, { status: 201 });

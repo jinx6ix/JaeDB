@@ -308,6 +308,7 @@ export default function CostSheetDetailPage() {
               <button onClick={handleCreateInvoice} disabled={creatingInvoice} className="btn-primary text-sm">
                 {creatingInvoice ? '⏳ Creating...' : '🧾 Create Invoice'}
               </button>
+              <button onClick={() => window.open(`/api/cost-sheets/${id}/pdf`, '_blank')} className="btn-secondary text-sm">⬇ PDF</button>
               <a href={`/api/cost-sheets/${id}/csv`} target="_blank" className="btn-secondary text-sm">⬇ Download CSV</a>
             </>
           ) : (

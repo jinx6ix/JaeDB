@@ -3,8 +3,8 @@ import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import RateCalculator from './RateCalculator';
 
-export default async function RatesPage() {
-  const [tours, rateCards, clients, agents, bookings, hotels, destinations] = await Promise.all([
+export default async function RatesPage({ searchParams }: { searchParams: { sheetId?: string } }) {
+  const [tours, rateCards, clients, agents, bookings, hotels, destinations, initialCostSheet] = await Promise.all([
     prisma.tourPackage.findMany({ where: { isActive: true }, orderBy: { title: 'asc' } }),
     prisma.rateCard.findMany({ orderBy: { createdAt: 'desc' }, include: { tourPackage: true } }),
     prisma.client.findMany({
@@ -21,6 +21,12 @@ export default async function RatesPage() {
       include: { county: { select: { id: true, name: true } } },
     }),
     prisma.sRCounty.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } }),
+    searchParams.sheetId
+      ? prisma.costSheet.findUnique({
+          where: { id: searchParams.sheetId },
+          include: { client: true, agent: true, booking: { include: { client: true } } },
+        })
+      : Promise.resolve(null),
   ]);
 
   return (
@@ -45,6 +51,7 @@ export default async function RatesPage() {
         bookings={bookings as any[]}
         hotels={hotels as any[]}
         destinations={destinations as any[]}
+        initialCostSheet={initialCostSheet as any}
       />
 
       {/* Rate Cards Table */}
