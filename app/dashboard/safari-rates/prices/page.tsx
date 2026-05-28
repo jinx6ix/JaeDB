@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 
 interface Hotel      { id: number; name: string; county: { name: string }; }
@@ -30,10 +30,15 @@ export default function PricesPage() {
   const [editingId, setEditingId] = useState<number|null>(null);
   const [form, setForm] = useState({ roomTypeId:'', seasonId:'', boardBasis:'FB', ratePerPersonSharing:'', singleRoomRate:'', childRate:'', thirdAdultRate:'', currency:'USD' });
 
-  // Hotel search filter for the Add Price form dropdown
+  // Hotel combobox state
   const [hotelSearch, setHotelSearch] = useState('');
-  const filteredHotelsForSelect = hotels.filter(h =>
-    !hotelSearch || h.name.toLowerCase().includes(hotelSearch.toLowerCase()) || h.county.name.toLowerCase().includes(hotelSearch.toLowerCase())
+  const [hotelDropdownOpen, setHotelDropdownOpen] = useState(false);
+  const selectedHotel = hotels.find(h => h.id === Number(selHotel));
+
+  const filteredHotels = hotels.filter(h =>
+    !hotelSearch ||
+    h.name.toLowerCase().includes(hotelSearch.toLowerCase()) ||
+    h.county.name.toLowerCase().includes(hotelSearch.toLowerCase())
   );
 
   // Global search filter (applies to price table + management cards)
@@ -82,6 +87,18 @@ export default function PricesPage() {
   }
 
   useEffect(()=>{ load(); },[]);
+
+  // Close hotel dropdown when clicking outside
+  const hotelDropdownRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (hotelDropdownRef.current && !hotelDropdownRef.current.contains(e.target as Node)) {
+        setHotelDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   const filtRooms   = rooms.filter(r=>!selHotel||r.hotelId===Number(selHotel));
   const filtSeasons = seasons.filter(s=>!selHotel||s.hotelId===Number(selHotel));
@@ -311,36 +328,55 @@ export default function PricesPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Hotel (to filter rooms/seasons) *</label>
-              <div className="relative">
+              <div className="relative" ref={hotelDropdownRef}>
                 <input
                   type="text"
-                  placeholder="Search hotel name..."
+                  placeholder={selHotel ? '' : 'Search hotel name...'}
                   className="input w-full pr-8"
-                  value={hotelSearch}
-                  onChange={e => setHotelSearch(e.target.value)}
+                  value={selHotel && !hotelDropdownOpen ? (selectedHotel ? `${selectedHotel.name} · ${selectedHotel.county.name}` : '') : hotelSearch}
+                  onChange={e => {
+                    setHotelSearch(e.target.value);
+                    setHotelDropdownOpen(true);
+                    if (selHotel) setSelHotel('');
+                  }}
+                  onFocus={() => setHotelDropdownOpen(true)}
                 />
                 <button
                   type="button"
-                  onClick={() => { setHotelSearch(''); setSelHotel(''); }}
+                  onClick={() => { setHotelSearch(''); setSelHotel(''); setHotelDropdownOpen(false); }}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
-                  style={{ display: hotelSearch ? 'block' : 'none' }}
+                  style={{ display: (selHotel || hotelSearch) ? 'block' : 'none' }}
                 >
                   ×
                 </button>
+                {hotelDropdownOpen && (
+                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {filteredHotels.length === 0 ? (
+                      <div className="px-3 py-2 text-sm text-gray-400">No hotels found</div>
+                    ) : (
+                      filteredHotels.map(h => (
+                        <button
+                          key={h.id}
+                          type="button"
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-orange-50 border-b border-gray-50 last:border-0"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setSelHotel(String(h.id));
+                            setHotelSearch('');
+                            setHotelDropdownOpen(false);
+                          }}
+                        >
+                          <span className="font-medium text-gray-800">{h.name}</span>
+                          <span className="text-gray-400 ml-2 text-xs">{h.county.name}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
-              <select
-                required
-                className="input"
-                value={selHotel}
-                onChange={e => setSelHotel(e.target.value)}
-                size={Math.min(filteredHotelsForSelect.length + 1, 8)}
-                style={{ height: 'auto' }}
-              >
-                <option value="">— Select a hotel —</option>
-                {filteredHotelsForSelect.map(h => (
-                  <option key={h.id} value={h.id}>{h.name} · {h.county.name}</option>
-                ))}
-              </select>
+              {!selHotel && (
+                <p className="text-xs text-red-500 mt-1">Please select a hotel to continue</p>
+              )}
             </div>
             <div>
               <label className="label">Board Basis *</label>
