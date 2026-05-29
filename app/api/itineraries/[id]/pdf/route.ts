@@ -145,25 +145,41 @@ function renderImage(img: any, key: string) {
 }
 
 async function processImageForPDF(img: any): Promise<any> {
-  const mimeType = (img.mimeType && img.mimeType.startsWith('image/')) ? img.mimeType : 'image/jpeg';
-  if (mimeType === 'image/jpeg' || mimeType === 'image/png') {
-    return img;
-  }
   try {
     const { Jimp } = await import('jimp');
     const base64Data = extractBase64(img.data) || '';
     const imageBuffer = Buffer.from(base64Data, 'base64');
-    // Skip PDF files (PDF magic bytes: %PDF = 0x25 0x50 0x44 0x46)
-    if (imageBuffer.length >= 4 && imageBuffer[0] === 0x25 && imageBuffer[1] === 0x50 && imageBuffer[2] === 0x44 && imageBuffer[3] === 0x46) {
+
+    // Skip non-image files
+    if (imageBuffer.length < 4) return img;
+
+    // PDF files (PDF magic bytes: 25 50 44 46 = %PDF)
+    if (imageBuffer[0] === 0x25 && imageBuffer[1] === 0x50 && imageBuffer[2] === 0x44 && imageBuffer[3] === 0x46) {
       console.error(`[PDF] Skipping PDF file: ${img.filename || img.id}`);
       return img;
     }
-    const image = await Jimp.read(imageBuffer);
+
+    // Detect actual format from magic bytes — JPEG: FF D8 FF, PNG: 89 50 4E 47, WEBP: 52 49 46 46
+    const isJpeg = imageBuffer[0] === 0xFF && imageBuffer[1] === 0xD8 && imageBuffer[2] === 0xFF;
+    const isPng = imageBuffer[0] === 0x89 && imageBuffer[1] === 0x50 && imageBuffer[2] === 0x4E && imageBuffer[3] === 0x47;
+    const isWebp = imageBuffer[0] === 0x52 && imageBuffer[1] === 0x49 && imageBuffer[2] === 0x46 && imageBuffer[3] === 0x46;
+
+    if (isJpeg) return img;
+    if (isPng) return img;
+
+    // Convert anything else (WEBP, BMP, GIF, etc.) to JPEG via Jimp
+    let image;
+    try {
+      image = await Jimp.read(imageBuffer);
+    } catch {
+      console.error(`[PDF] Jimp cannot decode image ${img.id} — skipping`);
+      return img;
+    }
     const jpegBuffer = await (image as any).write('image/jpeg');
     const jpegBase64 = jpegBuffer.toString('base64');
     return { ...img, data: `data:image/jpeg;base64,${jpegBase64}`, mimeType: 'image/jpeg' };
   } catch (err) {
-    console.error(`[PDF] Failed to convert image ${img.id} to JPEG:`, err);
+    console.error(`[PDF] Failed to process image ${img.id}:`, err);
     return img;
   }
 }

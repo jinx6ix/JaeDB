@@ -447,7 +447,7 @@ export default function RateCalculator({
     const pax = opt.pax;
     const accomTotal = dayRows.reduce((s, r) => s + getAccommodationGroupTotal(r), 0);
     const transportTotal = dayRows.reduce((s, r) => s + r.transportTotal, 0);
-    const basePerPerson = (accomTotal / numAdults) + parkGroupTotal + (transportTotal / numAdults) + flightAndExtrasGroupTotal;
+    const basePerPerson = (accomTotal / pax) + parkGroupTotal + (transportTotal / pax) + flightAndExtrasGroupTotal;
     const markedUp = basePerPerson * (1 + globalMarkup / 100);
     const profit = markedUp - basePerPerson;
     return { ...opt, perPersonBase: basePerPerson, markedUp, profit };
