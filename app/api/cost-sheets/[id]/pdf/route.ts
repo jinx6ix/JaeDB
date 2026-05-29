@@ -55,20 +55,12 @@ const S = StyleSheet.create({
   footerTxt: { fontSize: 8, color: '#6b7280' },
   footerBold: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#374151' },
   pageNum: { paddingHorizontal: 24, paddingBottom: 8, paddingTop: 4, fontSize: 8, color: '#9ca3af', textAlign: 'right' },
-  totTable: { marginTop: 10, alignSelf: 'flex-end', width: 240 },
-  totRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3, paddingHorizontal: 8 },
-  totLabel: { fontSize: 9, color: '#6b7280' },
-  totValue: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#111827' },
-  totFinal: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5, paddingHorizontal: 8, borderTopWidth: 2, borderTopColor: '#f97316' },
-  perCostBox: { flexDirection: 'row', gap: 30, alignItems: 'flex-start', marginTop: 8 },
-  perCostItem: { flex: 1 },
-  perCostLabel: { fontSize: 9, color: '#6b7280' },
-  perCostValue: { fontSize: 14, fontFamily: 'Helvetica-Bold', color: '#f97316' },
-  perCostGrand: { flex: 1 },
-  perCostGrandValue: { fontSize: 14, fontFamily: 'Helvetica-Bold', color: '#111827' },
   notesBox: { backgroundColor: '#f9fafb', padding: 10, borderRadius: 4, marginHorizontal: 24, marginTop: 8 },
   notesLabel: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#6b7280', marginBottom: 4 },
   notesText: { fontSize: 9, color: '#374151' },
+  optHeaderRow: { flexDirection: 'row', backgroundColor: '#fff7ed', borderBottom: '1 solid #fed7aa', paddingVertical: 4, paddingHorizontal: 6 },
+  optLabelRow: { flexDirection: 'row', paddingVertical: 3, paddingHorizontal: 6, borderBottom: '1 solid #f3f4f6' },
+  optFinalRow: { flexDirection: 'row', paddingVertical: 4, paddingHorizontal: 6, backgroundColor: '#fff7ed', borderTop: '1px solid #fed7aa' },
 });
 
 function fmt(date: string | Date) {
@@ -150,6 +142,42 @@ function CostSheetPDF({ cs }: { cs: any }) {
   const perAdultCost = grandTotal;
   const perChildCost = perAdultCost * 0.5;
 
+  const monthName = new Date(cs.createdAt).toLocaleDateString('en-KE', { month: 'long' });
+
+  const totalPPS = accomPerPersonSum;
+  const totalParkFees = parkGroupTotal;
+  const totalTransport = transportGroupTotal;
+  const totalExtras = extrasTotal;
+
+  const col = (flex: number, align: 'left' | 'right' = 'left') => {
+    const base = { fontSize: 8, paddingHorizontal: 5, flex };
+    return align === 'right'
+      ? { ...base, color: '#374151', textAlign: 'right' as const }
+      : { ...base, color: '#374151' };
+  };
+  const colHd = (flex: number, align: 'left' | 'right' = 'left') => {
+    const base = { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#6b7280', paddingHorizontal: 5, flex };
+    return align === 'right'
+      ? { ...base, textAlign: 'right' as const }
+      : base;
+  };
+  const colR = (flex: number) => ({ ...col(flex, 'right'), fontFamily: 'Helvetica-Bold', color: '#111827' });
+
+  const tableHeader = [
+    React.createElement(Text, { style: colHd(1.5), key: 'h0' }, 'Days'),
+    React.createElement(Text, { style: colHd(3), key: 'h1' }, 'Properties'),
+    React.createElement(Text, { style: colHd(1, 'right'), key: 'h2' }, 'PPS'),
+    React.createElement(Text, { style: colHd(1, 'right'), key: 'h3' }, 'SRS'),
+    React.createElement(Text, { style: colHd(1.5, 'right'), key: 'h4' }, 'Park Fees'),
+    React.createElement(Text, { style: colHd(1.5, 'right'), key: 'h5' }, 'Transport'),
+    React.createElement(Text, { style: colHd(1, 'right'), key: 'h6' }, 'Extras'),
+    React.createElement(Text, { style: colHd(1, 'right'), key: 'h7' }, ''),
+    React.createElement(Text, { style: colHd(1, 'right'), key: 'h8' }, ''),
+    React.createElement(Text, { style: colHd(1, 'right'), key: 'h9' }, ''),
+    React.createElement(Text, { style: colHd(1, 'right'), key: 'h10' }, ''),
+    React.createElement(Text, { style: colHd(1, 'right'), key: 'h11' }, ''),
+  ];
+
   const dayRowEls = dayRows.map((row: any, i: number) => {
     const adultPP = Number(row.adultAccomTotal) || 0;
     const childPP = Number(row.childAccomTotal) || 0;
@@ -163,54 +191,108 @@ function CostSheetPDF({ cs }: { cs: any }) {
       accomGroup = adultPP * numAdults + childPP * numChildren;
     }
     const parkA = Number(row.parkFeeAdultTotal) || 0;
-    const parkC = Number(row.parkFeeChildTotal) || 0;
     const transport = Number(row.transportTotal) || 0;
     const transportPP = numPax > 0 ? transport / numPax : 0;
     const flightA = row.hasFlight ? (Number(row.flightAdultPP) || 0) * numAdults : 0;
     const flightC = row.hasFlight ? (Number(row.flightChildPP) || 0) * numChildren : 0;
-    const dayTotal = (accomGroup / numPax) + parkA + parkC + transportPP + flightA + flightC;
+    const dayTotal = (adultPP) + parkA + transportPP + flightA + flightC;
 
-    return React.createElement(View, { key: i, style: S.tRow },
-      React.createElement(Text, { style: [S.tCell, { flex: 0.4 }] }, String(i + 1)),
-      React.createElement(Text, { style: [S.tCell, { flex: 1.2 }] }, row.destinationName || '—'),
-      React.createElement(Text, { style: [S.tCell, { flex: 1.2 }] }, row.hotelName || '—'),
-      React.createElement(Text, { style: [S.tCellRight, { flex: 0.8 }] }, `${currency} ${fmt2(accomGroup / numPax)}`),
-      React.createElement(Text, { style: [S.tCellRight, { flex: 0.8 }] }, numChildren > 0 ? `${currency} ${fmt2(childPP * numChildren / numPax)}` : '—'),
-      React.createElement(Text, { style: [S.tCellRight, { flex: 0.8 }] }, singleRate > 0 ? `${currency} ${fmt2(singleRate)}` : '—'),
-      React.createElement(Text, { style: [S.tCellRight, { flex: 0.7 }] }, `${currency} ${fmt2(parkA)}`),
-      React.createElement(Text, { style: [S.tCellRight, { flex: 0.7 }] }, numChildren > 0 ? `${currency} ${fmt2(parkC)}` : '—'),
-      React.createElement(Text, { style: [S.tCellRight, { flex: 0.7 }] }, `${currency} ${fmt2(transport)}`),
-      React.createElement(Text, { style: [S.tCellRight, { flex: 0.5 }] }, row.hasFlight ? '✈' : '—'),
-      React.createElement(Text, { style: [S.tCellRight, { flex: 0.7 }] }, row.hasFlight ? `${currency} ${fmt2(flightA)}` : '—'),
-      React.createElement(Text, { style: [S.tCellRight, { flex: 0.7 }] }, row.hasFlight && numChildren > 0 ? `${currency} ${fmt2(flightC)}` : '—'),
-      React.createElement(Text, { style: [S.tCellRight, { flex: 0.8 }] }, `${currency} ${fmt2(dayTotal)}`),
+    return React.createElement(View, { key: `dr${i}`, style: S.tRow },
+      React.createElement(Text, { style: col(1.5) }, `Day${i + 1}`),
+      React.createElement(Text, { style: col(3) }, row.hotelName || row.destinationName || ''),
+      React.createElement(Text, { style: col(1, 'right') }, `${currency} ${fmt2(adultPP)}`),
+      React.createElement(Text, { style: col(1, 'right') }, ''),
+      React.createElement(Text, { style: col(1.5, 'right') }, `${currency} ${fmt2(parkA)}`),
+      React.createElement(Text, { style: col(1.5, 'right') }, `${currency} ${fmt2(transport)}`),
+      ...[0, 1, 2, 3, 4, 5].map(j => React.createElement(Text, { style: col(1, 'right'), key: `ex${j}` }, '')),
     );
   });
 
-  const headerRow = [
-    React.createElement(Text, { style: [S.tCellHd, { flex: 0.4 }], key: 'h0' }, 'Day'),
-    React.createElement(Text, { style: [S.tCellHd, { flex: 1.2 }], key: 'h1' }, 'Destination'),
-    React.createElement(Text, { style: [S.tCellHd, { flex: 1.2 }], key: 'h2' }, 'Hotel'),
-    React.createElement(Text, { style: [S.tCellHdRight, { flex: 0.8 }], key: 'h3' }, 'Accom/Adult'),
-    React.createElement(Text, { style: [S.tCellHdRight, { flex: 0.8 }], key: 'h4' }, 'Accom/Child'),
-    React.createElement(Text, { style: [S.tCellHdRight, { flex: 0.8 }], key: 'h5' }, 'Single Room'),
-    React.createElement(Text, { style: [S.tCellHdRight, { flex: 0.7 }], key: 'h6' }, 'Park Adult'),
-    React.createElement(Text, { style: [S.tCellHdRight, { flex: 0.7 }], key: 'h7' }, 'Park Child'),
-    React.createElement(Text, { style: [S.tCellHdRight, { flex: 0.7 }], key: 'h8' }, 'Transport'),
-    React.createElement(Text, { style: [S.tCellHdRight, { flex: 0.5 }], key: 'h9' }, 'Flight?'),
-    React.createElement(Text, { style: [S.tCellHdRight, { flex: 0.7 }], key: 'h10' }, 'Flight Adult'),
-    React.createElement(Text, { style: [S.tCellHdRight, { flex: 0.7 }], key: 'h11' }, 'Flight Child'),
-    React.createElement(Text, { style: [S.tCellHdRight, { flex: 0.8 }], key: 'h12' }, 'Day Total'),
-  ];
+  const extrasRows: any[] = [];
+  if (cs.fileHandlingFee > 0) {
+    extrasRows.push(React.createElement(View, { key: 'fh', style: S.tRow },
+      React.createElement(Text, { style: col(1.5) }, ''),
+      React.createElement(Text, { style: col(3) }, 'File handling fees'),
+      ...[0, 1, 2, 3, 4, 5].map((_, j) => React.createElement(Text, { style: col(1, 'right'), key: `fe${j}` }, j === 0 ? `${currency} ${fmt2(cs.fileHandlingFee)}` : '')),
+    ));
+  }
+  if (cs.ecoBottle > 0) {
+    extrasRows.push(React.createElement(View, { key: 'eb', style: S.tRow },
+      React.createElement(Text, { style: col(1.5) }, ''),
+      React.createElement(Text, { style: col(3) }, 'Eco steel bottle + mineral water'),
+      ...[0, 1, 2, 3, 4, 5].map((_, j) => React.createElement(Text, { style: col(1, 'right'), key: `eb${j}` }, j === 0 ? `${currency} ${fmt2(cs.ecoBottle)}` : '')),
+    ));
+  }
+  if (cs.evacInsurance > 0) {
+    extrasRows.push(React.createElement(View, { key: 'ei', style: S.tRow },
+      React.createElement(Text, { style: col(1.5) }, ''),
+      React.createElement(Text, { style: col(3) }, 'Evacuation Insurance'),
+      ...[0, 1, 2, 3, 4, 5].map((_, j) => React.createElement(Text, { style: col(1, 'right'), key: `ei${j}` }, j === 0 ? `${currency} ${fmt2(cs.evacInsurance)}` : '')),
+    ));
+  }
+  if (cs.maasaiVillage) {
+    extrasRows.push(React.createElement(View, { key: 'mv', style: S.tRow },
+      React.createElement(Text, { style: col(1.5) }, ''),
+      React.createElement(Text, { style: col(3) }, 'Maasai Village Visit'),
+      ...[0, 1, 2, 3, 4, 5].map((_, j) => React.createElement(Text, { style: col(1, 'right'), key: `mv${j}` }, j === 0 ? `${currency} ${fmt2(cs.maasaiCost || 0)}` : '')),
+    ));
+  }
+  extras.forEach((e: any, i: number) => {
+    if (Number(e.cost) > 0) {
+      extrasRows.push(React.createElement(View, { key: `ex${i}`, style: S.tRow },
+        React.createElement(Text, { style: col(1.5) }, ''),
+        React.createElement(Text, { style: col(3) }, e.label || 'Extra'),
+        ...[0, 1, 2, 3, 4, 5].map((_, j) => React.createElement(Text, { style: col(1, 'right'), key: `exv${i}${j}` }, j === 0 ? `${currency} ${fmt2(Number(e.cost))}` : '')),
+      ));
+    }
+  });
 
-  const fixedExtras: any[] = [];
-  if (cs.fileHandlingFee > 0) fixedExtras.push(React.createElement(Text, { key: 'fe1', style: S.body }, `File Handling: ${currency} ${fmt2(cs.fileHandlingFee)}`));
-  if (cs.ecoBottle > 0) fixedExtras.push(React.createElement(Text, { key: 'fe2', style: S.body }, `Eco Bottle: ${currency} ${fmt2(cs.ecoBottle)}`));
-  if (cs.evacInsurance > 0) fixedExtras.push(React.createElement(Text, { key: 'fe3', style: S.body }, `Evac Insurance: ${currency} ${fmt2(cs.evacInsurance)}`));
-  if (cs.arrivalTransfer > 0) fixedExtras.push(React.createElement(Text, { key: 'fe4', style: S.body }, `Arrival Transfer: ${currency} ${fmt2(cs.arrivalTransfer)}`));
-  if (cs.departureTransfer > 0) fixedExtras.push(React.createElement(Text, { key: 'fe5', style: S.body }, `Departure Transfer: ${currency} ${fmt2(cs.departureTransfer)}`));
-  if (cs.maasaiVillage) fixedExtras.push(React.createElement(Text, { key: 'fe6', style: S.body }, `Maasai Village: ${currency} ${fmt2(cs.maasaiCost || 0)}`));
-  extras.forEach((e: any, i: number) => { if (Number(e.cost) > 0) fixedExtras.push(React.createElement(Text, { key: `ex${i}`, style: S.body }, `${e.label || 'Extra'}: ${currency} ${fmt2(Number(e.cost))}`)); });
+  const buildOptionsSection = () => {
+    const groupSizes = [2, 4, 6, 8];
+    const rows: any[] = [];
+    const optsPerRow = 4;
+    const optWidth = 13 / optsPerRow;
+
+    groupSizes.forEach((size, gi) => {
+      const groupSubtotal = subtotal;
+      const groupMarkup = groupSubtotal * (markupPercent / 100);
+      const groupRate = groupSubtotal + groupMarkup;
+
+      rows.push(
+        React.createElement(View, { key: `oph${gi}`, style: S.optHeaderRow },
+          React.createElement(Text, { style: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#92400e', flex: 1 } }, `Option 0${gi + 1}`),
+          React.createElement(Text, { style: { fontSize: 8, color: '#92400e', flex: 2 } }, `Based on ${size} people`),
+          React.createElement(Text, { style: { fontSize: 8, color: '#92400e', flex: 1, textAlign: 'right' } }, 'PPS'),
+          React.createElement(Text, { style: { fontSize: 8, color: '#6b7280', flex: 2, textAlign: 'right' } }, ''),
+        ),
+      );
+      rows.push(
+        React.createElement(View, { key: `opp${gi}`, style: S.optLabelRow },
+          React.createElement(Text, { style: { fontSize: 8, color: '#374151', flex: 1 } }, ''),
+          React.createElement(Text, { style: { fontSize: 8, color: '#374151', flex: 2 } }, 'Per person sharing'),
+          React.createElement(Text, { style: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#111827', flex: 1, textAlign: 'right' } }, `${currency} ${fmt2(groupSubtotal)}`),
+          React.createElement(Text, { style: { fontSize: 8, color: '#6b7280', flex: 2, textAlign: 'right' } }, ''),
+        ),
+      );
+      rows.push(
+        React.createElement(View, { key: `opm${gi}`, style: S.optLabelRow },
+          React.createElement(Text, { style: { fontSize: 8, color: '#374151', flex: 1 } }, ''),
+          React.createElement(Text, { style: { fontSize: 8, color: '#374151', flex: 2 } }, `Mark up ${markupPercent}%`),
+          React.createElement(Text, { style: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#111827', flex: 1, textAlign: 'right' } }, `${currency} ${fmt2(groupMarkup)}`),
+          React.createElement(Text, { style: { fontSize: 8, color: '#6b7280', flex: 2, textAlign: 'right' } }, ''),
+        ),
+      );
+      rows.push(
+        React.createElement(View, { key: `opr${gi}`, style: S.optFinalRow },
+          React.createElement(Text, { style: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#111827', flex: 1 } }, ''),
+          React.createElement(Text, { style: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#111827', flex: 2 } }, 'Rate Charged'),
+          React.createElement(Text, { style: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#f97316', flex: 1, textAlign: 'right' } }, `${currency} ${fmt2(groupRate)}`),
+          React.createElement(Text, { style: { fontSize: 8, color: '#6b7280', flex: 2, textAlign: 'right' } }, ''),
+        ),
+      );
+    });
+    return rows;
+  };
 
   return React.createElement(Document, { title: `Cost Sheet ${cs.id}` },
     React.createElement(Page, { size: 'A4', style: S.page },
@@ -241,7 +323,7 @@ function CostSheetPDF({ cs }: { cs: any }) {
         ),
       ),
 
-      // Client / Agent
+      // Client / Agent / Tour Details
       React.createElement(View, { style: S.section },
         React.createElement(View, { style: { flexDirection: 'row', gap: 40 } },
           React.createElement(View, { style: { flex: 1 } },
@@ -263,69 +345,80 @@ function CostSheetPDF({ cs }: { cs: any }) {
         ),
       ),
 
-      // Daily Breakdown
+      // Main Pricing Table (CSV format)
       React.createElement(View, { style: S.section },
-        React.createElement(Text, { style: S.sectionTitle }, 'Daily Breakdown'),
-        React.createElement(View, { style: S.tHead }, ...headerRow),
+        React.createElement(Text, { style: S.sectionTitle }, 'Pricing Breakdown'),
+
+        // Header row
+        React.createElement(View, { style: S.tHead }, ...tableHeader),
+
+        // Month row
+        React.createElement(View, { style: S.tRow },
+          React.createElement(Text, { style: { ...col(1.5), fontFamily: 'Helvetica-Bold', color: '#92400e' } }, monthName),
+          ...[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(j => React.createElement(Text, { style: col(1, 'right'), key: `mr${j}` }, '')),
+        ),
+
+        // Day rows
         ...dayRowEls,
-        React.createElement(View, { style: S.totTable },
-          React.createElement(View, { style: S.totRow },
-            React.createElement(Text, { style: S.totLabel }, 'Accommodation (per adult)'),
-            React.createElement(Text, { style: S.totValue }, `${currency} ${fmt2(accomPerPersonSum)}`),
-          ),
-          React.createElement(View, { style: S.totRow },
-            React.createElement(Text, { style: S.totLabel }, 'Park Fees'),
-            React.createElement(Text, { style: S.totValue }, `${currency} ${fmt2(parkGroupTotal)}`),
-          ),
-          React.createElement(View, { style: S.totRow },
-            React.createElement(Text, { style: S.totLabel }, 'Transport'),
-            React.createElement(Text, { style: S.totValue }, `${currency} ${fmt2(transportGroupTotal)}  (${fmt2(transportPerPax)}/pax)`),
-          ),
-          flightGroupTotal > 0 && React.createElement(View, { style: S.totRow },
-            React.createElement(Text, { style: S.totLabel }, 'Flights'),
-            React.createElement(Text, { style: S.totValue }, `${currency} ${fmt2(flightGroupTotal)}`),
-          ),
-          fixedExtras.length > 0 && React.createElement(View, { style: S.totRow },
-            React.createElement(Text, { style: S.totLabel }, 'Extras & Fees'),
-            React.createElement(Text, { style: S.totValue }, `${currency} ${fmt2(extrasTotal)}`),
-          ),
-          React.createElement(View, { style: S.totRow },
-            React.createElement(Text, { style: S.totLabel }, 'Subtotal (per adult)'),
-            React.createElement(Text, { style: S.totValue }, `${currency} ${fmt2(subtotal)}`),
-          ),
-          React.createElement(View, { style: S.totRow },
-            React.createElement(Text, { style: S.totLabel }, `Markup (${markupPercent}%)`),
-            React.createElement(Text, { style: S.totValue }, `${currency} ${fmt2(markupAmount)}`),
-          ),
-          React.createElement(View, { style: S.totFinal },
-            React.createElement(Text, { style: { ...S.totLabel, fontFamily: 'Helvetica-Bold' } }, 'Grand Total'),
-            React.createElement(Text, { style: { ...S.totValue, fontSize: 11 } }, `${currency} ${fmt2(grandTotal)}`),
-          ),
+
+        // Empty rows for spacing
+        ...Array.from({ length: 3 }, (_, i) =>
+          React.createElement(View, { key: `sp${i}`, style: S.tRow },
+            ...[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(j => React.createElement(Text, { style: col(1), key: `sp${i}${j}` }, '')),
+          )
+        ),
+
+        // Extras section header
+        React.createElement(View, { style: S.tRow },
+          React.createElement(Text, { style: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#6b7280', paddingHorizontal: 5, flex: 1.5 } }, ''),
+          React.createElement(Text, { style: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#6b7280', paddingHorizontal: 5, flex: 3 } }, 'Extras'),
+          ...[0, 1, 2, 3, 4, 5].map(j => React.createElement(Text, { style: col(1, 'right'), key: `exhd${j}` }, '')),
+        ),
+
+        // Extra items rows
+        ...extrasRows,
+
+        // Empty row
+        React.createElement(View, { style: S.tRow },
+          ...[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(j => React.createElement(Text, { style: col(1), key: `er${j}` }, '')),
+        ),
+
+        // Totals row
+        React.createElement(View, { style: { ...S.tRow, backgroundColor: '#fff7ed' } },
+          React.createElement(Text, { style: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#111827', paddingHorizontal: 5, flex: 1.5 } }, ''),
+          React.createElement(Text, { style: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#111827', paddingHorizontal: 5, flex: 3 } }, 'Totals'),
+          React.createElement(Text, { style: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#111827', paddingHorizontal: 5, flex: 1, textAlign: 'right' } }, `${currency} ${fmt2(totalPPS)}`),
+          React.createElement(Text, { style: { fontSize: 8, color: '#6b7280', paddingHorizontal: 5, flex: 1, textAlign: 'right' } }, ''),
+          React.createElement(Text, { style: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#111827', paddingHorizontal: 5, flex: 1.5, textAlign: 'right' } }, `${currency} ${fmt2(totalParkFees)}`),
+          React.createElement(Text, { style: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#111827', paddingHorizontal: 5, flex: 1.5, textAlign: 'right' } }, `${currency} ${fmt2(totalTransport)}`),
+          ...[0, 1, 2, 3, 4, 5].map((_, j) => React.createElement(Text, { style: col(1, 'right'), key: `tot${j}` }, '')),
         ),
       ),
 
-      // Per adult / per child pricing
+      // Options Section (2, 4, 6, 8 pax)
       React.createElement(View, { style: { padding: '10 24' } },
-        React.createElement(View, { style: S.perCostBox },
-          numChildren > 0 && React.createElement(View, { key: 'pc', style: S.perCostItem },
-            React.createElement(Text, { style: S.perCostLabel }, 'Per Child Cost'),
-            React.createElement(Text, { style: S.perCostValue }, `${currency} ${fmt2(perChildCost)}`),
-          ),
-          React.createElement(View, { key: 'pa', style: S.perCostItem },
-            React.createElement(Text, { style: S.perCostLabel }, 'Per Adult Cost'),
-            React.createElement(Text, { style: S.perCostValue }, `${currency} ${fmt2(perAdultCost)}`),
-          ),
-          React.createElement(View, { key: 'gt', style: S.perCostGrand },
-            React.createElement(Text, { style: S.perCostLabel }, `Group Total (${numPax} pax)`),
-            React.createElement(Text, { style: S.perCostGrandValue }, `${currency} ${fmt2(grandTotal)}`),
-          ),
-        ),
+        React.createElement(Text, { style: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#92400e', marginBottom: 6 } }, 'Pricing Options'),
+        ...buildOptionsSection(),
       ),
 
-      // Fixed costs extras list (if any)
-      fixedExtras.length > 0 && React.createElement(View, { style: S.section },
-        React.createElement(Text, { style: S.sectionTitle }, 'Fixed Costs & Extras'),
-        ...fixedExtras,
+      // Per adult / per child / group totals
+      React.createElement(View, { style: { padding: '0 24', flexDirection: 'row', gap: 40, marginTop: 8 } },
+        numChildren > 0 && React.createElement(View, { key: 'pc', style: { flex: 1 } },
+          React.createElement(Text, { style: { fontSize: 8, color: '#6b7280' } }, 'Per Child Cost'),
+          React.createElement(Text, { style: { fontSize: 16, fontFamily: 'Helvetica-Bold', color: '#f97316' } }, `${currency} ${fmt2(perChildCost)}`),
+        ),
+        React.createElement(View, { key: 'pa', style: { flex: 1 } },
+          React.createElement(Text, { style: { fontSize: 8, color: '#6b7280' } }, 'Per Adult Cost'),
+          React.createElement(Text, { style: { fontSize: 16, fontFamily: 'Helvetica-Bold', color: '#f97316' } }, `${currency} ${fmt2(perAdultCost)}`),
+        ),
+        React.createElement(View, { key: 'gt', style: { flex: 1 } },
+          React.createElement(Text, { style: { fontSize: 8, color: '#6b7280' } }, `Group Total (${numPax} pax)`),
+          React.createElement(Text, { style: { fontSize: 16, fontFamily: 'Helvetica-Bold', color: '#111827' } }, `${currency} ${fmt2(grandTotal)}`),
+        ),
+        React.createElement(View, { key: 'mu', style: { flex: 1 } },
+          React.createElement(Text, { style: { fontSize: 8, color: '#6b7280' } }, 'Markup'),
+          React.createElement(Text, { style: { fontSize: 16, fontFamily: 'Helvetica-Bold', color: '#111827' } }, `${markupPercent}%`),
+        ),
       ),
 
       // Notes
