@@ -255,12 +255,6 @@ export default function CostSheetDetailPage() {
   const numPax = editable.numAdults + editable.numChildren;
   const adultUnits = editable.numAdults + editable.numChildren * 0.5;
 
-  const storedSubtotal = Number(sheet.subtotal) || 0;
-  const storedMarkup = Number(sheet.markupAmount) || 0;
-  const storedTotal = Number(sheet.totalCost) || 0;
-  const calcSubtotals = Number(sheet.perAdultCost) || 0;
-  const storedPerChild = Number(sheet.perChildCost) || 0;
-
   let accomPerPersonSum = 0;
   let parkGroupTotal = 0;
   let transportGroupTotal = 0;
@@ -291,7 +285,7 @@ export default function CostSheetDetailPage() {
 
   const transportPerPax = numPax > 0 ? transportGroupTotal / numPax : 0;
   const calcSubtotal = accomPerPersonSum + parkGroupTotal + transportPerPax + extrasTotal + flightGroupTotal;
-  const calcMarkup = storedMarkup > 0 ? storedMarkup : calcSubtotal * (editable.markupPercent / 100);
+  const calcMarkup = calcSubtotal * (editable.markupPercent / 100);
   const calcGrandTotal = calcSubtotal + calcMarkup;
 
   return (
@@ -455,7 +449,7 @@ export default function CostSheetDetailPage() {
         </div>
 
         <div className="flex justify-end"><div className="w-80 space-y-2">
-          {editable.numChildren > 0 && <div className="flex justify-between text-sm"><span>Per Child Cost</span><span className="font-mono">{currentCurrency} {fmt2(storedPerChild)}</span></div>}
+          {editable.numChildren > 0 && <div className="flex justify-between text-sm"><span>Per Child Cost</span><span className="font-mono">{currentCurrency} {fmt2(calcSubtotal * 0.5)}</span></div>}
           <div className="flex justify-between text-base font-bold border-t-2 border-orange-200 pt-2">
             <span>Per Adult Cost</span><span className="font-mono text-orange-600">{currentCurrency} {fmt2(calcSubtotal)}</span>
           </div>
