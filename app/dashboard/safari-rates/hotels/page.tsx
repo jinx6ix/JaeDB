@@ -3,7 +3,7 @@ import React from 'react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 
-interface County { id: number; name: string; }
+interface County { id: number; name: string; region?: string | null; }
 interface RoomType { id: number; name: string; maxOccupancy: number; }
 interface Hotel  { id: number; name: string; stars: number|null; category: string|null; county: { name: string }; _count: { roomTypes: number }; }
 
@@ -14,6 +14,9 @@ export default function HotelsPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ countyId:'', name:'', stars:'', category:'Lodge' });
   const [saving, setSaving] = useState(false);
+  const [showDestForm, setShowDestForm] = useState(false);
+  const [destForm, setDestForm] = useState({ name: '', region: '' });
+  const [savingDest, setSavingDest] = useState(false);
   // Room type management
   const [expandedHotel, setExpandedHotel] = useState<number|null>(null);
   const [hotelRooms, setHotelRooms] = useState<Record<number, RoomType[]>>({});
@@ -72,6 +75,30 @@ export default function HotelsPage() {
       alert(err.message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function saveDestination(e: React.FormEvent) {
+    e.preventDefault();
+    if (!destForm.name.trim()) { alert('Destination name is required'); return; }
+    setSavingDest(true);
+    try {
+      const res = await fetch('/api/safari-rates/counties', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: destForm.name.trim(), region: destForm.region.trim() || null }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed to add destination' }));
+        throw new Error(err.error || err.message || 'Failed to add destination');
+      }
+      setShowDestForm(false);
+      setDestForm({ name: '', region: '' });
+      await load();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSavingDest(false);
     }
   }
   async function saveRoom(e: React.FormEvent, hotelId: number) {
@@ -133,9 +160,30 @@ export default function HotelsPage() {
         </div>
         <div className="flex gap-2">
           <Link href="/dashboard/safari-rates/prices" className="btn-secondary text-sm">💰 Enter Prices</Link>
+          <button onClick={()=>setShowDestForm(!showDestForm)} className="btn-secondary text-sm">{showDestForm ? '✕ Cancel Destination' : '+ Add Destination'}</button>
           <button onClick={()=>setShowForm(!showForm)} className="btn-primary">+ Add Hotel</button>
         </div>
       </div>
+
+      {showDestForm && (
+        <form onSubmit={saveDestination} className="card space-y-4">
+          <h2 className="font-semibold text-gray-800">Add Destination / Area</h2>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Destination Name *</label>
+              <input required className="input" value={destForm.name} onChange={e=>setDestForm(f=>({...f,name:e.target.value}))} placeholder="e.g. Maasai Mara" />
+            </div>
+            <div>
+              <label className="label">Region (optional)</label>
+              <input className="input" value={destForm.region} onChange={e=>setDestForm(f=>({...f,region:e.target.value}))} placeholder="e.g. Narok County" />
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button type="submit" disabled={savingDest} className="btn-primary">{savingDest?'Saving…':'Save Destination'}</button>
+            <button type="button" onClick={()=>setShowDestForm(false)} className="btn-secondary">Cancel</button>
+          </div>
+        </form>
+      )}
 
       {showForm && (
         <form onSubmit={save} className="card space-y-4">
@@ -143,10 +191,13 @@ export default function HotelsPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Destination *</label>
-              <select required className="input" value={form.countyId} onChange={e=>setForm(f=>({...f,countyId:e.target.value}))}>
-                <option value="">— Select —</option>
-                {counties.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              <div className="flex gap-2 items-center">
+                <select required className="input flex-1" value={form.countyId} onChange={e=>setForm(f=>({...f,countyId:e.target.value}))}>
+                  <option value="">— Select —</option>
+                  {counties.map(c=><option key={c.id} value={c.id}>{c.name}{c.region ? ` (${c.region})` : ''}</option>)}
+                </select>
+                <button type="button" onClick={() => { setShowDestForm(true); }} className="btn-secondary text-sm whitespace-nowrap">+ new</button>
+              </div>
             </div>
             <div>
               <label className="label">Hotel / Camp Name *</label>
