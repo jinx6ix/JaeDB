@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+export const dynamic = 'force-dynamic';
+
 export default async function ItineraryDetailPage({ params }: { params: { id: string } }) {
   const itinerary = await prisma.itinerary.findUnique({
     where: { id: params.id },

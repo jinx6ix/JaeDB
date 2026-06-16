@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import DeleteItineraryButton from '@/components/DeleteItineraryButton';
 
+export const dynamic = 'force-dynamic';
+
 export default async function ItinerariesPage() {
   const itineraries = await prisma.itinerary.findMany({
     orderBy: { createdAt: 'desc' },
