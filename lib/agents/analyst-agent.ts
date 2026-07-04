@@ -282,7 +282,10 @@ async function pullSrHotels(kind: AnalystKind, since: Date) {
       if (h.seasons.length === 0) anomalies.push({ hotelId: h.id, name: h.name, issue: 'no seasons defined' });
       for (const rt of h.roomTypes) {
         if (rt.prices.length === 0) anomalies.push({ hotelId: h.id, name: h.name, roomType: rt.name, issue: 'no prices' });
-        for (const p of rt.prices) if ((p as any).rate === 0 || p.price === 0) anomalies.push({ hotelId: h.id, name: h.name, roomType: rt.name, issue: 'zero price' });
+        for (const p of rt.prices) {
+          const allZero = (p.ratePerPersonSharing ?? 0) === 0 && (p.singleRoomRate ?? 0) === 0 && (p.childRate ?? 0) === 0 && (p.thirdAdultRate ?? 0) === 0;
+          if (allZero) anomalies.push({ hotelId: h.id, name: h.name, roomType: rt.name, issue: 'zero price' });
+        }
       }
     }
     return { summary: `${hotels.length} hotels scanned, ${anomalies.length} anomalies`, anomalies, rows: hotels.map((h) => ({ id: h.id, name: h.name, seasons: h.seasons.length, roomTypes: h.roomTypes.length })) };
