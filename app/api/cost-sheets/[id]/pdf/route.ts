@@ -442,12 +442,13 @@ function CostSheetPDF({ cs }: { cs: any }) {
   );
 }
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return new NextResponse('Unauthorized', { status: 401 });
 
   const costSheet = await prisma.costSheet.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: { client: true, agent: true, booking: true },
   });
 

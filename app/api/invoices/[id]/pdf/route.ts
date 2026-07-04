@@ -425,12 +425,13 @@ function InvoicePDF({ invoice }: { invoice: any }) {
   );
 }
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return new NextResponse('Unauthorized', { status: 401 });
 
   const invoice = await prisma.invoice.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       booking: { include: { client: true, tourPackage: true } },
       client: { include: { agent: true } },

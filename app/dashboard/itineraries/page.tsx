@@ -11,7 +11,7 @@ export default async function ItinerariesPage() {
     include: {
       booking: { include: { client: true } },
       days: { orderBy: { dayNumber: 'asc' }, take: 1 },
-      _count: { select: { days: true } },
+      _count: { select: { days: true, embeds: true } },
     },
   });
 
@@ -22,7 +22,10 @@ export default async function ItinerariesPage() {
           <h1 className="text-2xl font-bold text-gray-900">Itineraries</h1>
           <p className="text-gray-500 text-sm mt-0.5">{itineraries.length} itinerar{itineraries.length !== 1 ? 'ies' : 'y'}</p>
         </div>
-        <Link href="/dashboard/itineraries/new" className="btn-primary">+ Generate Itinerary</Link>
+        <div className="flex gap-2">
+          <Link href="/dashboard/itineraries/from-source" className="btn-secondary text-sm">🌐 From Source</Link>
+          <Link href="/dashboard/itineraries/new" className="btn-primary text-sm">+ Generate Itinerary</Link>
+        </div>
       </div>
 
       <div className="grid gap-4">
@@ -51,6 +54,7 @@ export default async function ItinerariesPage() {
                 <p className="text-xs text-gray-400 mt-1">
                   {it._count.days} day{it._count.days !== 1 ? 's' : ''}
                   {it.days[0] && ` · Starts: ${it.days[0].destination}`}
+                  {it._count.embeds > 0 && <span className="ml-2 inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">🔗 {it._count.embeds} embed</span>}
                 </p>
               </div>
               <div className="flex gap-2">

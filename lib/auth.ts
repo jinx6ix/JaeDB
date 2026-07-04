@@ -22,6 +22,22 @@ export const authOptions: NextAuthOptions = {
         if (!user || !user.isActive) return null;
         const isValid = await bcrypt.compare(credentials.password, user.password);
         if (!isValid) return null;
+        // Stamp lastLoginAt asynchronously; never block login on this.
+        void prisma.user.update({
+          where: { id: user.id },
+          data: { lastLoginAt: new Date() },
+        }).catch(async () => {
+          try {
+            await prisma.log.create({
+              data: {
+                level: 'ERROR',
+                message: 'Monitor: failed to stamp lastLoginAt for user ' + user.id,
+                userId: user.id,
+                userEmail: user.email,
+              },
+            });
+          } catch { /* ignore */ }
+        });
         return { id: user.id, name: user.name, email: user.email, role: user.role };
       },
     }),

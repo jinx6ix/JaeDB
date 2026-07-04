@@ -5,9 +5,10 @@ import { notFound } from 'next/navigation';
 import VoucherPDFButton from '@/components/vouchers/VoucherPDFButton';
 import SendEmailButton from '@/components/vouchers/SendEmailButton';
 
-export default async function VoucherDetailPage({ params }: { params: { id: string } }) {
+export default async function VoucherDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const voucher = await prisma.voucher.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       booking: { include: { client: true } },
       property: true,

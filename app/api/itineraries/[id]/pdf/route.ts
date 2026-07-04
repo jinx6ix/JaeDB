@@ -435,12 +435,13 @@ function ItineraryPDF({ itinerary, costSheet, imagesByDay }: {
 // ───────────────────────────────────────────────────────────────────────────
 // GET Handler
 // ───────────────────────────────────────────────────────────────────────────
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return new NextResponse('Unauthorized', { status: 401 });
 
   const itinerary = await prisma.itinerary.findUnique({
-    where: { id: params.id },
+    where: { id: id },
     include: {
       booking: { include: { client: true } },
       days: { orderBy: { dayNumber: 'asc' } },

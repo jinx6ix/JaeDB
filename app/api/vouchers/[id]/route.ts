@@ -4,12 +4,13 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const voucher = await prisma.voucher.findUnique({
-    where: { id: params.id },
+    where: { id: id },
     include: {
       booking: { include: { client: true } },
       property: true,
@@ -21,14 +22,15 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   return NextResponse.json(voucher);
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
     const body = await req.json();
     const voucher = await prisma.voucher.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         status: body.status,
         bookingStatus: body.bookingStatus,
@@ -68,11 +70,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const voucher = await prisma.voucher.findUnique({ where: { id: params.id }, select: { createdById: true } });
+  const voucher = await prisma.voucher.findUnique({ where: { id: id }, select: { createdById: true } });
   if (!voucher) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const userId = (session.user as any)?.id;
@@ -83,6 +86,6 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     return NextResponse.json({ error: 'You can only delete vouchers you created' }, { status: 403 });
   }
 
-  await prisma.voucher.delete({ where: { id: params.id } });
+  await prisma.voucher.delete({ where: { id: id } });
   return NextResponse.json({ success: true });
 }

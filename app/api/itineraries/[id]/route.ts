@@ -4,12 +4,13 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const itinerary = await prisma.itinerary.findUnique({
-    where: { id: params.id },
+    where: { id: id },
     include: {
       booking: { include: { client: true } },
       days: {
@@ -23,26 +24,28 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   return NextResponse.json(itinerary);
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const itinerary = await prisma.itinerary.findUnique({ where: { id: params.id } });
+  const itinerary = await prisma.itinerary.findUnique({ where: { id: id } });
   if (!itinerary) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   // Detach images before deleting days
   await prisma.itineraryImage.updateMany({
-    where: { day: { itineraryId: params.id } },
+    where: { day: { itineraryId: id } },
     data: { dayId: null },
   });
 
-  await prisma.itineraryDay.deleteMany({ where: { itineraryId: params.id } });
-  await prisma.itinerary.delete({ where: { id: params.id } });
+  await prisma.itineraryDay.deleteMany({ where: { itineraryId: id } });
+  await prisma.itinerary.delete({ where: { id: id } });
 
   return NextResponse.json({ success: true });
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -56,7 +59,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       if (body.title) updateData.title = body.title;
 
       const itinerary = await prisma.itinerary.update({
-        where: { id: params.id },
+        where: { id: id },
         data: updateData,
         include: {
           booking: { include: { client: true } },
@@ -72,7 +75,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     // Full update with days recreation
     // Before deleting, collect existing image IDs per dayNumber so we can re-link them
     const existingDays = await prisma.itineraryDay.findMany({
-      where: { itineraryId: params.id },
+      where: { itineraryId: id },
       include: { images: true },
     });
     // Map dayNumber -> image IDs
@@ -93,10 +96,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
 
     // Delete existing days and recreate
-    await prisma.itineraryDay.deleteMany({ where: { itineraryId: params.id } });
+    await prisma.itineraryDay.deleteMany({ where: { itineraryId: id } });
 
     const itinerary = await prisma.itinerary.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         title: body.title,
         bookingId: body.bookingId !== undefined ? body.bookingId || null : undefined,
@@ -135,7 +138,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
     // Return itinerary with images
     const result = await prisma.itinerary.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         booking: { include: { client: true } },
         days: {

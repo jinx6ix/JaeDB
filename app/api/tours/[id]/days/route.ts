@@ -4,7 +4,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -12,14 +13,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const body = await req.json();
 
     // Delete existing days first
-    await prisma.tourDay.deleteMany({ where: { tourPackageId: params.id } });
+    await prisma.tourDay.deleteMany({ where: { tourPackageId: id } });
 
     // Create new days
     const days = await Promise.all(
       body.days.map((d: any) =>
         prisma.tourDay.create({
           data: {
-            tourPackageId: params.id,
+            tourPackageId: id,
             dayNumber: d.dayNumber,
             title: d.title,
             description: d.description || null,

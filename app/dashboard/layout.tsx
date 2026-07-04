@@ -4,10 +4,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { redirect } from 'next/navigation';
+import AgentChatPanel from '@/components/AgentChatPanel';
 
 const nav = [
   { label: 'Dashboard', href: '/dashboard', icon: '⊞', adminOnly: false },
   { label: 'Agents', href: '/dashboard/agents', icon: '🤝', adminOnly: false },
+  { label: 'AI Agents', href: '/dashboard/ai-agents', icon: '🤖', adminOnly: false },
   { label: 'Clients', href: '/dashboard/clients', icon: '👥', adminOnly: false },
   { label: 'Bookings', href: '/dashboard/bookings', icon: '📋', adminOnly: false },
   { label: 'Vouchers', href: '/dashboard/vouchers', icon: '🎫', adminOnly: false },
@@ -137,6 +139,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </main>
       </div>
+      <AgentChatPanel />
     </div>
   );
 }

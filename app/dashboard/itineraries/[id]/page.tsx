@@ -5,9 +5,10 @@ import { notFound } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
-export default async function ItineraryDetailPage({ params }: { params: { id: string } }) {
+export default async function ItineraryDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const itinerary = await prisma.itinerary.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       booking: {
         include: {
@@ -34,6 +35,7 @@ export default async function ItineraryDetailPage({ params }: { params: { id: st
           <h1 className="text-2xl font-bold text-gray-900">{itinerary.title}</h1>
         </div>
         <div className="flex gap-2">
+          <Link href={`/dashboard/itineraries/${itinerary.id}/embed`} className="btn-secondary text-sm">🔗 Embed</Link>
           <Link href={`/dashboard/itineraries/${itinerary.id}/edit`} className="btn-secondary">Edit</Link>
           <Link href={`/api/itineraries/${itinerary.id}/pdf`} target="_blank" className="btn-primary">⬇ Download PDF</Link>
         </div>

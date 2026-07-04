@@ -4,12 +4,13 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const client = await prisma.client.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       bookings: {
         orderBy: { createdAt: 'desc' },
@@ -21,14 +22,15 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   return NextResponse.json(client);
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
     const body = await req.json();
     const client = await prisma.client.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         name: body.name,
         email: body.email,
@@ -45,7 +47,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const role = (session.user as any)?.role;
@@ -53,7 +56,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 
   // Check if client has any bookings
   const clientWithBookings = await prisma.client.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: { _count: { select: { bookings: true } } },
   });
 
@@ -68,6 +71,6 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     );
   }
 
-  await prisma.client.delete({ where: { id: params.id } });
+  await prisma.client.delete({ where: { id } });
   return NextResponse.json({ success: true });
 }

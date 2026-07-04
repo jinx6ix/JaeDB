@@ -5,20 +5,22 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if ((session.user as any)?.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const user = await prisma.user.findUnique({
-    where: { id: params.id },
+    where: { id: id },
     select: { id: true, name: true, email: true, role: true, isActive: true, createdAt: true },
   });
   if (!user) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json(user);
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if ((session.user as any)?.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -35,7 +37,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       data.password = await bcrypt.hash(body.password, 12);
     }
     const user = await prisma.user.update({
-      where: { id: params.id },
+      where: { id: id },
       data,
       select: { id: true, name: true, email: true, role: true, isActive: true },
     });

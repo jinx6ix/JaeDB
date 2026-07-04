@@ -4,12 +4,13 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const sheet = await prisma.costSheet.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       client:  true,
       booking: { include: { client: true } },
@@ -20,21 +21,23 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   return NextResponse.json(sheet);
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  await prisma.costSheet.delete({ where: { id: params.id } });
+  await prisma.costSheet.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }
 // Add to existing file, after DELETE
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
     const body = await req.json();
     const sheet = await prisma.costSheet.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         bookingId:        body.bookingId        || null,
         clientId:         body.clientId         || null,

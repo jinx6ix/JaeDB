@@ -8,9 +8,10 @@ const countryFlags: Record<string, string> = {
   RWANDA: '🇷🇼', ETHIOPIA: '🇪🇹', BURUNDI: '🇧🇮', SOUTH_SUDAN: '🇸🇸',
 };
 
-export default async function TourDetailPage({ params }: { params: { id: string } }) {
+export default async function TourDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const tour = await prisma.tourPackage.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       days: { orderBy: { dayNumber: 'asc' }, include: { destination: true } },
       rateCards: { orderBy: { season: 'asc' } },

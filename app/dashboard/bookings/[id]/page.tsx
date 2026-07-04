@@ -9,9 +9,10 @@ const statusColors: Record<string, string> = {
   COMPLETED: 'badge-completed', CANCELLED: 'badge-cancelled',
 };
 
-export default async function BookingDetailPage({ params }: { params: { id: string } }) {
+export default async function BookingDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const booking = await prisma.booking.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       client: { include: { agent: true } },
       tourPackage: { include: { days: { orderBy: { dayNumber: 'asc' } } } },
@@ -31,7 +32,7 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
     invoices = await prisma.invoice.findMany({
       where: {
         OR: [
-          { bookingId: params.id },
+          { bookingId: id },
           { clientId: booking.clientId },
         ],
       },
@@ -45,7 +46,7 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
   let costSheets: any[] = [];
   try {
     costSheets = await prisma.costSheet.findMany({
-      where: { bookingId: params.id },
+      where: { bookingId: id },
       orderBy: { createdAt: 'desc' },
       select: { id: true, tourTitle: true, numAdults: true, numChildren: true, currency: true, totalCost: true, perAdultCost: true, createdAt: true },
     });
@@ -142,11 +143,11 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
           <div className="card p-0 overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
               <h2 className="font-semibold text-gray-800">Invoices ({invoices.length})</h2>
-              <Link href={`/dashboard/invoices/new?bookingId=${params.id}`} className="text-orange-500 text-xs hover:underline">+ New Invoice</Link>
+              <Link href={`/dashboard/invoices/new?bookingId=${id}`} className="text-orange-500 text-xs hover:underline">+ New Invoice</Link>
             </div>
             {invoices.length === 0 ? (
               <div className="px-5 py-6 text-center text-gray-400 text-sm">
-                No invoices yet. <Link href={`/dashboard/invoices/new?bookingId=${params.id}`} className="text-orange-500 hover:underline">Create one →</Link>
+                No invoices yet. <Link href={`/dashboard/invoices/new?bookingId=${id}`} className="text-orange-500 hover:underline">Create one →</Link>
               </div>
             ) : (
               <table className="w-full text-sm">

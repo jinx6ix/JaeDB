@@ -1,10 +1,18 @@
-// prisma/seed.ts
-import { PrismaClient } from '@prisma/client';
+// prisma/seed.ts  — Prisma 7 (uses generated client + driver adapter)
+import 'dotenv/config';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '../src/generated/prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 import bcrypt from 'bcryptjs';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
-const prisma = new PrismaClient();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const prisma = new PrismaClient({ adapter });
 
 /**
  * Load Safari Rates from the transformed SQL file.

@@ -1,24 +1,25 @@
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+  // runtime base is resolved automatically by the generated client
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
 }
 
 model User {
-  id        String    @id @default(cuid())
-  name      String
-  email     String    @unique
-  password  String
-  role      String    @default("EMPLOYEE")
-  isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  bookings  Booking[]
-  vouchers  Voucher[]
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  password     String
+  role         String    @default("EMPLOYEE")
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  bookings     Booking[]
+  vouchers     Voucher[]
 }
 
 model Agent {
@@ -186,6 +187,7 @@ model Itinerary {
   updatedAt DateTime       @updatedAt
   booking   Booking?       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   days      ItineraryDay[]
+  embeds    ItineraryEmbed[]
 }
 
 model ItineraryDay {
@@ -414,4 +416,44 @@ model Log {
   ipAddress String?
   userAgent String?
   createdAt DateTime @default(now())
+}
+
+model AgentRun {
+  id        String   @id @default(cuid())
+  origin    String   // dashboard that started it
+  prompt    String
+  status    String   @default("running") // running | done | error
+  summary   String?
+  steps     Int      @default(0)
+  userId    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  messages  AgentMessage[]
+}
+
+model AgentMessage {
+  id        String   @id @default(cuid())
+  runId     String
+  agent     String   // orchestrator | cost-sheet | itinerary | invoice | rate-intel | itinerary-gen | monitor | ui
+  kind      String   // system | user | handoff | tool | assistant | audit | error
+  content   String
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  run       AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, createdAt])
+}
+
+model ItineraryEmbed {
+  id          String    @id @default(cuid())
+  token       String    @unique
+  label       String    @default("Public")
+  itineraryId String?
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  visits      Int       @default(0)
+  itinerary   Itinerary? @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
+
+  @@index([token])
 }

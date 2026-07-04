@@ -22,7 +22,8 @@ transporter.verify((err) => {
   else console.log('SMTP ready for vouchers');
 });
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     const voucher = await prisma.voucher.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         booking: { include: { client: true } },
         property: true,

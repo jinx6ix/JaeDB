@@ -5,13 +5,14 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return new NextResponse('Unauthorized', { status: 401 });
 
   // 1. Fetch itinerary days
   const itinerary = await prisma.itinerary.findUnique({
-    where: { id: params.id },
+    where: { id: id },
     include: {
       days: {
         orderBy: { dayNumber: 'asc' },
@@ -60,7 +61,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   );
 
   return NextResponse.json({
-    itineraryId: params.id,
+    itineraryId: id,
     title: itinerary.title,
     totalDays: itinerary.days.length,
     summary: dayImageReport.map(d => ({
