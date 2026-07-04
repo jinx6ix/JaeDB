@@ -93,7 +93,7 @@ export async function executeRun(runId: string, req: AgentRunRequest): Promise<v
         agent: 'orchestrator',
         kind: 'routing',
         content: `Router: intent=${decision.intent} → ${orderedAgents.join(' → ') || '(no agents)'}. ${decision.rationale}`,
-        payload: decision,
+        payload: decision as unknown as Record<string, unknown>,
       });
     } catch (e: any) {
       await logMessage(runId, { agent: 'orchestrator', kind: 'routing', content: `Router failed (${e?.message}); using default pipeline.` });
