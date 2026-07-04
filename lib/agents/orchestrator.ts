@@ -84,7 +84,7 @@ export async function executeRun(runId: string, req: AgentRunRequest): Promise<v
     try {
       const decision = await routePrompt(
         req.prompt,
-        seedHistory.map((m) => ({ agent: m.agent as AgentName, kind: m.kind as any, content: m.content })),
+        seedHistory.map((m) => ({ runId, agent: m.agent as AgentName, kind: m.kind as any, content: m.content })),
         orderedAgents,
       );
       routerRationale = decision.rationale;
