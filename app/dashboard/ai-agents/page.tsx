@@ -13,6 +13,10 @@ const AGENTS = [
   { id: 'rate-intel', label: 'Rate Intel', emoji: '📊' },
   { id: 'itinerary-gen', label: 'Itinerary Gen', emoji: '🌐' },
   { id: 'monitor', label: 'Monitor', emoji: '🛡️' },
+  { id: 'booking-coordinator', label: 'Booking Coordinator', emoji: '📅' },
+  { id: 'voucher-clerk', label: 'Voucher Clerk', emoji: '✉️' },
+  { id: 'accessibility', label: 'Accessibility', emoji: '♿' },
+  { id: 'user-steward', label: 'User Steward', emoji: '🔐' },
 ];
 
 export default async function AIAgentsPage() {

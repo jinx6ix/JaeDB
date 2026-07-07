@@ -19,6 +19,9 @@ const ORIGIN_MAP: Record<string, AgentName> = {
   '/dashboard/invoices': 'invoice',
   '/dashboard/safari-rates': 'rate-intel',
   '/dashboard/ai-agents': 'orchestrator',
+  '/dashboard/bookings': 'booking-coordinator',
+  '/dashboard/vouchers': 'voucher-clerk',
+  '/dashboard/admin/users': 'user-steward',
 };
 const ALL_AGENTS: { id: AgentName; label: string; emoji: string }[] = [
   { id: 'analyst', label: 'Analyst', emoji: '🧮' },
@@ -28,7 +31,17 @@ const ALL_AGENTS: { id: AgentName; label: string; emoji: string }[] = [
   { id: 'rate-intel', label: 'Rate Intel', emoji: '📊' },
   { id: 'itinerary-gen', label: 'Itinerary Gen', emoji: '🌐' },
   { id: 'monitor', label: 'Monitor', emoji: '🛡️' },
+  { id: 'booking-coordinator', label: 'Booking Coordinator', emoji: '📅' },
+  { id: 'voucher-clerk', label: 'Voucher Clerk', emoji: '✉️' },
+  { id: 'accessibility', label: 'Accessibility', emoji: '♿' },
+  { id: 'user-steward', label: 'User Steward', emoji: '🔐' },
 ];
+
+// In simple mode (the default) we hide the pipeline's internal chatter —
+// routing decisions, handoffs, and raw DB tool calls — and only show what a
+// human actually needs: their own message, final answers, notifications,
+// and anything needing their input. Flip "Show agent process" to see it all.
+const VISIBLE_KINDS_SIMPLE = new Set(['user', 'assistant', 'notify', 'confirm-request', 'confirm-response', 'error']);
 
 export default function AgentChatPanel() {
   const pathname = usePathname();
@@ -39,6 +52,7 @@ export default function AgentChatPanel() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [runId, setRunId] = useState<string | null>(null);
   const [pinned, setPinned] = useState(false);
+  const [showTrace, setShowTrace] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -70,7 +84,7 @@ export default function AgentChatPanel() {
           id: m.id, agent: m.agent, kind: m.kind, content: m.content, payload: m.payload, createdAt: new Date(m.createdAt).toISOString(),
         })),
       );
-      if (res.status === 'done' || res.status === 'error') {
+      if (res.status === 'done' || res.status === 'error' || res.status === 'awaiting-confirmation') {
         setBusy(false);
         if (pollRef.current) clearInterval(pollRef.current);
       }
@@ -112,6 +126,10 @@ export default function AgentChatPanel() {
       'rate-intel': 'Scan contract rates and tell me which hotels have missing seasons or zero prices.',
       'monitor': 'Audit the last 24h of activity — give me a memory digest and anything risky.',
       'itinerary-gen': 'Load this PDF and turn it into a clean day-by-day itinerary.',
+      'booking-coordinator': 'Which upcoming bookings still have a balance due?',
+      'voucher-clerk': 'Draft the hotel voucher and confirmation email for this booking.',
+      'accessibility': 'Check whether this booking\u2019s wheelchair-access request has a matching vehicle assigned.',
+      'user-steward': 'Flag any dormant user accounts that haven\u2019t logged in for 60+ days.',
     };
     setPrompt(seeds[origin] || 'Brief the agents…');
   }
@@ -154,6 +172,13 @@ export default function AgentChatPanel() {
                 </button>
               ))}
             </div>
+            <button
+              type="button"
+              onClick={() => setShowTrace((s) => !s)}
+              className="mt-2 text-[11px] text-gray-400 hover:text-gray-600 underline"
+            >
+              {showTrace ? 'Hide agent process — show just the answer' : 'Show agent process (routing, handoffs, tool calls)'}
+            </button>
           </div>
 
           {/* Messages */}
@@ -164,11 +189,13 @@ export default function AgentChatPanel() {
                 <button onClick={seedPrompt} className="mt-3 text-orange-500 text-xs hover:underline">Insert an example prompt</button>
               </div>
             )}
-            {messages.map((m) => {
+            {messages
+              .filter((m) => showTrace || VISIBLE_KINDS_SIMPLE.has(m.kind))
+              .map((m) => {
               const isUser = m.agent === 'ui' && m.kind === 'user';
               const isErr = m.kind === 'error';
               return (
-                <div key={m.id} className={`text-sm rounded-lg px-3 py-2 ${isUser ? 'bg-blue-50 border border-blue-200' : isErr ? 'bg-red-50 border border-red-200' : m.kind === 'system' || m.kind === 'handoff' ? 'bg-gray-50 border border-gray-200 text-gray-600' : 'bg-orange-50 border border-orange-100'}`}>
+                <div key={m.id} className={`text-sm rounded-lg px-3 py-2 ${isUser ? 'bg-blue-50 border border-blue-200' : isErr ? 'bg-red-50 border border-red-200' : m.kind === 'confirm-request' ? 'bg-amber-50 border border-amber-300' : m.kind === 'notify' ? 'bg-sky-50 border border-sky-200' : m.kind === 'system' || m.kind === 'handoff' ? 'bg-gray-50 border border-gray-200 text-gray-600' : 'bg-orange-50 border border-orange-100'}`}>
                   <p className="text-[10px] uppercase tracking-wide font-semibold mb-0.5 text-gray-500">{m.agent} · {m.kind}</p>
                   <p className="whitespace-pre-wrap break-words text-gray-800">{m.content}</p>
                   {m.payload && (
@@ -178,6 +205,11 @@ export default function AgentChatPanel() {
               );
             })}
             {busy && <div className="text-center text-xs text-gray-400 animate-pulse">agents working…</div>}
+            {!busy && messages.some((m) => m.kind === 'confirm-request') && runId && (
+              <a href={`/dashboard/ai-agents/${runId}`} className="block text-center text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg py-2 hover:bg-amber-100">
+                👤 Waiting on your confirmation — open full run to Approve/Reject
+              </a>
+            )}
           </div>
 
           {/* Input */}

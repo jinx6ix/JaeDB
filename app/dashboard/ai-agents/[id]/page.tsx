@@ -2,6 +2,7 @@
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import ConfirmActions from '@/components/ConfirmActions';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,16 +12,24 @@ const KIND_COLOR: Record<string, string> = {
   handoff: 'bg-gray-50 border-gray-200 text-gray-600 italic',
   tool: 'bg-purple-50 border-purple-200',
   assistant: 'bg-orange-50 border-orange-100',
+  notify: 'bg-sky-50 border-sky-200',
+  'confirm-request': 'bg-amber-50 border-amber-300',
+  'confirm-response': 'bg-emerald-50 border-emerald-200',
   error: 'bg-red-50 border-red-200',
 };
 
-export default async function AIAgentRunDetail({ params }: { params: Promise<{ id: string }> }) {
+const VISIBLE_KINDS_SIMPLE = new Set(['user', 'assistant', 'notify', 'confirm-request', 'confirm-response', 'error']);
+
+export default async function AIAgentRunDetail({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ trace?: string }> }) {
   const { id } = await params;
+  const { trace } = await searchParams;
+  const showTrace = trace === '1';
   const run = await prisma.agentRun.findUnique({
     where: { id },
     include: { messages: { orderBy: { createdAt: 'asc' } } },
   });
   if (!run) notFound();
+  const visibleMessages = showTrace ? run.messages : run.messages.filter((m) => VISIBLE_KINDS_SIMPLE.has(m.kind));
 
   return (
     <div className="space-y-5 max-w-4xl">
@@ -35,7 +44,10 @@ export default async function AIAgentRunDetail({ params }: { params: Promise<{ i
             <p className="text-xs text-gray-500 mt-2">
               origin <code className="text-orange-500">{run.origin}</code> · {run.steps} steps · status{' '}
               <span className={
-                run.status === 'done' ? 'text-green-600' : run.status === 'running' ? 'text-yellow-600' : 'text-red-600'
+                run.status === 'done' ? 'text-green-600'
+                  : run.status === 'running' ? 'text-yellow-600'
+                  : run.status === 'awaiting-confirmation' ? 'text-amber-600'
+                  : 'text-red-600'
               }>{run.status}</span>
             </p>
             {run.summary && <p className="text-sm text-gray-700 mt-2 bg-gray-50 p-2 rounded">{run.summary}</p>}
@@ -43,9 +55,22 @@ export default async function AIAgentRunDetail({ params }: { params: Promise<{ i
         </div>
       </div>
 
-      <h2 className="text-lg font-semibold text-gray-800">Conversation trace</h2>
+      {run.status === 'awaiting-confirmation' && (() => {
+        const pending = [...run.messages].reverse().find((m) => m.kind === 'confirm-request');
+        return pending ? <ConfirmActions runId={run.id} question={pending.content} /> : null;
+      })()}
+
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-gray-800">{showTrace ? 'Conversation trace' : 'Answer'}</h2>
+        <Link
+          href={`/dashboard/ai-agents/${run.id}${showTrace ? '' : '?trace=1'}`}
+          className="text-xs text-gray-400 hover:text-gray-600 underline"
+        >
+          {showTrace ? 'Hide process — show just the answer' : 'Show full agent process'}
+        </Link>
+      </div>
       <div className="space-y-2">
-        {run.messages.map((m) => (
+        {visibleMessages.map((m) => (
           <div key={m.id} className={`rounded-lg border px-4 py-2.5 ${KIND_COLOR[m.kind] || 'bg-white border-gray-200'}`}>
             <p className="text-[10px] uppercase tracking-wide font-semibold mb-1 text-gray-500">
               {m.agent} · {m.kind} · {new Date(m.createdAt).toLocaleTimeString()}
