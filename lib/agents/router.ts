@@ -70,6 +70,7 @@ ALWAYS populate analystHint.filters whenever the prompt names a person, a date (
 Additional routing guidance:
 - Booking status changes, balance-due follow-up, "is this booking ready to travel" → "booking-coordinator".
 - Voucher DRAFTING or SENDING (not just reading/looking up existing vouchers) → "voucher-clerk".
+- IMPORTANT: "give me X's vouchers", "show/list/find vouchers", "what vouchers does X have" are ALL read/lookup requests → "analyst", NOT "voucher-clerk", regardless of singular or plural wording. Only route to "voucher-clerk" when the user explicitly wants to CREATE a new voucher ("draft a voucher for booking Y") or SEND/EMAIL an existing one ("send/email the voucher to the client"). If in doubt between reading and drafting, prefer "analyst" — it's non-destructive.
 - Wheelchair / accessibility / hydraulic-lift vehicle checks → "accessibility".
 - Dormant accounts, suspicious logins, user account review → "user-steward".
 - Hotel/room RATES lookups (existing contract data, possibly for a specific date) → "analyst" with entity="srHotel".
@@ -172,16 +173,18 @@ Return JSON only.`;
     // Fallback: never block the user. Use the default panel selection,
     // prepend analyst if it looks like a question, otherwise check a few
     // obvious keyword routes before giving up to the default panel selection.
-    const looksLikeQuestion = /(how many|how much|total|count|sum|average|avg|most|least|which|when|where|who|show|list|give me|find)/i.test(prompt);
+    const looksLikeQuestion = /(how many|how much|total|count|sum|average|avg|most|least|which|when|where|who|show|list|give me|find|what)/i.test(prompt);
     const looksLikeAccessibility = /wheelchair|accessib|hydraulic.*lift|mobility/i.test(prompt);
-    const looksLikeVoucher = /voucher|send.*(email|confirmation|reminder)/i.test(prompt);
+    // Only "voucher-clerk" for actual drafting/sending — NOT for "give me/show/list
+    // vouchers" style lookups, which should fall through to analyst below.
+    const looksLikeVoucherAction = /(draft|create|issue|generate|send|email).{0,20}voucher|voucher.{0,20}(send|email)/i.test(prompt);
     const looksLikeBooking = /balance due|overdue|cancel booking|complete booking|upcoming trip/i.test(prompt);
     const looksLikeUserOps = /dormant|inactive user|suspicious login|deactivat/i.test(prompt);
 
     let fallbackAgents: AgentName[] = defaultAgents.length ? defaultAgents : ['analyst'];
     let fallbackIntent: RouterIntent = looksLikeQuestion ? 'answer' : 'draft';
     if (looksLikeAccessibility) { fallbackAgents = ['accessibility']; fallbackIntent = 'verify'; }
-    else if (looksLikeVoucher) { fallbackAgents = ['voucher-clerk']; fallbackIntent = 'draft'; }
+    else if (looksLikeVoucherAction) { fallbackAgents = ['voucher-clerk']; fallbackIntent = 'draft'; }
     else if (looksLikeBooking) { fallbackAgents = ['booking-coordinator']; fallbackIntent = 'verify'; }
     else if (looksLikeUserOps) { fallbackAgents = ['user-steward']; fallbackIntent = 'verify'; }
     else if (looksLikeQuestion) { fallbackAgents = ['analyst']; }

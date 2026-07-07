@@ -89,7 +89,7 @@ export const AGENT_PERMISSIONS: Record<AgentName, AgentPermissions> = {
     title: 'Voucher & Guest Communications Clerk', department: 'Guest Services', reportsTo: 'orchestrator',
     canRead: ['booking', 'client', 'property', 'vehicle', 'voucher'],
     canWrite: ['voucher (draft)'], canDelete: false,
-    canNotify: true, canRequestAgent: ['accessibility', 'booking-coordinator'],
+    canNotify: true, canRequestAgent: ['accessibility', 'booking-coordinator', 'analyst'],
     requiresConfirmationFor: ['send-email'],
   },
   accessibility: {

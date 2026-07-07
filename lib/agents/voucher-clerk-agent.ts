@@ -36,7 +36,16 @@ export const voucherClerkAgent: Agent = {
     }
 
     if (!bookingId) {
-      return { ok: false, summary: 'No bookingId or voucherId in context — nothing to draft.' };
+      // Defense-in-depth: if this agent gets a prompt like "give me nikhil's
+      // vouchers" — a read/lookup request, not a draft/send request — with
+      // no bookingId/voucherId in context, it was very likely misrouted.
+      // Recover by handing it to the analyst instead of just failing.
+      const looksLikeAction = /(draft|create|issue|generate|send|email).{0,20}voucher|voucher.{0,20}(send|email)/i.test(ctx.prompt);
+      if (!looksLikeAction) {
+        await ctx.log({ agent: 'voucher-clerk', kind: 'tool', content: 'No booking/voucher in context and prompt looks like a lookup, not a draft/send request — handing off to analyst.' });
+        return ctx.requestAgent('analyst', ctx.prompt, ctx.context);
+      }
+      return { ok: false, summary: 'No bookingId or voucherId in context — nothing to draft. Tell me which booking, or ask the analyst to look one up first.' };
     }
 
     const booking = await prisma.booking.findUnique({
