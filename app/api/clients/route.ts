@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@/src/generated/prisma/client';
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -11,8 +12,9 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get('q') || '';
 
+  const icontains = { contains: q, mode: Prisma.QueryMode.insensitive } as const;
   const clients = await prisma.client.findMany({
-    where: q ? { OR: [{ name: { contains: q } }, { email: { contains: q } }] } : undefined,
+    where: q ? { OR: [{ name: icontains }, { email: icontains }, { phone: icontains }] } : undefined,
     orderBy: { name: 'asc' },
     include: { _count: { select: { bookings: true } } },
   });

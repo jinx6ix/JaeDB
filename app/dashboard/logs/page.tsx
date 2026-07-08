@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
+import SearchInput from '@/components/SearchInput';
 
 interface LogEntry {
   id: string;
@@ -129,9 +130,14 @@ export default function LogsPage() {
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [levelFilter, setLevelFilter] = useState('');
+  const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [autoScroll, setAutoScroll] = useState(true);
   const [connected, setConnected] = useState(false);
   const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
+  // Persist a live-filter of SSE-pushed rows so the dropdown doesn't disappear
+  // every time we hit the API. The text filter is applied to the in-memory list
+  // and to whatever the API returns.
   const bottomRef = useRef<HTMLDivElement>(null);
   const logsScrollRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -140,6 +146,7 @@ export default function LogsPage() {
     try {
       const params = new URLSearchParams();
       if (levelFilter) params.set('level', levelFilter);
+      if (debouncedQuery) params.set('q', debouncedQuery);
       if (reset) params.set('offset', '0');
       params.set('limit', '200');
 
@@ -158,9 +165,15 @@ export default function LogsPage() {
     }
   };
 
+  // Debounce the text query — only re-fetch when the user has paused typing for 250ms.
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedQuery(query), 250);
+    return () => clearTimeout(id);
+  }, [query]);
+
   useEffect(() => {
     fetchLogs(true);
-  }, [levelFilter]);
+  }, [levelFilter, debouncedQuery]);
 
   useEffect(() => {
     const es = new EventSource('/api/logs/stream');
@@ -234,7 +247,13 @@ export default function LogsPage() {
             {errorCount > 0 && <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-medium">{errorCount} errors</span>}
             {warnCount > 0 && <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">{warnCount} warnings</span>}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <SearchInput
+              value={query}
+              onChange={setQuery}
+              placeholder="Search message, email, context…"
+              widthClass="w-72"
+            />
             <select value={levelFilter} onChange={e => { setLevelFilter(e.target.value); setLoading(true); }} className="input text-sm">
               <option value="">All Levels</option>
               <option value="ERROR">ERROR</option>

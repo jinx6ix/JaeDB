@@ -2,6 +2,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import SearchInput from '@/components/SearchInput';
 
 interface County { id: number; name: string; region?: string | null; }
 interface RoomType { id: number; name: string; maxOccupancy: number; }
@@ -225,7 +226,12 @@ export default function HotelsPage() {
       )}
 
       <div className="flex gap-2">
-        <input className="input max-w-sm" value={filter} onChange={e=>setFilter(e.target.value)} placeholder="Filter by name or destination…" />
+        <SearchInput
+          value={filter}
+          onChange={setFilter}
+          placeholder="Filter by name or destination…"
+          widthClass="max-w-sm"
+        />
       </div>
 
       <div className="card p-0 overflow-hidden">

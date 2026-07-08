@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import SearchInput from '@/components/SearchInput';
 
 interface Hotel      { id: number; name: string; county: { name: string }; }
 interface RoomType   { id: number; hotelId: number; name: string; maxOccupancy: number; hotel?: { name: string }; }
@@ -504,16 +505,12 @@ export default function PricesPage() {
       {/* Global search input (filters price table + management cards) */}
       <div className="flex gap-2 items-center">
         <label className="label mb-0">Filter by Hotel:</label>
-        <input
-          type="text"
-          placeholder="Type hotel name..."
-          className="input max-w-sm"
+        <SearchInput
           value={globalHotelSearch}
-          onChange={e => setGlobalHotelSearch(e.target.value)}
+          onChange={setGlobalHotelSearch}
+          placeholder="Type hotel name..."
+          widthClass="max-w-sm"
         />
-        {globalHotelSearch && (
-          <button onClick={() => setGlobalHotelSearch('')} className="text-gray-400 hover:text-gray-600 text-sm">Clear</button>
-        )}
       </div>
 
       {/* Price Table with Third Adult column */}

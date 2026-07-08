@@ -1,7 +1,9 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import SearchInput from '@/components/SearchInput';
+import { useDebouncedValue } from '@/hooks/use-debounce';
 
 interface Voucher {
   id: string; voucherNo: string; type: string; clientName: string;
@@ -20,6 +22,7 @@ const STATUS_OPTS = [
 export default function AmendVoucherPage() {
   const router = useRouter();
   const [query,     setQuery]     = useState('');
+  const debouncedQuery = useDebouncedValue(query, 250);
   const [results,   setResults]   = useState<Voucher[]>([]);
   const [searching, setSearching] = useState(false);
   const [selected,  setSelected]  = useState<Voucher | null>(null);
@@ -28,20 +31,26 @@ export default function AmendVoucherPage() {
   const [done,      setDone]      = useState(false);
   const [error,     setError]     = useState('');
 
-  async function search() {
-    if (!query.trim()) return;
-    setSearching(true); setError(''); setResults([]);
-    try {
-      const res = await fetch(`/api/vouchers?q=${encodeURIComponent(query)}`);
-      const data = await res.json();
-      setResults(Array.isArray(data) ? data : []);
-      if (!data?.length) setError(`No vouchers found for "${query}"`);
-    } catch {
-      setError('Search failed');
-    } finally {
-      setSearching(false);
+  // Auto-search as the user types (debounced).
+  useEffect(() => {
+    const q = debouncedQuery.trim();
+    if (!q) {
+      setResults([]);
+      setError('');
+      return;
     }
-  }
+    setSearching(true);
+    setError('');
+    fetch(`/api/vouchers?q=${encodeURIComponent(q)}`)
+      .then(r => r.json())
+      .then(data => {
+        const arr = Array.isArray(data) ? data : [];
+        setResults(arr);
+        if (arr.length === 0) setError(`No vouchers found for "${q}"`);
+      })
+      .catch(() => setError('Search failed'))
+      .finally(() => setSearching(false));
+  }, [debouncedQuery]);
 
   async function applyStatus() {
     if (!selected) return;
@@ -77,18 +86,13 @@ export default function AmendVoucherPage() {
       {/* Search */}
       <div className="card space-y-4">
         <h2 className="font-semibold text-gray-800">Search Voucher</h2>
-        <div className="flex gap-2">
-          <input
-            className="input flex-1"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && search()}
-            placeholder="Voucher No (e.g. JTE120726F) or client name"
-          />
-          <button onClick={search} disabled={searching} className="btn-primary">
-            {searching ? 'Searching…' : '🔍 Search'}
-          </button>
-        </div>
+        <SearchInput
+          value={query}
+          onChange={setQuery}
+          placeholder="Voucher No (e.g. JTE120726F) or client name"
+          widthClass="w-full"
+        />
+        {searching && <p className="text-xs text-gray-400">Searching…</p>}
 
         {error && !selected && <p className="text-red-500 text-sm">{error}</p>}
 

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { redirect } from 'next/navigation';
 import AgentChatPanel from '@/components/AgentChatPanel';
+import GlobalSearch from '@/components/GlobalSearch';
 
 const nav = [
   { label: 'Dashboard', href: '/dashboard', icon: '⊞', adminOnly: false },
@@ -113,15 +114,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top bar */}
-        <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0">
+        <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-4 flex-shrink-0">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100"
+            className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 flex-shrink-0"
           >
             ☰
           </button>
-          <div className="flex items-center gap-3 text-sm text-gray-500">
-            <span>
+          <GlobalSearch />
+          <div className="flex items-center gap-3 text-sm text-gray-500 flex-shrink-0">
+            <span className="hidden lg:inline">
               {new Date().toLocaleDateString('en-KE', {
                 weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
               })}

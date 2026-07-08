@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import SearchInput from '@/components/SearchInput';
 
 interface Hotel  { id: number; name: string; county: { name: string }; }
 interface Season { id: number; hotelId: number; name: string; startDate: string; endDate: string; hotel: { name: string; county: { name: string } }; }
@@ -212,16 +213,12 @@ export default function SeasonsPage() {
       {/* Search input */}
       <div className="flex gap-2 items-center">
         <label className="label mb-0">Search:</label>
-        <input
-          type="text"
-          placeholder="Hotel or season name..."
-          className="input max-w-sm"
+        <SearchInput
           value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
+          onChange={setSearchTerm}
+          placeholder="Hotel or season name..."
+          widthClass="max-w-sm"
         />
-        {searchTerm && (
-          <button onClick={() => setSearchTerm('')} className="text-gray-400 hover:text-gray-600 text-sm">Clear</button>
-        )}
       </div>
 
       {/* Seasons Table with Edit & Delete buttons */}

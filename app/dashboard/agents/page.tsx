@@ -1,6 +1,7 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import SearchInput from '@/components/SearchInput';
 
 interface Agent {
   id: string; name: string; company?: string; email?: string; phone?: string;
@@ -12,15 +13,25 @@ export default function AgentsPage() {
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(true);
 
-  async function load(query = '') {
+  useEffect(() => {
     setLoading(true);
-    const res = await fetch(`/api/agents?q=${encodeURIComponent(query)}`);
-    const data = await res.json();
-    setAgents(Array.isArray(data) ? data : []);
-    setLoading(false);
-  }
+    fetch(`/api/agents?`)
+      .then(r => r.json())
+      .then(d => { setAgents(Array.isArray(d) ? d : []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
 
-  useEffect(() => { load(); }, []);
+  // Auto-update as the user types — no submit button required.
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    if (!needle) return agents;
+    return agents.filter(a =>
+      a.name?.toLowerCase().includes(needle) ||
+      (a.company || '').toLowerCase().includes(needle) ||
+      (a.email || '').toLowerCase().includes(needle) ||
+      (a.phone || '').toLowerCase().includes(needle)
+    );
+  }, [agents, q]);
 
   return (
     <div className="space-y-5">
@@ -32,14 +43,11 @@ export default function AgentsPage() {
         <Link href="/dashboard/agents/new" className="btn-primary">+ New Agent</Link>
       </div>
 
-      <div className="flex gap-3">
-        <input
-          value={q} onChange={e => setQ(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && load(q)}
-          className="input max-w-xs" placeholder="Search agents…"
-        />
-        <button onClick={() => load(q)} className="btn-secondary">Search</button>
-      </div>
+      <SearchInput
+        value={q}
+        onChange={setQ}
+        placeholder="Search by name, company, email, phone…"
+      />
 
       <div className="card p-0 overflow-hidden">
         <table className="w-full text-sm">
@@ -54,10 +62,10 @@ export default function AgentsPage() {
             {loading && (
               <tr><td colSpan={6} className="text-center py-10 text-gray-400">Loading…</td></tr>
             )}
-            {!loading && agents.length === 0 && (
-              <tr><td colSpan={6} className="text-center py-10 text-gray-400">No agents yet.</td></tr>
+            {!loading && filtered.length === 0 && (
+              <tr><td colSpan={6} className="text-center py-10 text-gray-400">{q ? `No agents match "${q}".` : 'No agents yet.'}</td></tr>
             )}
-            {agents.map(a => (
+            {filtered.map(a => (
               <tr key={a.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3">
                   <p className="font-medium text-gray-800">{a.name}</p>

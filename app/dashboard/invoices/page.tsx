@@ -1,6 +1,7 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import SearchInput from '@/components/SearchInput';
 
 interface Invoice {
   id: string; invoiceNo: string; billTo: string; currency: string;
@@ -31,13 +32,20 @@ export default function InvoicesPage() {
     });
   }, []);
 
-  const filtered = invoices.filter(inv =>
-    (!statusFilter || inv.status === statusFilter) &&
-    (!q || inv.invoiceNo.toLowerCase().includes(q.toLowerCase()) ||
-      inv.billTo.toLowerCase().includes(q.toLowerCase()) ||
-      inv.booking?.client?.name.toLowerCase().includes(q.toLowerCase()) ||
-      inv.booking?.bookingRef.toLowerCase().includes(q.toLowerCase()))
-  );
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return invoices.filter(inv => {
+      const hasStatus = !statusFilter || inv.status === statusFilter;
+      if (!hasStatus) return false;
+      if (!needle) return true;
+      return (
+        inv.invoiceNo.toLowerCase().includes(needle) ||
+        inv.billTo.toLowerCase().includes(needle) ||
+        inv.booking?.client?.name.toLowerCase().includes(needle) ||
+        inv.booking?.bookingRef.toLowerCase().includes(needle)
+      );
+    });
+  }, [invoices, q, statusFilter]);
 
   const totalOutstanding = invoices
     .filter(i => i.status !== 'PAID' && i.status !== 'CANCELLED')
@@ -69,12 +77,20 @@ export default function InvoicesPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3 flex-wrap">
-        <input value={q} onChange={e => setQ(e.target.value)} className="input max-w-xs" placeholder="Search invoice no, client, booking…" />
+      <div className="flex gap-3 flex-wrap items-center">
+        <SearchInput
+          value={q}
+          onChange={setQ}
+          placeholder="Search invoice no, client, booking…"
+        />
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="input w-40">
           <option value="">All statuses</option>
           {['DRAFT','SENT','PARTIAL','PAID','OVERDUE','CANCELLED'].map(s => <option key={s} value={s}>{s}</option>)}
         </select>
+        <span className="text-xs text-gray-500">
+          {filtered.length} of {invoices.length} match
+          {totalOutstanding > 0 && ` · ${invoices[0]?.currency || 'USD'} ${totalOutstanding.toLocaleString(undefined, { minimumFractionDigits: 2 })} outstanding`}
+        </span>
       </div>
 
       <div className="card p-0 overflow-hidden">

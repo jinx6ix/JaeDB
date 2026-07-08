@@ -10,10 +10,18 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const level = searchParams.get('level');
+  const q = (searchParams.get('q') || '').trim();
   const limit = Math.min(parseInt(searchParams.get('limit') || '100'), 500);
   const offset = parseInt(searchParams.get('offset') || '0');
 
-  const where = level ? { level } : {};
+  const where: any = level ? { level } : {};
+  if (q) {
+    where.OR = [
+      { message: { contains: q, mode: 'insensitive' } },
+      { userEmail: { contains: q, mode: 'insensitive' } },
+      { context: { contains: q, mode: 'insensitive' } },
+    ];
+  }
 
   const [logs, total] = await Promise.all([
     prisma.log.findMany({
