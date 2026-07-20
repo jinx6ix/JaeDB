@@ -17,7 +17,18 @@ const STATUS_COLORS: Record<string, string> = {
   PAID:     'bg-green-100 text-green-700',
   OVERDUE:  'bg-red-100 text-red-700',
   CANCELLED:'bg-gray-100 text-gray-400',
+  NONE:     'bg-transparent text-transparent',
 };
+
+const STATUS_OPTIONS = [
+  { value: 'DRAFT',     label: 'DRAFT' },
+  { value: 'SENT',      label: 'SENT' },
+  { value: 'PARTIAL',   label: 'PARTIAL' },
+  { value: 'PAID',      label: 'PAID' },
+  { value: 'OVERDUE',    label: 'OVERDUE' },
+  { value: 'CANCELLED',  label: 'CANCELLED' },
+  { value: 'NONE',      label: "None — don't display" },
+];
 
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -85,7 +96,7 @@ export default function InvoicesPage() {
         />
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="input w-40">
           <option value="">All statuses</option>
-          {['DRAFT','SENT','PARTIAL','PAID','OVERDUE','CANCELLED'].map(s => <option key={s} value={s}>{s}</option>)}
+          {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
         <span className="text-xs text-gray-500">
           {filtered.length} of {invoices.length} match
@@ -109,7 +120,7 @@ export default function InvoicesPage() {
             )}
             {filtered.map(inv => {
               const balance = inv.totalAmount - inv.amountPaid;
-              const isOverdue = inv.status !== 'PAID' && inv.status !== 'CANCELLED' && new Date(inv.dueDate) < new Date();
+              const isOverdue = inv.status !== 'PAID' && inv.status !== 'CANCELLED' && inv.status !== 'NONE' && new Date(inv.dueDate) < new Date();
               return (
                 <tr key={inv.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-mono text-xs font-bold text-gray-800">{inv.invoiceNo}</td>
@@ -126,7 +137,11 @@ export default function InvoicesPage() {
                     {balance > 0 ? `${inv.currency} ${balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '✓ Paid'}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_COLORS[inv.status] || 'bg-gray-100 text-gray-600'}`}>{inv.status}</span>
+                    {inv.status && inv.status !== 'NONE' ? (
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_COLORS[inv.status] || 'bg-gray-100 text-gray-600'}`}>{inv.status}</span>
+                    ) : (
+                      <span className="text-gray-300 text-xs">—</span>
+                    )}
                   </td>
                   <td className={`px-4 py-3 text-xs ${isOverdue ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
                     {new Date(inv.dueDate).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })}

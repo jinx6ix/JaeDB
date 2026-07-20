@@ -129,7 +129,7 @@ export async function GET(req: NextRequest) {
         label: inv.invoiceNo,
         sublabel: inv.billTo || inv.booking?.client?.name || undefined,
         href: `/dashboard/invoices/${inv.id}`,
-        badge: inv.status,
+        badge: inv.status && inv.status !== 'NONE' ? inv.status : undefined,
       }))),
 
     // Cost Sheets

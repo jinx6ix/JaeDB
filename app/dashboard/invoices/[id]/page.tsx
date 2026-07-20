@@ -11,7 +11,13 @@ const STATUS_COLORS: Record<string, string> = {
   PAID:     'bg-green-100 text-green-700',
   OVERDUE:  'bg-red-100 text-red-700',
   CANCELLED:'bg-gray-100 text-gray-400',
+  NONE:     'bg-transparent text-transparent',
 };
+
+const STATUS_LIST = ['DRAFT','SENT','PARTIAL','PAID','OVERDUE','CANCELLED']
+  .map(s => ({ value: s, label: s }));
+
+STATUS_LIST.push({ value: 'NONE', label: "None — don't display" });
 
 interface DayRow {
   destinationId?: number | null;
@@ -110,7 +116,7 @@ export default function InvoiceDetailPage() {
 
   const fmt2 = (n: number) => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const balanceDue = (invoice.totalAmount || 0) - (invoice.amountPaid || 0);
-  const isOverdue = invoice.status !== 'PAID' && invoice.status !== 'CANCELLED' && new Date(invoice.dueDate) < new Date();
+  const isOverdue = invoice.status !== 'PAID' && invoice.status !== 'CANCELLED' && invoice.status !== 'NONE' && new Date(invoice.dueDate) < new Date();
   const lineItems = (() => { try { return JSON.parse(invoice.lineItems); } catch { return []; } })();
 
   return (
@@ -120,7 +126,9 @@ export default function InvoiceDetailPage() {
         <div className="flex items-center gap-3">
           <Link href="/dashboard/invoices" className="text-gray-400 hover:text-gray-600 text-sm">← Invoices</Link>
           <h1 className="text-2xl font-bold text-gray-900 font-mono">{invoice.invoiceNo}</h1>
-          <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${STATUS_COLORS[invoice.status] || 'bg-gray-100 text-gray-600'}`}>{invoice.status}</span>
+          {invoice.status && invoice.status !== 'NONE' && (
+            <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${STATUS_COLORS[invoice.status] || 'bg-gray-100 text-gray-600'}`}>{invoice.status}</span>
+          )}
           {isOverdue && invoice.status !== 'PAID' && <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-red-100 text-red-600">OVERDUE</span>}
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -137,12 +145,16 @@ export default function InvoiceDetailPage() {
       {/* Status quick-update */}
       <div className="card py-3 flex items-center gap-3 flex-wrap">
         <span className="text-sm font-medium text-gray-700">Update status:</span>
-        {['DRAFT','SENT','PARTIAL','PAID','OVERDUE','CANCELLED'].map(s => (
-          <button key={s} type="button" disabled={updatingStatus || invoice.status === s}
-            onClick={() => updateStatus(s)}
+        {STATUS_LIST.map(s => (
+          <button key={s.value} type="button" disabled={updatingStatus || invoice.status === s.value}
+            onClick={() => updateStatus(s.value)}
             className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all ${
-              invoice.status === s ? (STATUS_COLORS[s] + ' ring-2 ring-offset-1 ring-current') : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-            }`}>{s}</button>
+              invoice.status === s.value
+                ? (s.value === 'NONE'
+                    ? 'bg-gray-200 text-gray-500 ring-2 ring-offset-1 ring-gray-400'
+                    : (STATUS_COLORS[s.value] || 'bg-gray-100 text-gray-600') + ' ring-2 ring-offset-1 ring-current')
+                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            }`}>{s.label}</button>
         ))}
       </div>
 

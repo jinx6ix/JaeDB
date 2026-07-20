@@ -189,7 +189,15 @@ export default function EditInvoicePage() {
             <div>
               <label className="label">Status</label>
               <select className="input" value={status} onChange={e => setStatus(e.target.value)}>
-                {['DRAFT','SENT','PARTIAL','PAID','OVERDUE','CANCELLED'].map(s => <option key={s}>{s}</option>)}
+                {[
+                  { value: 'DRAFT',     label: 'DRAFT' },
+                  { value: 'SENT',      label: 'SENT' },
+                  { value: 'PARTIAL',   label: 'PARTIAL' },
+                  { value: 'PAID',      label: 'PAID' },
+                  { value: 'OVERDUE',    label: 'OVERDUE' },
+                  { value: 'CANCELLED',  label: 'CANCELLED' },
+                  { value: 'NONE',      label: "None — don't display" },
+                ].map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
             </div>
           </div>

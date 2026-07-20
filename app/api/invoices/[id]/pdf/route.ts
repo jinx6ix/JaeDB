@@ -137,8 +137,10 @@ function getStatusStyle(status: string) {
 function InvoicePDF({ invoice }: { invoice: any }) {
   const lineItems = parseLineItems(invoice.lineItems);
   const balanceDue = (invoice.totalAmount || 0) - (invoice.amountPaid || 0);
-  const isOverdue = invoice.status !== 'PAID' && invoice.status !== 'CANCELLED' && new Date(invoice.dueDate) < new Date();
+  const isOverdue = invoice.status !== 'PAID' && invoice.status !== 'CANCELLED' && invoice.status !== 'NONE' && new Date(invoice.dueDate) < new Date();
   const statusStyle = getStatusStyle(invoice.status);
+  // When status === 'NONE', no badge is rendered (the invoice becomes a pure financial document).
+  const hideStatus = !invoice.status || invoice.status === 'NONE';
   const currency = invoice.currency || 'USD';
 
   const hasCostSheet = !!invoice.costSheet;
@@ -350,7 +352,7 @@ function InvoicePDF({ invoice }: { invoice: any }) {
       React.createElement(View, { style: S.hero },
         React.createElement(Text, { style: S.heroTitle }, `INVOICE  ${invoice.invoiceNo}`),
         React.createElement(View, { style: S.heroRight },
-          React.createElement(View, { style: { ...S.statusBadge, ...statusStyle } },
+          !hideStatus && React.createElement(View, { style: { ...S.statusBadge, ...statusStyle } },
             React.createElement(Text, null, invoice.status),
           ),
           isOverdue && React.createElement(View, { style: S.statusOverdue },
