@@ -295,9 +295,9 @@ function InvoicePDF({ invoice }: { invoice: any }) {
   const lineItemEls = lineItems.map((item: any, i: number) =>
     React.createElement(View, { key: i, style: S.tRow },
       React.createElement(Text, { style: [S.tCell, { flex: 3 }] }, item.description || item.name || 'Item'),
-      React.createElement(Text, { style: [S.tCellRight, { flex: 1 }] }, String(item.quantity || 1)),
+      React.createElement(Text, { style: [S.tCellRight, { flex: 1 }] }, String(item.qty ?? item.quantity ?? 1)),
       React.createElement(Text, { style: [S.tCellRight, { flex: 1 }] }, `${currency} ${fmt2(item.unitPrice || 0)}`),
-      React.createElement(Text, { style: [S.tCellRight, { flex: 1 }] }, `${currency} ${fmt2(item.total || item.quantity * item.unitPrice)}`),
+      React.createElement(Text, { style: [S.tCellRight, { flex: 1 }] }, `${currency} ${fmt2(item.total || ((item.qty ?? item.quantity ?? 1) * (item.unitPrice || 0)))}`),
     )
   );
 

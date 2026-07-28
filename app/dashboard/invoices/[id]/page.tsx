@@ -352,9 +352,9 @@ export default function InvoiceDetailPage() {
                 {lineItems.map((item: any, i: number) => (
                   <tr key={i} className="hover:bg-gray-50">
                     <td className="px-3 py-2 text-sm text-gray-800">{item.description || item.name || 'Item'}</td>
-                    <td className="px-3 py-2 text-sm text-gray-600 text-right font-mono">{item.quantity || 1}</td>
+                    <td className="px-3 py-2 text-sm text-gray-600 text-right font-mono">{item.qty ?? item.quantity ?? 1}</td>
                     <td className="px-3 py-2 text-sm text-gray-600 text-right font-mono">{invoice.currency} {fmt2(item.unitPrice || 0)}</td>
-                    <td className="px-3 py-2 text-sm text-gray-800 text-right font-mono font-bold">{invoice.currency} {fmt2(item.total || (item.quantity || 1) * (item.unitPrice || 0))}</td>
+                    <td className="px-3 py-2 text-sm text-gray-800 text-right font-mono font-bold">{invoice.currency} {fmt2(item.total || ((item.qty ?? item.quantity ?? 1) * (item.unitPrice || 0)))}</td>
                   </tr>
                 ))}
               </tbody>
