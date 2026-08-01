@@ -8,7 +8,14 @@ interface Tour { id: string; title: string; durationDays: number; durationNights
 interface RateCard { id: string; season: string; currency: string; basedOn2: number; basedOn4: number; basedOn6: number; basedOn8: number; basedOn10?: number|null; basedOn12?: number|null; markupPercent: number; }
 interface Client { id: string; name: string; agentId?: string|null; agent?: { id: string; name: string; company?: string|null }|null; }
 interface Agent  { id: string; name: string; company?: string|null; }
-interface Booking { id: string; bookingRef: string; clientId: string; client: { name: string }; tourPackageId?: string|null; }
+interface Booking {
+  id: string; bookingRef: string; clientId: string; client: { name: string };
+  tourPackageId?: string|null;
+  startDate?: string | null;
+  endDate?: string | null;
+  numAdults?: number | null;
+  numChildren?: number | null;
+}
 interface Hotel { id: number; name: string; stars?: number|null; county: { id: number; name: string }; }
 interface RoomPrice { id: number; ratePerPersonSharing?: number|null; singleRoomRate?: number|null; childRate?: number|null; thirdAdultRate?: number|null; currency: string; roomType: { id: number; name: string; maxOccupancy: number }; season: { id: number; name: string; startDate: string; endDate: string }; }
 interface Destination { id: number; name: string; }
@@ -82,6 +89,10 @@ export default function RateCalculator({
   const [localHotels, setLocalHotels] = useState<Hotel[]>(initHotels);
   const [localDests, setLocalDests] = useState<Destination[]>(initDests);
   const [localClients, setLocalClients] = useState<Client[]>(clients);
+  // Bookings come from server props as a one-time snapshot. We mirror them in
+  // state and re-fetch on mount / focus so newly-created bookings appear
+  // without forcing the user to reload the page.
+  const [localBookings, setLocalBookings] = useState<Booking[]>(bookings);
 
   // Cost sheet versioning
   const [costSheetsList, setCostSheetsList] = useState<any[]>([]);
@@ -188,14 +199,27 @@ export default function RateCalculator({
   // Auto-fill from booking
   useEffect(() => {
     if (!bookingId) return;
-    const b = bookings.find((b) => b.id === bookingId);
+    const b = localBookings.find((b) => b.id === bookingId);
     if (!b) return;
     setClientId(b.clientId);
     setClientSearch(b.client.name);
     if (b.tourPackageId) setTourId(b.tourPackageId);
     const c = localClients.find((c) => c.id === b.clientId);
     if (c?.agentId) setAgentId(c.agentId);
-  }, [bookingId, bookings, localClients]);
+
+    // Reflect booking details: start date, pax, and day count (from start→end).
+    if (b.startDate) {
+      setStartDate(b.startDate.split('T')[0]);
+    }
+    if (typeof b.numAdults === 'number') setNumAdults(b.numAdults);
+    if (typeof b.numChildren === 'number') setNumChildren(b.numChildren);
+    if (b.startDate && b.endDate) {
+      const ms = new Date(b.endDate).getTime() - new Date(b.startDate).getTime();
+      const days = Math.max(1, Math.round(ms / 86400000) + 1); // inclusive of start day
+      setNumDays(days);
+      setNumNights(Math.max(0, days - 1));
+    }
+  }, [bookingId, localBookings, localClients]);
 
   useEffect(() => {
     if (!clientId) return;
@@ -365,15 +389,31 @@ export default function RateCalculator({
   }, [startDate, boardBasis]);
 
   const refreshData = async () => {
-    const [h, d, c] = await Promise.all([
+    const [h, d, c, b] = await Promise.all([
       fetch('/api/safari-rates/hotels').then(r => r.json()),
       fetch('/api/safari-rates/destinations').then(r => r.json()),
       fetch('/api/clients').then(r => r.json()),
+      fetch('/api/bookings?all=1').then(r => r.json()),
     ]);
     setLocalHotels(Array.isArray(h) ? h : []);
     setLocalDests(Array.isArray(d) ? d : []);
     setLocalClients(Array.isArray(c) ? c : []);
+    setLocalBookings(Array.isArray(b) ? b : []);
   };
+
+  // Refresh on mount and whenever the tab regains focus — so that clients or
+  // bookings created in another tab/page show up here without a manual reload.
+  useEffect(() => {
+    refreshData();
+    const onFocus = () => refreshData();
+    const onVisible = () => { if (document.visibilityState === 'visible') refreshData(); };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, []);
 
   const createClient = async (name: string) => {
     setIsCreatingClient(true);
@@ -456,7 +496,7 @@ export default function RateCalculator({
   const selectedTour = tours.find((t) => t.id === tourId);
   const selectedClientObj = localClients.find((c) => c.id === clientId);
   const selectedAgent = agents.find((a) => a.id === agentId);
-  const selectedBooking = bookings.find((b) => b.id === bookingId);
+  const selectedBooking = localBookings.find((b) => b.id === bookingId);
 
   function buildPayload() {
     const safe = (n: number) => (isNaN(n) ? 0 : n);
@@ -674,7 +714,7 @@ export default function RateCalculator({
               <label className="label text-xs">Booking (optional)</label>
               <select className="input text-sm" value={bookingId} onChange={e => setBookingId(e.target.value)}>
                 <option value="">— Standalone —</option>
-                {(clientId ? bookings.filter(b => b.clientId === clientId) : bookings).map(b => (
+                {(clientId ? localBookings.filter(b => b.clientId === clientId) : localBookings).map(b => (
                   <option key={b.id} value={b.id}>{b.bookingRef} · {b.client.name}</option>
                 ))}
               </select>
