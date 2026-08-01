@@ -31,7 +31,7 @@ export default function RateCardsClient({ rateCards }: { rateCards: RateCardRow[
   }, [rateCards, q]);
 
   return (
-    <div className="card p-0 overflow-hidden">
+    <div className="card p-0 overflow-hidden overflow-x-auto">
       <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-4">
         <h2 className="font-semibold text-gray-800">Rate Cards</h2>
         <SearchInput

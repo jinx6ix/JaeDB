@@ -64,7 +64,7 @@ export default function UsersPage() {
         placeholder="Search by name, email, role…"
       />
 
-      <div className="card p-0 overflow-hidden">
+      <div className="card p-0 overflow-hidden overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
