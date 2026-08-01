@@ -31,6 +31,7 @@ export default function NewRateCardPage() {
       basedOn4: Number(fd.get('basedOn4')),
       basedOn6: Number(fd.get('basedOn6')),
       basedOn8: Number(fd.get('basedOn8')),
+      basedOn9: fd.get('basedOn9') ? Number(fd.get('basedOn9')) : null,
       basedOn10: fd.get('basedOn10') ? Number(fd.get('basedOn10')) : null,
       basedOn12: fd.get('basedOn12') ? Number(fd.get('basedOn12')) : null,
       markupPercent: Number(fd.get('markupPercent')),
@@ -106,7 +107,7 @@ export default function NewRateCardPage() {
           <h2 className="font-semibold text-gray-800">Per-Person Rates (pre-markup)</h2>
           <p className="text-sm text-gray-500">Enter cost per person for each group size. These match your costing sheet "Based on N people" columns.</p>
           <div className="grid grid-cols-3 gap-4">
-            {[2, 4, 6, 8, 10, 12].map((n) => (
+            {[2, 4, 6, 8, 9, 10, 12].map((n) => (
               <div key={n}>
                 <label className="label">Based on {n} People {n <= 8 ? '*' : ''}</label>
                 <input name={`basedOn${n}`} type="number" min={0} required={n <= 8} placeholder={`0`} className="input font-mono" />

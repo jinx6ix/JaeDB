@@ -85,6 +85,9 @@ export default async function TourDetailPage({ params }: { params: Promise<{ id:
                       <div className="text-center"><p className="text-gray-400">4px</p><p className="font-mono font-medium">{rc.basedOn4}</p></div>
                       <div className="text-center"><p className="text-gray-400">6px</p><p className="font-mono font-medium">{rc.basedOn6}</p></div>
                       <div className="text-center"><p className="text-gray-400">8px</p><p className="font-mono font-medium">{rc.basedOn8}</p></div>
+                      {rc.basedOn9 != null && <div className="text-center"><p className="text-gray-400">9px</p><p className="font-mono font-medium">{rc.basedOn9}</p></div>}
+                      {rc.basedOn10 != null && <div className="text-center"><p className="text-gray-400">10px</p><p className="font-mono font-medium">{rc.basedOn10}</p></div>}
+                      {rc.basedOn12 != null && <div className="text-center"><p className="text-gray-400">12px</p><p className="font-mono font-medium">{rc.basedOn12}</p></div>}
                     </div>
                     <p className="text-xs text-gray-400 mt-1">+{rc.markupPercent}% markup</p>
                   </div>

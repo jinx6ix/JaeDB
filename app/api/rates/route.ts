@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
         basedOn4: Number(body.basedOn4),
         basedOn6: Number(body.basedOn6),
         basedOn8: Number(body.basedOn8),
+        basedOn9: body.basedOn9 ? Number(body.basedOn9) : null,
         basedOn10: body.basedOn10 ? Number(body.basedOn10) : null,
         basedOn12: body.basedOn12 ? Number(body.basedOn12) : null,
         markupPercent: Number(body.markupPercent) || 10,

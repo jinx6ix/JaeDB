@@ -94,6 +94,7 @@ export function getRateForPax(
     basedOn4: number;
     basedOn6: number;
     basedOn8: number;
+    basedOn9?: number | null;
     basedOn10?: number | null;
     basedOn12?: number | null;
     markupPercent: number;
@@ -106,8 +107,14 @@ export function getRateForPax(
   else if (numPax <= 4) baseRate = rateCard.basedOn4;
   else if (numPax <= 6) baseRate = rateCard.basedOn6;
   else if (numPax <= 8) baseRate = rateCard.basedOn8;
-  else if (numPax <= 10 && rateCard.basedOn10) baseRate = rateCard.basedOn10;
-  else if (rateCard.basedOn12) baseRate = rateCard.basedOn12;
+  // 9 pax: use explicit basedOn9 if present, else interpolate 8→10
+  else if (numPax === 9) {
+    if (rateCard.basedOn9 != null) baseRate = rateCard.basedOn9;
+    else if (rateCard.basedOn10 != null) baseRate = rateCard.basedOn8 + (rateCard.basedOn10 - rateCard.basedOn8) / 2;
+    else baseRate = rateCard.basedOn8;
+  }
+  else if (numPax <= 10 && rateCard.basedOn10 != null) baseRate = rateCard.basedOn10;
+  else if (rateCard.basedOn12 != null) baseRate = rateCard.basedOn12;
   else baseRate = rateCard.basedOn8; // fallback to 8-pax rate
 
   // Rate card values are already per-person and include markup
