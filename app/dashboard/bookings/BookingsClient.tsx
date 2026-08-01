@@ -1,6 +1,7 @@
 'use client';
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import SearchInput from '@/components/SearchInput';
 import DeleteBookingButton from '@/components/DeleteBookingButton';
 
@@ -36,6 +37,7 @@ export default function BookingsClient({
   isAdmin: boolean;
   initialStatus?: string;
 }) {
+  const router = useRouter();
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState(initialStatus);
 
@@ -103,7 +105,11 @@ export default function BookingsClient({
               <tr><td colSpan={9} className="text-center text-gray-400 py-10">No bookings found</td></tr>
             )}
             {filtered.map((b) => (
-              <tr key={b.id} className="hover:bg-gray-50">
+              <tr
+                key={b.id}
+                onClick={() => router.push(`/dashboard/bookings/${b.id}`)}
+                className="hover:bg-gray-50 cursor-pointer"
+              >
                 <td className="px-4 py-3 font-mono text-xs text-gray-600">{b.bookingRef}</td>
                 <td className="px-4 py-3 font-medium text-gray-900">{b.client.name}</td>
                 <td className="px-4 py-3 text-gray-600 max-w-xs truncate">{b.tourPackage?.title || 'Custom'}</td>
@@ -117,10 +123,10 @@ export default function BookingsClient({
                   {b.totalAmount ? `${b.currency} ${b.totalAmount.toLocaleString()}` : '—'}
                 </td>
                 <td className="px-4 py-3 text-gray-500 text-xs">{b.assignedTo?.name || '—'}</td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                   <span className={statusColors[b.status]}>{b.status.replace('_', ' ')}</span>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
+                <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                   <Link href={`/dashboard/bookings/${b.id}`} className="text-orange-500 hover:underline text-xs">
                     View
                   </Link>

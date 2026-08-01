@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import SearchInput from '@/components/SearchInput';
 
 interface Invoice {
@@ -31,6 +32,7 @@ const STATUS_OPTIONS = [
 ];
 
 export default function InvoicesPage() {
+  const router = useRouter();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
@@ -118,17 +120,21 @@ export default function InvoicesPage() {
             {!loading && filtered.length === 0 && (
               <tr><td colSpan={10} className="text-center py-10 text-gray-400">No invoices. <Link href="/dashboard/invoices/new" className="text-orange-500 hover:underline">Create one →</Link></td></tr>
             )}
-            {filtered.map(inv => {
+{filtered.map(inv => {
               const balance = inv.totalAmount - inv.amountPaid;
               const isOverdue = inv.status !== 'PAID' && inv.status !== 'CANCELLED' && inv.status !== 'NONE' && new Date(inv.dueDate) < new Date();
               return (
-                <tr key={inv.id} className="hover:bg-gray-50">
+                <tr
+                  key={inv.id}
+                  onClick={() => router.push(`/dashboard/invoices/${inv.id}`)}
+                  className="hover:bg-gray-50 cursor-pointer"
+                >
                   <td className="px-4 py-3 font-mono text-xs font-bold text-gray-800">{inv.invoiceNo}</td>
                   <td className="px-4 py-3 text-xs">
-                    <Link href={`/dashboard/clients/${inv.booking?.client?.id}`} className="text-orange-500 hover:underline">{inv.booking?.client?.name || '—'}</Link>
+                    <Link href={`/dashboard/clients/${inv.booking?.client?.id}`} className="text-orange-500 hover:underline" onClick={(e) => e.stopPropagation()}>{inv.booking?.client?.name || '—'}</Link>
                   </td>
                   <td className="px-4 py-3 text-xs">
-                    <Link href={`/dashboard/bookings/${inv.booking?.id || ''}`} className="text-orange-500 hover:underline font-mono">{inv.booking?.bookingRef || '—'}</Link>
+                    <Link href={`/dashboard/bookings/${inv.booking?.id || ''}`} className="text-orange-500 hover:underline font-mono" onClick={(e) => e.stopPropagation()}>{inv.booking?.bookingRef || '—'}</Link>
                   </td>
                   <td className="px-4 py-3 text-xs text-gray-600 max-w-[120px] truncate">{inv.billTo}</td>
                   <td className="px-4 py-3 text-xs font-mono font-bold text-gray-900">{inv.currency} {inv.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
@@ -146,7 +152,7 @@ export default function InvoicesPage() {
                   <td className={`px-4 py-3 text-xs ${isOverdue ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
                     {new Date(inv.dueDate).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex gap-2">
                       <Link href={`/dashboard/invoices/${inv.id}`} className="text-orange-500 hover:underline text-xs">View</Link>
                       <Link href={`/dashboard/invoices/${inv.id}/edit`} className="text-gray-500 hover:underline text-xs">Edit</Link>

@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 // INTERFACES
 // =============================================================================
 interface Tour { id: string; title: string; durationDays: number; durationNights: number; }
-interface RateCard { id: string; season: string; currency: string; basedOn2: number; basedOn4: number; basedOn6: number; basedOn8: number; basedOn10?: number|null; basedOn12?: number|null; markupPercent: number; }
+interface RateCard { id: string; season: string; currency: string; basedOn2: number; basedOn4: number; basedOn6: number; basedOn8: number; basedOn9?: number|null; basedOn10?: number|null; basedOn12?: number|null; markupPercent: number; }
 interface Client { id: string; name: string; agentId?: string|null; agent?: { id: string; name: string; company?: string|null }|null; }
 interface Agent  { id: string; name: string; company?: string|null; }
 interface Booking {
@@ -40,6 +40,8 @@ interface DayRow {
   selectedRateId: number|null;
   availableRates: RoomPrice[];
   ratesLoading: boolean;
+  /** true when the lookup matched a season for this day's date; false when fallback was used. */
+  ratesMatched: boolean;
 }
 
 const BOARD_BASIS = [
@@ -69,6 +71,7 @@ function emptyRow(): DayRow {
     selectedRateId: null,
     availableRates: [],
     ratesLoading: false,
+    ratesMatched: false,
   };
 }
 
@@ -146,7 +149,7 @@ export default function RateCalculator({
 
   // Computed
   const numPax = numAdults + numChildren;
-  const maxDisplayPax = Math.min(numPax, 8);
+  const maxDisplayPax = Math.min(numPax, 12);
   const filteredClients = localClients.filter(c =>
     c.name.toLowerCase().includes(clientSearch.toLowerCase())
   );
@@ -328,14 +331,18 @@ export default function RateCalculator({
   const fetchRates = useCallback(
     async (i: number, hotelId: string, board: string, date?: string) => {
       if (!hotelId) return;
-      updateRow(i, { ratesLoading: true, availableRates: [] });
+      updateRow(i, { ratesLoading: true, availableRates: [], ratesMatched: false });
       try {
         const url = `/api/safari-rates/lookup?hotelId=${hotelId}&boardBasis=${board}${date ? `&date=${date}` : ''}`;
         const res = await fetch(url);
         const data = await res.json();
-        updateRow(i, { ratesLoading: false, availableRates: data.prices || [] });
+        updateRow(i, {
+          ratesLoading: false,
+          availableRates: data.prices || [],
+          ratesMatched: data.matched === true,
+        });
       } catch {
-        updateRow(i, { ratesLoading: false });
+        updateRow(i, { ratesLoading: false, ratesMatched: false });
       }
     },
     []
@@ -812,7 +819,7 @@ export default function RateCalculator({
                             <option key={h.id} value={h.id}>{h.name} · {h.county.name}{h.stars ? ` ${'★'.repeat(h.stars)}` : ''}</option>
                           ))}
                         </select>
-                        {row.ratesLoading && <p className="text-orange-400 text-xs mt-1 flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin"/>Loading rates…</p>}
+{row.ratesLoading && <p className="text-orange-400 text-xs mt-1 flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin"/>Loading rates…</p>}
                         {!row.ratesLoading && row.availableRates.length > 0 && (
                           <select className="input py-1 text-xs w-full mt-1 border-orange-200 bg-orange-50" onChange={e => onRoomPriceSelect(i, e.target.value)} value={row.selectedRateId || ''}>
                             <option value="">↑ Pick rate → auto‑fills totals</option>
@@ -822,6 +829,12 @@ export default function RateCalculator({
                               </option>
                             ))}
                           </select>
+                        )}
+                        {!row.ratesLoading && row.availableRates.length === 0 && row.hotelId && startDate && (
+                          <p className="text-red-400 text-xs mt-1">No rates found for {dayDate}.</p>
+                        )}
+                        {!row.ratesMatched && row.availableRates.length > 0 && startDate && (
+                          <p className="text-yellow-600 text-xs mt-1">⚠ No rate covers {dayDate} — showing <em>all</em> seasons. Verify before saving.</p>
                         )}
                         {!row.hotelId && <input value={row.hotelName} onChange={e => updateRow(i, { hotelName: e.target.value })} className="input py-1 text-xs w-full mt-1" placeholder="Or type manually"/>}
                       </td>

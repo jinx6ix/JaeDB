@@ -2419,6 +2419,7 @@ export const RateCardScalarFieldEnum = {
   basedOn4: 'basedOn4',
   basedOn6: 'basedOn6',
   basedOn8: 'basedOn8',
+  basedOn9: 'basedOn9',
   basedOn10: 'basedOn10',
   basedOn12: 'basedOn12',
   markupPercent: 'markupPercent',

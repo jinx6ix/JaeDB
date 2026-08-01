@@ -1,6 +1,7 @@
 'use client';
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import SearchInput from '@/components/SearchInput';
 
 interface VoucherRow {
@@ -32,6 +33,7 @@ const TYPE_OPTIONS = [
 ] as const;
 
 export default function VouchersClient({ vouchers }: { vouchers: VoucherRow[] }) {
+  const router = useRouter();
   const [query, setQuery] = useState('');
   const [type, setType] = useState<string>('');
 
@@ -117,7 +119,11 @@ export default function VouchersClient({ vouchers }: { vouchers: VoucherRow[] })
                 providerText = v.flightName || '—';
               }
               return (
-                <tr key={v.id} className="hover:bg-gray-50">
+                <tr
+                  key={v.id}
+                  onClick={() => router.push(`/dashboard/vouchers/${v.id}`)}
+                  className="hover:bg-gray-50 cursor-pointer"
+                >
                   <td className="px-4 py-3 font-mono text-xs font-medium">{v.voucherNo}</td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${v.type === 'HOTEL' ? 'bg-blue-100 text-blue-700' : v.type === 'FLIGHT' ? 'bg-sky-100 text-sky-700' : 'bg-green-100 text-green-700'}`}>
@@ -143,7 +149,7 @@ export default function VouchersClient({ vouchers }: { vouchers: VoucherRow[] })
                       {v.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <Link href={`/dashboard/vouchers/${v.id}`} className="text-orange-500 hover:underline text-xs">View / PDF</Link>
                   </td>
                 </tr>

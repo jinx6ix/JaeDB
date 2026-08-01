@@ -81,7 +81,11 @@ export default function UsersPage() {
               <tr><td colSpan={6} className="text-center py-10 text-gray-400">{q ? `No users match "${q}".` : 'No users yet.'}</td></tr>
             )}
             {filtered.map(u => (
-              <tr key={u.id} className="hover:bg-gray-50">
+              <tr
+                key={u.id}
+                onClick={() => router.push(`/dashboard/admin/users/${u.id}/edit`)}
+                className="hover:bg-gray-50 cursor-pointer"
+              >
                 <td className="px-4 py-3 font-medium text-gray-900">
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 bg-orange-100 rounded-full flex items-center justify-center text-orange-700 font-bold text-xs">
@@ -100,7 +104,7 @@ export default function UsersPage() {
                   <span className={u.isActive ? 'badge-confirmed' : 'badge-cancelled'}>{u.isActive ? 'Active' : 'Inactive'}</span>
                 </td>
                 <td className="px-4 py-3 text-gray-500 text-xs">{new Date(u.createdAt).toLocaleDateString('en-KE')}</td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                   <Link href={`/dashboard/admin/users/${u.id}/edit`} className="text-orange-500 hover:underline text-xs">Edit</Link>
                 </td>
               </tr>

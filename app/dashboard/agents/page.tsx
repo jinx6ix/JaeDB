@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import SearchInput from '@/components/SearchInput';
 
 interface Agent {
@@ -9,6 +10,7 @@ interface Agent {
 }
 
 export default function AgentsPage() {
+  const router = useRouter();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(true);
@@ -66,7 +68,11 @@ export default function AgentsPage() {
               <tr><td colSpan={6} className="text-center py-10 text-gray-400">{q ? `No agents match "${q}".` : 'No agents yet.'}</td></tr>
             )}
             {filtered.map(a => (
-              <tr key={a.id} className="hover:bg-gray-50">
+              <tr
+                key={a.id}
+                onClick={() => router.push(`/dashboard/agents/${a.id}/edit`)}
+                className="hover:bg-gray-50 cursor-pointer"
+              >
                 <td className="px-4 py-3">
                   <p className="font-medium text-gray-800">{a.name}</p>
                   {a.company && <p className="text-xs text-gray-500">{a.company}</p>}
@@ -83,7 +89,7 @@ export default function AgentsPage() {
                     {a.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                   <Link href={`/dashboard/agents/${a.id}/edit`} className="text-orange-500 hover:underline text-xs font-medium">Edit</Link>
                 </td>
               </tr>

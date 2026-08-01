@@ -108,6 +108,7 @@ model RateCard {
   basedOn4      Float
   basedOn6      Float
   basedOn8      Float
+  basedOn9      Float?
   basedOn10     Float?
   basedOn12     Float?
   markupPercent Float       @default(10)

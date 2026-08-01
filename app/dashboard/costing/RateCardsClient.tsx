@@ -12,6 +12,9 @@ interface RateCardRow {
   basedOn4: number;
   basedOn6: number;
   basedOn8: number;
+  basedOn9: number | null;
+  basedOn10: number | null;
+  basedOn12: number | null;
   markupPercent: number;
   currency: string;
   tourPackage: { id: string; title: string };
@@ -44,14 +47,14 @@ export default function RateCardsClient({ rateCards }: { rateCards: RateCardRow[
       <table className="w-full text-sm">
         <thead className="bg-gray-50 border-b border-gray-200">
           <tr>
-            {['Tour', 'Season', 'Valid Period', '2 Pax', '4 Pax', '6 Pax', '8 Pax', 'Markup', 'Currency', ''].map(h => (
+            {['Tour', 'Season', 'Valid Period', '2 Pax', '4 Pax', '6 Pax', '8 Pax', '9 Pax', 'Markup', 'Currency', ''].map(h => (
               <th key={h} className="text-left px-4 py-3 font-medium text-gray-600 text-xs">{h}</th>
             ))}
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
           {filtered.length === 0 && (
-            <tr><td colSpan={10} className="text-center text-gray-400 py-8">{q ? `No rate cards match "${q}".` : 'No rate cards yet'}</td></tr>
+            <tr><td colSpan={11} className="text-center text-gray-400 py-8">{q ? `No rate cards match "${q}".` : 'No rate cards yet'}</td></tr>
           )}
           {filtered.map(rc => (
             <tr key={rc.id} className="hover:bg-gray-50">
@@ -69,8 +72,8 @@ export default function RateCardsClient({ rateCards }: { rateCards: RateCardRow[
                 {new Date(rc.validFrom).toLocaleDateString('en-KE', { day: '2-digit', month: 'short' })} –{' '}
                 {new Date(rc.validTo).toLocaleDateString('en-KE', { day: '2-digit', month: 'short', year: 'numeric' })}
               </td>
-              {[rc.basedOn2, rc.basedOn4, rc.basedOn6, rc.basedOn8].map((v, i) => (
-                <td key={i} className="px-4 py-3 text-gray-700 font-mono">{(v as number).toLocaleString()}</td>
+              {[rc.basedOn2, rc.basedOn4, rc.basedOn6, rc.basedOn8, rc.basedOn9].map((v, i) => (
+                <td key={i} className="px-4 py-3 text-gray-700 font-mono">{v != null ? (v as number).toLocaleString() : '—'}</td>
               ))}
               <td className="px-4 py-3 text-gray-600">{rc.markupPercent}%</td>
               <td className="px-4 py-3 text-gray-600">{rc.currency}</td>

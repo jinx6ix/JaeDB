@@ -1,6 +1,7 @@
 'use client';
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import SearchInput from '@/components/SearchInput';
 import DeleteClientButton from '@/components/DeleteClientButton';
 
@@ -21,6 +22,7 @@ export default function ClientsClient({
   clients: ClientRow[];
   isAdmin: boolean;
 }) {
+  const router = useRouter();
   const [query, setQuery] = useState('');
 
   const filtered = useMemo(() => {
@@ -68,7 +70,11 @@ export default function ClientsClient({
               <tr><td colSpan={7} className="text-center text-gray-400 py-10">No clients found</td></tr>
             )}
             {filtered.map((c) => (
-              <tr key={c.id} className="hover:bg-gray-50">
+              <tr
+                key={c.id}
+                onClick={() => router.push(`/dashboard/clients/${c.id}`)}
+                className="hover:bg-gray-50 cursor-pointer"
+              >
                 <td className="px-4 py-3 font-medium text-gray-900">{c.name}</td>
                 <td className="px-4 py-3 text-gray-600">{c.email || '—'}</td>
                 <td className="px-4 py-3 text-gray-600">{c.phone || '—'}</td>
@@ -79,7 +85,7 @@ export default function ClientsClient({
                     : <span className="badge-enquiry">Non-Resident</span>}
                 </td>
                 <td className="px-4 py-3 text-gray-600">{c._count.bookings}</td>
-                <td className="px-4 py-3 whitespace-nowrap">
+                <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                   <div className="flex gap-2 items-center">
                     <Link href={`/dashboard/clients/${c.id}`} className="text-orange-500 hover:underline text-xs">View</Link>
                     <Link href={`/dashboard/clients/${c.id}/edit`} className="text-gray-400 hover:text-gray-600 text-xs">Edit</Link>
