@@ -7,7 +7,8 @@ import { Download, PlusCircle } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
-export default async function RatesPage({ searchParams }: { searchParams: { sheetId?: string } }) {
+export default async function RatesPage({ searchParams }: { searchParams: Promise<{ sheetId?: string }> }) {
+  const { sheetId } = await searchParams;
   const [tours, rateCards, clients, agents, bookings, hotels, destinations, initialCostSheet] = await Promise.all([
     prisma.tourPackage.findMany({ where: { isActive: true }, orderBy: { title: 'asc' } }),
     prisma.rateCard.findMany({ orderBy: { createdAt: 'desc' }, include: { tourPackage: true } }),
@@ -25,9 +26,9 @@ export default async function RatesPage({ searchParams }: { searchParams: { shee
       include: { county: { select: { id: true, name: true } } },
     }),
     prisma.sRCounty.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } }),
-    searchParams.sheetId
+    sheetId
       ? prisma.costSheet.findUnique({
-          where: { id: searchParams.sheetId },
+          where: { id: sheetId },
           include: { client: true, agent: true, booking: { include: { client: true } } },
         })
       : Promise.resolve(null),
