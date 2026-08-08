@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import SearchInput from '@/components/SearchInput';
 import DeleteClientButton from '@/components/DeleteClientButton';
+import { UserPlus, Users } from 'lucide-react';
 
 interface ClientRow {
   id: string;
@@ -37,58 +38,66 @@ export default function ClientsClient({
   }, [clients, query]);
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
+    <div className="space-y-5 animate-fade-in-up">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
-          <p className="text-gray-500 text-sm mt-0.5">
+          <h1 className="page-title">Clients</h1>
+          <p className="page-subtitle">
             {filtered.length} client{filtered.length !== 1 ? 's' : ''}
-            {query ? ` (filtered from ${clients.length})` : ''}
+            {query ? ` of ${clients.length}` : ''}
           </p>
         </div>
-        <Link href="/dashboard/clients/new" className="btn-primary">+ New Client</Link>
+        <Link href="/dashboard/clients/new" className="btn-primary">
+          <UserPlus size={16} /> New Client
+        </Link>
       </div>
 
-      {/* Live search */}
       <SearchInput
         value={query}
         onChange={setQuery}
         placeholder="Search by name, email, phone, nationality…"
+        widthClass="w-full max-w-md"
       />
 
-      <div className="card p-0 overflow-hidden overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
+      {/* Desktop table */}
+      <div className="hidden md:block card p-0 overflow-hidden overflow-x-auto">
+        <table className="data-table">
+          <thead>
             <tr>
-              {['Name', 'Email', 'Phone', 'Nationality', 'Resident', 'Bookings', 'Actions'].map((h) => (
-                <th key={h} className="text-left px-4 py-3 font-medium text-gray-600">{h}</th>
+              {['Name', 'Email', 'Phone', 'Nationality', 'Resident', 'Bookings', ''].map((h) => (
+                <th key={h}>{h}</th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody>
             {filtered.length === 0 && (
-              <tr><td colSpan={7} className="text-center text-gray-400 py-10">No clients found</td></tr>
+              <tr>
+                <td colSpan={7} className="text-center py-12">
+                  <Users size={32} className="text-gray-200 mx-auto mb-2" />
+                  <p className="text-gray-400 text-sm">No clients found</p>
+                </td>
+              </tr>
             )}
             {filtered.map((c) => (
               <tr
                 key={c.id}
                 onClick={() => router.push(`/dashboard/clients/${c.id}`)}
-                className="hover:bg-gray-50 cursor-pointer"
+                className="cursor-pointer"
               >
-                <td className="px-4 py-3 font-medium text-gray-900">{c.name}</td>
-                <td className="px-4 py-3 text-gray-600">{c.email || '—'}</td>
-                <td className="px-4 py-3 text-gray-600">{c.phone || '—'}</td>
-                <td className="px-4 py-3 text-gray-600">{c.nationality || '—'}</td>
-                <td className="px-4 py-3">
+                <td className="font-semibold text-gray-900">{c.name}</td>
+                <td className="text-gray-500">{c.email || '—'}</td>
+                <td className="text-gray-500">{c.phone || '—'}</td>
+                <td className="text-gray-500">{c.nationality || '—'}</td>
+                <td>
                   {c.isResident
                     ? <span className="badge-confirmed">Resident</span>
                     : <span className="badge-enquiry">Non-Resident</span>}
                 </td>
-                <td className="px-4 py-3 text-gray-600">{c._count.bookings}</td>
-                <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex gap-2 items-center">
-                    <Link href={`/dashboard/clients/${c.id}`} className="text-orange-500 hover:underline text-xs">View</Link>
-                    <Link href={`/dashboard/clients/${c.id}/edit`} className="text-gray-400 hover:text-gray-600 text-xs">Edit</Link>
+                <td className="text-gray-600 text-center">{c._count.bookings}</td>
+                <td onClick={(e) => e.stopPropagation()}>
+                  <div className="flex gap-2 items-center justify-end">
+                    <Link href={`/dashboard/clients/${c.id}`} className="text-orange-500 hover:text-orange-600 text-xs font-medium">View</Link>
+                    <Link href={`/dashboard/clients/${c.id}/edit`} className="text-gray-400 hover:text-gray-600 text-xs font-medium">Edit</Link>
                     {isAdmin && <DeleteClientButton clientId={c.id} clientName={c.name} />}
                   </div>
                 </td>
@@ -96,6 +105,44 @@ export default function ClientsClient({
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile cards */}
+      <div className="md:hidden space-y-3">
+        {filtered.length === 0 && (
+          <div className="card text-center py-10">
+            <Users size={32} className="text-gray-200 mx-auto mb-2" />
+            <p className="text-gray-400 text-sm">No clients found</p>
+          </div>
+        )}
+        {filtered.map((c) => (
+          <div
+            key={c.id}
+            onClick={() => router.push(`/dashboard/clients/${c.id}`)}
+            className="card cursor-pointer hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-900">{c.name}</p>
+                {c.email && <p className="text-sm text-gray-500 mt-0.5">{c.email}</p>}
+                {c.phone && <p className="text-sm text-gray-400">{c.phone}</p>}
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  {c.nationality && (
+                    <span className="text-xs text-gray-400 bg-gray-50 px-2 py-0.5 rounded-md">{c.nationality}</span>
+                  )}
+                  <span className={c.isResident ? 'badge-confirmed' : 'badge-enquiry'}>
+                    {c.isResident ? 'Resident' : 'Non-Resident'}
+                  </span>
+                  <span className="text-xs text-gray-400">{c._count.bookings} booking{c._count.bookings !== 1 ? 's' : ''}</span>
+                </div>
+              </div>
+              <div className="flex gap-2 ml-3 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                <Link href={`/dashboard/clients/${c.id}/edit`} className="btn-ghost text-xs py-1.5 px-3">Edit</Link>
+                {isAdmin && <DeleteClientButton clientId={c.id} clientName={c.name} />}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

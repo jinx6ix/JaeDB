@@ -3,6 +3,9 @@ import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import RateCalculator from './RateCalculator';
 import RateCardsClient from './RateCardsClient';
+import { Download, PlusCircle } from 'lucide-react';
+
+export const dynamic = 'force-dynamic';
 
 export default async function RatesPage({ searchParams }: { searchParams: { sheetId?: string } }) {
   const [tours, rateCards, clients, agents, bookings, hotels, destinations, initialCostSheet] = await Promise.all([
@@ -38,8 +41,8 @@ export default async function RatesPage({ searchParams }: { searchParams: { shee
           <p className="text-gray-500 text-sm mt-0.5">Build a linked costing sheet for any client</p>
         </div>
         <div className="flex gap-2">
-          <a href="/api/rate-cards/csv" className="btn-secondary text-sm">⬇ Download CSV</a>
-          <Link href="/dashboard/costing/new" className="btn-primary">+ New Rate Card</Link>
+          <a href="/api/rate-cards/csv" className="btn-secondary"><Download size={14} /> CSV</a>
+          <Link href="/dashboard/costing/new" className="btn-primary"><PlusCircle size={14} /> New Rate Card</Link>
         </div>
       </div>
 

@@ -2,6 +2,7 @@
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import ReportsCharts from './ReportsCharts';
+import { Download, TrendingUp, DollarSign, AlertCircle } from 'lucide-react';
 
 export default async function ReportsPage() {
   const [
@@ -33,7 +34,6 @@ export default async function ReportsPage() {
   const totalPaid    = revenueData._sum.paidAmount  || 0;
   const outstanding  = totalRevenue - totalPaid;
 
-  // Build monthly revenue for chart
   const monthly: Record<string,number> = {};
   monthlyBookings.forEach(b => {
     const key = new Date(b.createdAt).toLocaleDateString('en-KE',{month:'short',year:'2-digit'});
@@ -42,36 +42,71 @@ export default async function ReportsPage() {
 
   const statusColors: Record<string,string> = {
     ENQUIRY:'badge-enquiry', QUOTED:'badge-quoted', CONFIRMED:'badge-confirmed',
-    IN_PROGRESS:'bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full text-xs font-medium',
+    IN_PROGRESS:'badge-inprogress',
     COMPLETED:'badge-completed', CANCELLED:'badge-cancelled',
   };
 
+  const kpis = [
+    {
+      label: 'Total Revenue',
+      value: `USD ${totalRevenue.toLocaleString(undefined,{minimumFractionDigits:0})}`,
+      sub: 'all confirmed bookings',
+      Icon: DollarSign,
+      iconBg: 'bg-gray-50',
+      iconColor: 'text-gray-600',
+      valueColor: 'text-gray-900',
+    },
+    {
+      label: 'Collected',
+      value: `USD ${totalPaid.toLocaleString(undefined,{minimumFractionDigits:0})}`,
+      sub: `${totalRevenue>0?Math.round((totalPaid/totalRevenue)*100):0}% of total`,
+      Icon: TrendingUp,
+      iconBg: 'bg-emerald-50',
+      iconColor: 'text-emerald-600',
+      valueColor: 'text-emerald-700',
+    },
+    {
+      label: 'Outstanding',
+      value: `USD ${outstanding.toLocaleString(undefined,{minimumFractionDigits:0})}`,
+      sub: 'balance due',
+      Icon: AlertCircle,
+      iconBg: 'bg-red-50',
+      iconColor: 'text-red-500',
+      valueColor: 'text-red-600',
+    },
+  ];
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 animate-fade-in-up">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Reports & Analytics</h1>
-          <p className="text-gray-500 text-sm">Business overview — all time</p>
+          <h1 className="page-title">Reports & Analytics</h1>
+          <p className="page-subtitle">Business overview — all time</p>
         </div>
-        <Link href="/api/reports/export" className="btn-secondary">⬇ Export CSV</Link>
+        <Link href="/api/reports/export" className="btn-secondary">
+          <Download size={14} /> Export CSV
+        </Link>
       </div>
 
       {/* Revenue KPIs */}
-      <div className="grid grid-cols-3 gap-4">
-        {[
-          { label:'Total Revenue', value:`USD ${totalRevenue.toLocaleString(undefined,{minimumFractionDigits:0})}`, sub:'all confirmed bookings', color:'text-gray-900' },
-          { label:'Collected', value:`USD ${totalPaid.toLocaleString(undefined,{minimumFractionDigits:0})}`, sub:`${totalRevenue>0?Math.round((totalPaid/totalRevenue)*100):0}% of total`, color:'text-green-700' },
-          { label:'Outstanding', value:`USD ${outstanding.toLocaleString(undefined,{minimumFractionDigits:0})}`, sub:'balance due', color:'text-red-600' },
-        ].map(k=>(
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {kpis.map(k=>(
           <div key={k.label} className="card">
-            <p className="text-sm text-gray-500">{k.label}</p>
-            <p className={`text-2xl font-bold mt-1 ${k.color}`}>{k.value}</p>
-            <p className="text-xs text-gray-400 mt-1">{k.sub}</p>
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-500">{k.label}</p>
+                <p className={`text-2xl font-bold mt-1.5 ${k.valueColor}`}>{k.value}</p>
+                <p className="text-xs text-gray-400 mt-1">{k.sub}</p>
+              </div>
+              <div className={`p-2.5 rounded-xl ${k.iconBg} flex-shrink-0`}>
+                <k.Icon size={18} className={k.iconColor} strokeWidth={1.8} />
+              </div>
+            </div>
           </div>
         ))}
       </div>
 
-      {/* Charts — client component */}
+      {/* Charts */}
       <ReportsCharts
         bookingsByStatus={bookingsByStatus as any[]}
         topTours={topTours.map(t=>({ label: tourMap[t.tourPackageId!]||'Unknown', count: t._count }))}
@@ -81,21 +116,25 @@ export default async function ReportsPage() {
         totalPaid={totalPaid}
       />
 
-      {/* Upcoming */}
+      {/* Upcoming trips */}
       <div className="card">
-        <h2 className="font-semibold text-gray-800 mb-4">Upcoming Trips (30 days)</h2>
+        <h2 className="font-semibold text-gray-800 text-sm mb-4">Upcoming Trips (next 30 days)</h2>
         {upcomingBookings.length===0 ? (
-          <p className="text-gray-400 text-sm">No upcoming confirmed trips</p>
+          <p className="text-gray-400 text-sm py-4 text-center">No upcoming confirmed trips</p>
         ) : (
           <div className="space-y-2">
             {upcomingBookings.map(b=>(
-              <Link key={b.id} href={`/dashboard/bookings/${b.id}`} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors">
+              <Link key={b.id} href={`/dashboard/bookings/${b.id}`}
+                className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100"
+              >
                 <div>
-                  <p className="text-sm font-medium text-gray-800">{b.client.name}</p>
-                  <p className="text-xs text-gray-500">{b.tourPackage?.title||'Custom'}</p>
+                  <p className="text-sm font-semibold text-gray-800">{b.client.name}</p>
+                  <p className="text-xs text-gray-400">{b.tourPackage?.title||'Custom'}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs font-medium text-orange-600">{new Date(b.startDate).toLocaleDateString('en-KE',{day:'numeric',month:'short'})}</p>
+                  <p className="text-xs font-semibold text-orange-600">
+                    {new Date(b.startDate).toLocaleDateString('en-KE',{day:'numeric',month:'short'})}
+                  </p>
                   <p className="text-xs text-gray-400">{b.numAdults} pax</p>
                 </div>
               </Link>
@@ -106,36 +145,44 @@ export default async function ReportsPage() {
 
       {/* Revenue table */}
       <div className="card p-0 overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="font-semibold text-gray-800">Revenue by Booking</h2>
+        <div className="px-5 py-4 border-b border-gray-100">
+          <h2 className="font-semibold text-gray-800 text-sm">Revenue by Booking</h2>
         </div>
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              {['Booking Ref','Client','Tour','Start Date','Pax','Total','Paid','Balance'].map(h=>(
-                <th key={h} className="text-left px-4 py-3 font-medium text-gray-600 text-xs">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {recentBookings.length===0&&<tr><td colSpan={8} className="text-center text-gray-400 py-8">No data</td></tr>}
-            {recentBookings.map(b=>{
-              const bal=(b.totalAmount||0)-b.paidAmount;
-              return (
-                <tr key={b.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-2.5 font-mono text-xs">{b.bookingRef}</td>
-                  <td className="px-4 py-2.5">{b.client.name}</td>
-                  <td className="px-4 py-2.5 text-gray-500 text-xs max-w-xs truncate">{b.tourPackage?.title||'Custom'}</td>
-                  <td className="px-4 py-2.5 text-gray-500 text-xs">{new Date(b.startDate).toLocaleDateString('en-KE')}</td>
-                  <td className="px-4 py-2.5">{b.numAdults}</td>
-                  <td className="px-4 py-2.5 font-mono text-xs">{b.currency} {(b.totalAmount||0).toLocaleString()}</td>
-                  <td className="px-4 py-2.5 font-mono text-xs text-green-700">{b.currency} {b.paidAmount.toLocaleString()}</td>
-                  <td className={`px-4 py-2.5 font-mono text-xs font-bold ${bal>0?'text-red-600':'text-gray-400'}`}>{b.currency} {bal.toLocaleString()}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <div className="overflow-x-auto">
+          <table className="data-table">
+            <thead>
+              <tr>
+                {['Booking Ref','Client','Tour','Start Date','Pax','Total','Paid','Balance'].map(h=>(
+                  <th key={h}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {recentBookings.length===0 && (
+                <tr><td colSpan={8} className="text-center py-8 text-gray-400">No data</td></tr>
+              )}
+              {recentBookings.map(b=>{
+                const bal=(b.totalAmount||0)-b.paidAmount;
+                return (
+                  <tr key={b.id}>
+                    <td className="font-mono text-xs font-semibold">{b.bookingRef}</td>
+                    <td className="font-medium text-gray-800 text-xs">{b.client.name}</td>
+                    <td className="text-gray-400 text-xs max-w-[140px]">
+                      <span className="truncate block">{b.tourPackage?.title||'Custom'}</span>
+                    </td>
+                    <td className="text-gray-400 text-xs">{new Date(b.startDate).toLocaleDateString('en-KE')}</td>
+                    <td className="text-gray-600 text-xs text-center">{b.numAdults}</td>
+                    <td className="font-mono text-xs font-semibold text-gray-800">{b.currency} {(b.totalAmount||0).toLocaleString()}</td>
+                    <td className="font-mono text-xs text-emerald-600">{b.currency} {b.paidAmount.toLocaleString()}</td>
+                    <td className={`font-mono text-xs font-bold ${bal>0?'text-red-500':'text-gray-400'}`}>
+                      {b.currency} {bal.toLocaleString()}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

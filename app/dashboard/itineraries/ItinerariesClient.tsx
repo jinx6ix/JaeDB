@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import SearchInput from '@/components/SearchInput';
 import DeleteItineraryButton from '@/components/DeleteItineraryButton';
+import { Map, Globe, PlusCircle, Link2 } from 'lucide-react';
 
 interface ItineraryRow {
   id: string;
@@ -33,57 +34,79 @@ export default function ItinerariesClient({ itineraries }: { itineraries: Itiner
   }, [itineraries, query]);
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
+    <div className="space-y-5 animate-fade-in-up">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Itineraries</h1>
-          <p className="text-gray-500 text-sm mt-0.5">
+          <h1 className="page-title">Itineraries</h1>
+          <p className="page-subtitle">
             {filtered.length} itinerar{filtered.length !== 1 ? 'ies' : 'y'}
-            {query ? ` (filtered from ${itineraries.length})` : ''}
+            {query ? ` of ${itineraries.length}` : ''}
           </p>
         </div>
         <div className="flex gap-2">
-          <Link href="/dashboard/itineraries/from-source" className="btn-secondary text-sm">🌐 From Source</Link>
-          <Link href="/dashboard/itineraries/new" className="btn-primary text-sm">+ Generate Itinerary</Link>
+          <Link href="/dashboard/itineraries/from-source" className="btn-secondary">
+            <Globe size={14} /> From Source
+          </Link>
+          <Link href="/dashboard/itineraries/new" className="btn-primary">
+            <PlusCircle size={14} /> Generate Itinerary
+          </Link>
         </div>
       </div>
 
       <SearchInput
         value={query}
         onChange={setQuery}
-        placeholder="Search title, booking ref, client name, destination…"
+        placeholder="Search title, booking ref, client, destination…"
+        widthClass="w-full max-w-md"
       />
 
       <div className="grid gap-4">
         {filtered.length === 0 && (
-          <div className="card text-center py-12 text-gray-400">
-            <p className="text-4xl mb-3">🗺️</p>
-            <p>{query ? `No itineraries match "${query}".` : 'No itineraries yet. Create one from a booking.'}</p>
+          <div className="card text-center py-14">
+            <Map size={36} className="text-gray-200 mx-auto mb-3" strokeWidth={1.5} />
+            <p className="text-gray-500 font-medium text-sm">
+              {query ? `No itineraries match "${query}"` : 'No itineraries yet'}
+            </p>
+            {!query && (
+              <p className="text-gray-400 text-xs mt-1">Create one from a booking or generate it with AI</p>
+            )}
           </div>
         )}
         {filtered.map(it => (
-          <div key={it.id} className="card hover:shadow-md transition-shadow">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-2">
+          <div key={it.id} className="card hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="font-semibold text-gray-900">{it.title}</h3>
                   {it.booking ? (
-                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Linked</span>
+                    <span className="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-600 ring-1 ring-blue-200/60 px-2 py-0.5 rounded-full font-medium">
+                      <Link2 size={10} /> Linked
+                    </span>
                   ) : (
-                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">Standalone</span>
+                    <span className="text-xs bg-gray-50 text-gray-500 ring-1 ring-gray-200/60 px-2 py-0.5 rounded-full font-medium">
+                      Standalone
+                    </span>
+                  )}
+                  {it._count.embeds > 0 && (
+                    <span className="inline-flex items-center gap-1 text-xs bg-violet-50 text-violet-600 ring-1 ring-violet-200/60 px-2 py-0.5 rounded-full font-medium">
+                      <Link2 size={10} /> {it._count.embeds} embed{it._count.embeds !== 1 ? 's' : ''}
+                    </span>
                   )}
                 </div>
-                <p className="text-sm text-gray-500 mt-0.5">
-                  {it.booking ? `${it.booking.bookingRef} · ${it.booking.client?.name}` : 'Not linked to a booking'}
-                </p>
+                {it.booking && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    {it.booking.bookingRef} · {it.booking.client?.name}
+                  </p>
+                )}
                 <p className="text-xs text-gray-400 mt-1">
                   {it._count.days} day{it._count.days !== 1 ? 's' : ''}
-                  {it.days[0] && ` · Starts: ${it.days[0].destination}`}
-                  {it._count.embeds > 0 && <span className="ml-2 inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">🔗 {it._count.embeds} embed</span>}
+                  {it.days[0] && ` · Starts in ${it.days[0].destination}`}
                 </p>
               </div>
-              <div className="flex gap-2">
-                <Link href={`/dashboard/itineraries/${it.id}`} className="btn-secondary text-sm">View</Link>
+              <div className="flex gap-2 flex-shrink-0">
+                <Link href={`/dashboard/itineraries/${it.id}`} className="btn-secondary text-xs py-1.5 px-3">
+                  View
+                </Link>
                 <DeleteItineraryButton id={it.id} title={it.title} />
               </div>
             </div>
