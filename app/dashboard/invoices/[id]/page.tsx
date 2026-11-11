@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { clientPropertyFilename } from '@/lib/filename';
 
 const STATUS_COLORS: Record<string, string> = {
   DRAFT:    'bg-gray-100 text-gray-600',
@@ -100,7 +101,9 @@ export default function InvoiceDetailPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Invoice_${invoice?.invoiceNo}.pdf`;
+      const clientName = invoice.client?.name || invoice.booking?.client?.name || invoice.billTo || '';
+      const propertyName = invoice.costSheet?.tourTitle || invoice.booking?.tourPackage?.title || '';
+      a.download = clientPropertyFilename(clientName, propertyName || '', '.pdf') || `invoice_${invoice?.invoiceNo}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {

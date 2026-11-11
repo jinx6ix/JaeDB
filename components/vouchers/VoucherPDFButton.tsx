@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import HotelVoucherPDF from './HotelVoucherPDF';
 import VehicleVoucherPDF from './VehicleVoucherPDF';
 import FlightVoucherPDF from './FlightVoucherPDF';
+import { clientPropertyFilename } from '@/lib/filename';
 
 // Dynamically import the PDF components to reduce initial bundle size
 const PDFComponents = {
@@ -25,7 +26,8 @@ export default function VoucherPDFButton({ voucher }: { voucher: any }) {
     if (instance.url) {
       const link = document.createElement('a');
       link.href = instance.url;
-      link.download = `${voucher.voucherNo}.pdf`;
+      const propertyName = voucher.property?.name || voucher.hotelName || voucher.vehicle?.name || voucher.vehicleName || voucher.flightName || '';
+      link.download = clientPropertyFilename(voucher.clientName || '', propertyName || '', '.pdf');
       link.click();
     }
   };

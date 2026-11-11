@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { clientPropertyFilename } from '@/lib/filename';
 import { prisma } from '@/lib/prisma';
 
 interface DayRow {
@@ -171,7 +172,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const csvContent = rows.map(row => row.map(escapeCSV).join(',')).join('\n');
 
   // Return as downloadable CSV
-  const filename = `COSTING_SHEET_${sheet.tourTitle.replace(/[^a-zA-Z0-9]/g, '_')}.csv`;
+  const clientName = sheet.client?.name || sheet.booking?.client?.name || '';
+  const propertyName = sheet.tourTitle || '';
+  const filename = clientPropertyFilename(clientName, propertyName, '.csv') || `costsheet_${sheet.tourTitle.replace(/[^a-zA-Z0-9]/g, '_')}.csv`;
   return new NextResponse(csvContent, {
     status: 200,
     headers: {

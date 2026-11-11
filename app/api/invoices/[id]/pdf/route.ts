@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { clientPropertyFilename } from '@/lib/filename';
 import React from 'react';
 import {
   Document,
@@ -445,7 +446,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   try {
     const buffer = await renderToBuffer(InvoicePDF({ invoice }) as any);
-    const filename = `Invoice_${invoice.invoiceNo}.pdf`;
+    const clientName = invoice.client?.name || invoice.booking?.client?.name || invoice.billTo || '';
+    const propertyName = invoice.costSheet?.tourTitle || invoice.booking?.tourPackage?.title || '';
+    const filename = clientPropertyFilename(clientName, propertyName, '.pdf') || `invoice_${invoice.invoiceNo}.pdf`;
     return new NextResponse(buffer as any, {
       status: 200,
       headers: {

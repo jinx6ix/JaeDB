@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { clientPropertyFilename } from '@/lib/filename';
 import React from 'react';
 import {
   Document,
@@ -456,7 +457,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   try {
     const buffer = await renderToBuffer(CostSheetPDF({ cs: costSheet }) as any);
-    const filename = `CostSheet_${costSheet.id?.slice(-8).toUpperCase()}.pdf`;
+    const clientName = costSheet.client?.name || '';
+    const dayRows = parseDayRows(costSheet.dayRows);
+    const propertyName = costSheet.tourTitle || (dayRows[0]?.hotelName || dayRows[0]?.destinationName || '');
+    const filename = clientPropertyFilename(clientName, propertyName, '.pdf') || `costsheet_${costSheet.id?.slice(-8).toUpperCase()}.pdf`;
     return new NextResponse(buffer as any, {
       status: 200,
       headers: {
