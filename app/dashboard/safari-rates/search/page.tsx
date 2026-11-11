@@ -21,7 +21,10 @@ interface RateForm {
   roomTypeId: string; seasonId: string; boardBasis: string;
   ratePerPersonSharing: string; singleRoomRate: string; childRate: string;
   thirdAdultRate: string; currency: string;
+  // inline room type creation
   newRoomName: string; newRoomMaxOccupancy: string;
+  // inline season creation
+  newSeasonName: string; newSeasonStart: string; newSeasonEnd: string;
 }
 
 export default function SafariRatesSearchPage() {
@@ -144,6 +147,26 @@ export default function SafariRatesSearchPage() {
     return sortOrder === 'price_asc' ? rateA - rateB : rateB - rateA;
   });
 
+  // --- Season creation (inline) ---
+  async function createSeason(hotelId: number, name: string, start: string, end: string): Promise<Season | null> {
+    try {
+      const res = await fetch('/api/safari-rates/seasons', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hotelId, name: name.trim(), startDate: start, endDate: end }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to create season');
+      }
+      const data = await res.json();
+      setSeasons(prev => [...prev, data]);
+      return data as Season;
+    } catch (err: any) {
+      alert(err.message);
+      return null;
+    }
+  }
+
   // --- Room type creation (inline) ---
   async function createRoomType(hotelId: number, name: string, maxOccupancy: string): Promise<RoomType | null> {
     try {
@@ -151,7 +174,10 @@ export default function SafariRatesSearchPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ hotelId, name: name.trim(), maxOccupancy: Number(maxOccupancy) || 2 }),
       });
-      if (!res.ok) throw new Error('Failed to create room type');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to create room type');
+      }
       const data = await res.json();
       setRoomTypes(prev => [...prev, data]);
       return data as RoomType;
@@ -159,6 +185,29 @@ export default function SafariRatesSearchPage() {
       alert(err.message);
       return null;
     }
+  }
+
+  // Resolve a room type id: if 'new', create it first; otherwise use existing id
+  async function resolveRoomType(formData: RateForm, hotel: Hotel): Promise<number> {
+    if (formData.roomTypeId === 'new' && formData.newRoomName.trim()) {
+      const created = await createRoomType(hotel.id, formData.newRoomName, formData.newRoomMaxOccupancy);
+      if (!created) throw new Error('Room type creation failed');
+      return created.id;
+    }
+    return Number(formData.roomTypeId);
+  }
+
+  // Resolve a season id: if 'new', create it first; otherwise use existing id
+  async function resolveSeason(formData: RateForm, hotel: Hotel): Promise<number> {
+    if (formData.seasonId === 'new') {
+      if (!formData.newSeasonName.trim() || !formData.newSeasonStart || !formData.newSeasonEnd) {
+        throw new Error('Season name, start date and end date are required');
+      }
+      const created = await createSeason(hotel.id, formData.newSeasonName, formData.newSeasonStart, formData.newSeasonEnd);
+      if (!created) throw new Error('Season creation failed');
+      return created.id;
+    }
+    return Number(formData.seasonId);
   }
 
   // --- Inline edit ---
@@ -173,8 +222,8 @@ export default function SafariRatesSearchPage() {
       childRate: p.childRate != null ? String(p.childRate) : '',
       thirdAdultRate: p.thirdAdultRate != null ? String(p.thirdAdultRate) : '',
       currency: p.currency,
-      newRoomName: '',
-      newRoomMaxOccupancy: String(rt?.maxOccupancy || 2),
+      newRoomName: '', newRoomMaxOccupancy: String(rt?.maxOccupancy || 2),
+      newSeasonName: '', newSeasonStart: '', newSeasonEnd: '',
     });
     setEditingId(p.id);
   }
@@ -183,22 +232,16 @@ export default function SafariRatesSearchPage() {
     if (!editForm || editingId === null) return;
     setSavingEdit(true);
     try {
-      let roomTypeId = Number(editForm.roomTypeId);
-      // If creating a new room type inline
-      if (editForm.roomTypeId === 'new' && editForm.newRoomName.trim()) {
-        const hotel = editForm && editingId !== null
-          ? results.find(p => p.id === editingId)?.roomType.hotel
-          : null;
-        if (!hotel) throw new Error('Could not determine hotel for new room type');
-        const created = await createRoomType(hotel.id, editForm.newRoomName, editForm.newRoomMaxOccupancy);
-        if (!created) throw new Error('Room type creation failed');
-        roomTypeId = created.id;
-      }
+      const price = results.find(p => p.id === editingId);
+      const hotel = price?.roomType.hotel;
+      if (!hotel) throw new Error('Could not determine hotel for this rate');
+      const roomTypeId = await resolveRoomType(editForm, hotel);
+      const seasonId = await resolveSeason(editForm, hotel);
       const res = await fetch(`/api/safari-rates/prices/${editingId}`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           roomTypeId,
-          seasonId: Number(editForm.seasonId),
+          seasonId,
           boardBasis: editForm.boardBasis,
           ratePerPersonSharing: editForm.ratePerPersonSharing ? Number(editForm.ratePerPersonSharing) : null,
           singleRoomRate: editForm.singleRoomRate ? Number(editForm.singleRoomRate) : null,
@@ -227,6 +270,7 @@ export default function SafariRatesSearchPage() {
       roomTypeId: '', seasonId: '', boardBasis: 'FB',
       ratePerPersonSharing: '', singleRoomRate: '', childRate: '', thirdAdultRate: '', currency: 'USD',
       newRoomName: '', newRoomMaxOccupancy: '2',
+      newSeasonName: '', newSeasonStart: '', newSeasonEnd: '',
     });
   }
 
@@ -234,19 +278,16 @@ export default function SafariRatesSearchPage() {
     if (!addForm || addingKey === null) return;
     setSavingAdd(true);
     try {
-      let roomTypeId = Number(addForm.roomTypeId);
-      if (addForm.roomTypeId === 'new' && addForm.newRoomName.trim()) {
-        const hotel = results.find(p => `${p.roomType.hotel.county.name}__${p.roomType.hotel.name}` === addingKey)?.roomType.hotel;
-        if (!hotel) throw new Error('Could not determine hotel for new room type');
-        const created = await createRoomType(hotel.id, addForm.newRoomName, addForm.newRoomMaxOccupancy);
-        if (!created) throw new Error('Room type creation failed');
-        roomTypeId = created.id;
-      }
+      const price = results.find(p => `${p.roomType.hotel.county.name}__${p.roomType.hotel.name}` === addingKey);
+      const hotel = price?.roomType.hotel;
+      if (!hotel) throw new Error('Could not determine hotel for this rate');
+      const roomTypeId = await resolveRoomType(addForm, hotel);
+      const seasonId = await resolveSeason(addForm, hotel);
       const res = await fetch('/api/safari-rates/prices', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           roomTypeId,
-          seasonId: Number(addForm.seasonId),
+          seasonId,
           boardBasis: addForm.boardBasis,
           ratePerPersonSharing: addForm.ratePerPersonSharing ? Number(addForm.ratePerPersonSharing) : null,
           singleRoomRate: addForm.singleRoomRate ? Number(addForm.singleRoomRate) : null,
@@ -390,7 +431,6 @@ export default function SafariRatesSearchPage() {
               const hotelRooms = roomTypes.filter(r => r.hotelId === hotel.id);
               const hotelSeasons = seasons.filter(s => s.hotelId === hotel.id);
               const isAdding = addingKey === key;
-              const isEditingAny = editingId !== null;
               return (
                 <div key={key} className="card p-0 overflow-hidden">
                   <div className="px-5 py-4 bg-gray-50 border-b border-gray-200 flex items-start justify-between gap-2">
@@ -430,6 +470,7 @@ export default function SafariRatesSearchPage() {
                             ? `${new Date(selSeason.startDate).toLocaleDateString('en-KE',{day:'2-digit',month:'short'})} – ${new Date(selSeason.endDate).toLocaleDateString('en-KE',{day:'2-digit',month:'short'})}`
                             : '';
                           const isNewRoom = editForm.roomTypeId === 'new';
+                          const isNewSeason = editForm.seasonId === 'new';
                           return (
                             <tr key={p.id} className="bg-orange-50">
                               <td className="px-4 py-2.5">
@@ -446,10 +487,20 @@ export default function SafariRatesSearchPage() {
                               </td>
                               <td className="px-4 py-2.5">
                                 <select className="input input-sm" value={editForm.seasonId} onChange={e => setEditForm({ ...editForm, seasonId: e.target.value })}>
+                                  <option value="new">+ Create new season…</option>
                                   {hotelSeasons.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                 </select>
+                                {isNewSeason && (
+                                  <div className="mt-2 space-y-2">
+                                    <input type="text" placeholder="New season name" className="input input-sm" value={editForm.newSeasonName} onChange={e => setEditForm({ ...editForm, newSeasonName: e.target.value })} />
+                                    <div className="flex gap-2">
+                                      <input type="date" placeholder="Start" className="input input-sm" value={editForm.newSeasonStart} onChange={e => setEditForm({ ...editForm, newSeasonStart: e.target.value })} />
+                                      <input type="date" placeholder="End" className="input input-sm" value={editForm.newSeasonEnd} onChange={e => setEditForm({ ...editForm, newSeasonEnd: e.target.value })} />
+                                    </div>
+                                  </div>
+                                )}
                               </td>
-                              <td className="px-4 py-2.5 text-gray-500 text-xs">{editPeriod}</td>
+                              <td className="px-4 py-2.5 text-gray-500 text-xs">{isNewSeason ? 'new season dates' : editPeriod}</td>
                               <td className="px-4 py-2.5">
                                 <select className="input input-sm" value={editForm.boardBasis} onChange={e => setEditForm({ ...editForm, boardBasis: e.target.value })}>
                                   {Object.entries(BOARD).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -527,9 +578,18 @@ export default function SafariRatesSearchPage() {
                         <div className="col-span-2 lg:col-span-1">
                           <label className="label text-xs block mb-1">Season</label>
                           <select className="input input-sm" value={addForm.seasonId} onChange={e => setAddForm({ ...addForm, seasonId: e.target.value })}>
-                            <option value="">—</option>
+                            <option value="new">+ Create new season…</option>
                             {hotelSeasons.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                           </select>
+                          {addForm.seasonId === 'new' && (
+                            <div className="mt-2 space-y-2">
+                              <input type="text" placeholder="New season name" className="input input-sm" value={addForm.newSeasonName} onChange={e => setAddForm({ ...addForm, newSeasonName: e.target.value })} />
+                              <div className="flex gap-2">
+                                <input type="date" placeholder="Start" className="input input-sm" value={addForm.newSeasonStart} onChange={e => setAddForm({ ...addForm, newSeasonStart: e.target.value })} />
+                                <input type="date" placeholder="End" className="input input-sm" value={addForm.newSeasonEnd} onChange={e => setAddForm({ ...addForm, newSeasonEnd: e.target.value })} />
+                              </div>
+                            </div>
+                          )}
                         </div>
                         <div>
                           <label className="label text-xs block mb-1">Board</label>
