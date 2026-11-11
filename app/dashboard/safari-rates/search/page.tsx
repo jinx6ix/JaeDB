@@ -589,74 +589,6 @@ export default function SafariRatesSearchPage() {
                       {prices.map(p => {
                         const isEditing = editingId === p.id;
                         const period = `${new Date(p.season.startDate).toLocaleDateString('en-KE',{day:'2-digit',month:'short',year:'numeric'})} – ${new Date(p.season.endDate).toLocaleDateString('en-KE',{day:'2-digit',month:'short',year:'numeric'})}`;
-                        if (isEditing && editForm) {
-                          const selSeason = hotelSeasons.find(s => s.id === Number(editForm.seasonId));
-                          const editPeriod = selSeason
-                            ? `${new Date(selSeason.startDate).toLocaleDateString('en-KE',{day:'2-digit',month:'short',year:'numeric'})} – ${new Date(selSeason.endDate).toLocaleDateString('en-KE',{day:'2-digit',month:'short',year:'numeric'})}`
-                            : '';
-                          const isNewRoom = editForm.roomTypeId === 'new';
-                          const isNewSeason = editForm.seasonId === 'new';
-                          return (
-                            <tr key={p.id} className="bg-orange-50">
-                              <td className="px-4 py-2.5">
-                                <select className="input input-sm" value={editForm.roomTypeId} onChange={e => setEditForm({ ...editForm, roomTypeId: e.target.value })}>
-                                  <option value="new">+ Create new room type…</option>
-                                  {hotelRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                                </select>
-                                {isNewRoom && (
-                                  <div className="mt-2 space-y-2">
-                                    <input type="text" placeholder="New room type name" className="input input-sm" value={editForm.newRoomName} onChange={e => setEditForm({ ...editForm, newRoomName: e.target.value })} />
-                                    <input type="number" min={1} placeholder="Max occupancy" className="input input-sm w-24" value={editForm.newRoomMaxOccupancy} onChange={e => setEditForm({ ...editForm, newRoomMaxOccupancy: e.target.value })} />
-                                  </div>
-                                )}
-                              </td>
-                              <td className="px-4 py-2.5">
-                                <select className="input input-sm" value={editForm.seasonId} onChange={e => setEditForm({ ...editForm, seasonId: e.target.value })}>
-                                  <option value="new">+ Create new season…</option>
-                                  {hotelSeasons.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                </select>
-                                {isNewSeason && (
-                                  <div className="mt-2 space-y-2">
-                                    <input type="text" placeholder="New season name" className="input input-sm" value={editForm.newSeasonName} onChange={e => setEditForm({ ...editForm, newSeasonName: e.target.value })} />
-                                    <div className="flex gap-2">
-                                      <input type="date" placeholder="Start" className="input input-sm" value={editForm.newSeasonStart} onChange={e => setEditForm({ ...editForm, newSeasonStart: e.target.value })} />
-                                      <input type="date" placeholder="End" className="input input-sm" value={editForm.newSeasonEnd} onChange={e => setEditForm({ ...editForm, newSeasonEnd: e.target.value })} />
-                                    </div>
-                                  </div>
-                                )}
-                              </td>
-                              <td className="px-4 py-2.5 text-gray-500 text-xs">{isNewSeason ? 'new season dates' : editPeriod}</td>
-                              <td className="px-4 py-2.5">
-                                <select className="input input-sm" value={editForm.boardBasis} onChange={e => setEditForm({ ...editForm, boardBasis: e.target.value })}>
-                                  {Object.entries(BOARD).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                                </select>
-                              </td>
-                              <td className="px-4 py-2.5">
-                                <input type="number" min={0} step="0.01" className="input input-sm font-mono" value={editForm.ratePerPersonSharing} onChange={e => setEditForm({ ...editForm, ratePerPersonSharing: e.target.value })} />
-                              </td>
-                              <td className="px-4 py-2.5">
-                                <input type="number" min={0} step="0.01" className="input input-sm font-mono" value={editForm.singleRoomRate} onChange={e => setEditForm({ ...editForm, singleRoomRate: e.target.value })} />
-                              </td>
-                              <td className="px-4 py-2.5">
-                                <input type="number" min={0} step="0.01" className="input input-sm font-mono" value={editForm.childRate} onChange={e => setEditForm({ ...editForm, childRate: e.target.value })} />
-                              </td>
-                              <td className="px-4 py-2.5">
-                                <input type="number" min={0} step="0.01" className="input input-sm font-mono" value={editForm.thirdAdultRate} onChange={e => setEditForm({ ...editForm, thirdAdultRate: e.target.value })} />
-                              </td>
-                              {nights > 0 && (
-                                <td className="px-4 py-2.5 font-mono font-bold text-green-700">
-                                  {editForm.ratePerPersonSharing ? `${editForm.currency} ${(Number(editForm.ratePerPersonSharing) * nights).toLocaleString()}` : '—'}
-                                </td>
-                              )}
-                              <td className="px-4 py-2.5">
-                                <button onClick={saveEdit} disabled={savingEdit} className="text-xs text-green-600 hover:underline disabled:opacity-50 mr-2">
-                                  {savingEdit ? 'Saving…' : 'Save'}
-                                </button>
-                                <button onClick={cancelEdit} className="text-xs text-gray-500 hover:text-gray-800">Cancel</button>
-                              </td>
-                            </tr>
-                          );
-                        }
                         return (
                           <tr key={p.id} className="hover:bg-orange-50/50">
                             <td className="px-4 py-2.5 font-medium text-gray-800">{p.roomType.name}</td>
@@ -779,6 +711,113 @@ export default function SafariRatesSearchPage() {
                 </div>
               );
             })}
+          </div>
+        </div>
+      })}
+
+      {/* Edit Rate Popup */}
+      {editingId !== null && editForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={cancelEdit} />
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl p-6 mx-4 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Edit Rate</h3>
+              <button onClick={cancelEdit} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            {(() => {
+              const editingPrice = results.find(p => p.id === editingId);
+              const editHotel = editingPrice?.roomType.hotel;
+              const editRooms = roomTypes.filter(r => r.hotelId === editHotel?.id);
+              const editSeasons = seasons.filter(s => s.hotelId === editHotel?.id);
+              const selSeason = editSeasons.find(s => s.id === Number(editForm.seasonId));
+              const editPeriod = selSeason
+                ? `${new Date(selSeason.startDate).toLocaleDateString('en-KE',{day:'2-digit',month:'short',year:'numeric'})} – ${new Date(selSeason.endDate).toLocaleDateString('en-KE',{day:'2-digit',month:'short',year:'numeric'})}`
+                : '';
+              return (
+                <>
+              <p className="text-sm text-gray-500 mb-4">
+                {editingPrice?.roomType.name} · {editingPrice?.season.name}{editHotel ? ` · ${editHotel.name}` : ''}
+              </p>
+              <div className="space-y-3">
+                <div>
+                  <label className="label text-xs block mb-1">Room Type</label>
+                  <select className="input input-sm" value={editForm.roomTypeId} onChange={e => setEditForm({ ...editForm, roomTypeId: e.target.value })}>
+                    <option value="new">+ Create new room type…</option>
+                    {editRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  </select>
+                  {editForm.roomTypeId === 'new' && (
+                    <div className="mt-2 space-y-2">
+                      <input type="text" placeholder="New room type name" className="input input-sm" value={editForm.newRoomName} onChange={e => setEditForm({ ...editForm, newRoomName: e.target.value })} />
+                      <input type="number" min={1} placeholder="Max occupancy" className="input input-sm w-24" value={editForm.newRoomMaxOccupancy} onChange={e => setEditForm({ ...editForm, newRoomMaxOccupancy: e.target.value })} />
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="label text-xs block mb-1">Season</label>
+                  <select className="input input-sm" value={editForm.seasonId} onChange={e => setEditForm({ ...editForm, seasonId: e.target.value })}>
+                    <option value="new">+ Create new season…</option>
+                    {editSeasons.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                  {editForm.seasonId === 'new' && (
+                    <div className="mt-2 space-y-2">
+                      <input type="text" placeholder="New season name" className="input input-sm" value={editForm.newSeasonName} onChange={e => setEditForm({ ...editForm, newSeasonName: e.target.value })} />
+                      <div className="flex gap-2">
+                        <input type="date" placeholder="Start" className="input input-sm" value={editForm.newSeasonStart} onChange={e => setEditForm({ ...editForm, newSeasonStart: e.target.value })} />
+                        <input type="date" placeholder="End" className="input input-sm" value={editForm.newSeasonEnd} onChange={e => setEditForm({ ...editForm, newSeasonEnd: e.target.value })} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label text-xs block mb-1">Board</label>
+                    <select className="input input-sm" value={editForm.boardBasis} onChange={e => setEditForm({ ...editForm, boardBasis: e.target.value })}>
+                      {Object.entries(BOARD).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label text-xs block mb-1">Period</label>
+                    <input type="text" className="input input-sm" value={editPeriod} readOnly />
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 gap-3">
+                  <div>
+                    <label className="label text-xs block mb-1">Per Person Sharing</label>
+                    <input type="number" min={0} step="0.01" className="input input-sm font-mono" value={editForm.ratePerPersonSharing} onChange={e => setEditForm({ ...editForm, ratePerPersonSharing: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="label text-xs block mb-1">Single</label>
+                    <input type="number" min={0} step="0.01" className="input input-sm font-mono" value={editForm.singleRoomRate} onChange={e => setEditForm({ ...editForm, singleRoomRate: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="label text-xs block mb-1">Child</label>
+                    <input type="number" min={0} step="0.01" className="input input-sm font-mono" value={editForm.childRate} onChange={e => setEditForm({ ...editForm, childRate: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="label text-xs block mb-1">Third Adult</label>
+                    <input type="number" min={0} step="0.01" className="input input-sm font-mono" value={editForm.thirdAdultRate} onChange={e => setEditForm({ ...editForm, thirdAdultRate: e.target.value })} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label text-xs block mb-1">Currency</label>
+                    <select className="input input-sm" value={editForm.currency} onChange={e => setEditForm({ ...editForm, currency: e.target.value })}>
+                      <option>USD</option><option>KES</option><option>EUR</option>
+                    </select>
+                  </div>
+                  <div className="pt-5">
+                    <button onClick={saveEdit} disabled={savingEdit} className="btn-primary text-sm py-1.5 flex-1 w-full">
+                      {savingEdit ? 'Saving…' : 'Save Changes'}
+                    </button>
+                  </div>
+                </div>
+                <div className="pt-2">
+                  <button onClick={cancelEdit} className="text-xs text-gray-500 hover:text-gray-800 underline">Cancel</button>
+                </div>
+              </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
