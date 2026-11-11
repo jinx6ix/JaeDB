@@ -58,6 +58,16 @@ export default function SafariRatesSearchPage() {
   // Inline delete state
   const [deletingId, setDeletingId] = useState<number|null>(null);
 
+  // Extend season state: copies all prices from a season to a new season with new dates
+  const [extendingSeasonId, setExtendingSeasonId] = useState<number|null>(null);
+  const [extendForm, setExtendForm] = useState<{ name: string; startDate: string; endDate: string } | null>(null);
+  const [savingExtend, setSavingExtend] = useState(false);
+
+  // Edit hotel (name + destination) state
+  const [editingHotelId, setEditingHotelId] = useState<number|null>(null);
+  const [hotelEditForm, setHotelEditForm] = useState<{ name: string; countyId: string } | null>(null);
+  const [savingHotel, setSavingHotel] = useState(false);
+
   // Load counties, hotels, room types, seasons once
   useEffect(() => {
     fetch('/api/safari-rates/counties').then(r => r.json()).then(setCounties).catch(()=>{});
@@ -321,6 +331,87 @@ export default function SafariRatesSearchPage() {
     finally { setDeletingId(null); }
   }
 
+  // --- Extend season (copy rates to new dates) ---
+  function startExtend(seasonId: number) {
+    const season = seasons.find(s => s.id === seasonId);
+    if (!season) return;
+    setExtendingSeasonId(seasonId);
+    setExtendForm({
+      name: season.name,
+      startDate: season.startDate.slice(0, 10),
+      endDate: season.endDate.slice(0, 10),
+    });
+  }
+
+  async function saveExtend() {
+    if (extendingSeasonId === null || !extendForm) return;
+    setSavingExtend(true);
+    try {
+      const res = await fetch(`/api/safari-rates/seasons/${extendingSeasonId}/extend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(extendForm),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to extend season');
+      }
+      setExtendingSeasonId(null);
+      setExtendForm(null);
+      setSeasons(prev => prev.map(s => s.id === extendingSeasonId ? { ...s, ...extendForm } : s));
+      search();
+    } catch (err: any) { alert(err.message); }
+    finally { setSavingExtend(false); }
+  }
+
+  function cancelExtend() {
+    setExtendingSeasonId(null);
+    setExtendForm(null);
+  }
+
+  // --- Edit hotel (name + destination) ---
+  function startEditHotel(hotelId: number, name: string, countyId: number) {
+    setEditingHotelId(hotelId);
+    setHotelEditForm({ name, countyId: String(countyId) });
+  }
+
+  async function saveHotelEdit() {
+    if (editingHotelId === null || !hotelEditForm) return;
+    setSavingHotel(true);
+    try {
+      const res = await fetch(`/api/safari-rates/hotels/${editingHotelId}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: hotelEditForm.name, countyId: Number(hotelEditForm.countyId) }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to update hotel');
+      }
+      setEditingHotelId(null);
+      setHotelEditForm(null);
+      // Refresh hotels list so destination change shows
+      const data = await fetch('/api/safari-rates/hotels').then(r => r.json());
+      if (Array.isArray(data)) setAllHotels(data);
+      search();
+    } catch (err: any) { alert(err.message); }
+    finally { setSavingHotel(false); }
+  }
+
+  async function deleteHotel(hotelId: number) {
+    if (!confirm('Delete this hotel? This will also delete all its room types, seasons, and rates.')) return;
+    try {
+      const res = await fetch(`/api/safari-rates/hotels/${hotelId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete hotel');
+      setAllHotels(prev => prev.filter(h => h.id !== hotelId));
+      search();
+    } catch (err: any) { alert(err.message); }
+  }
+
+  function cancelHotelEdit() {
+    setEditingHotelId(null);
+    setHotelEditForm(null);
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -435,20 +526,54 @@ export default function SafariRatesSearchPage() {
                 <div key={key} className="card p-0 overflow-hidden">
                   <div className="px-5 py-4 bg-gray-50 border-b border-gray-200 flex items-start justify-between gap-2">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-gray-900">{hotel.name}</h3>
-                        {hotel.category && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">{hotel.category}</span>}
-                      </div>
-                      <p className="text-sm text-gray-500">
-                        {hotel.county.name}{hotel.stars ? ` · ${'★'.repeat(hotel.stars)}` : ''}
-                        {minRate !== Infinity && <span className="ml-2 text-xs text-orange-600 font-mono">from {fmt(minRate, prices[0].currency)}</span>}
-                      </p>
+                      {editingHotelId === hotel.id ? (
+                        <div className="space-y-2">
+                          <input
+                            className="input input-sm"
+                            value={hotelEditForm?.name || hotel.name}
+                            onChange={e => setHotelEditForm({ ...hotelEditForm!, name: e.target.value })}
+                            placeholder="Hotel name"
+                          />
+                          <select
+                            className="input input-sm"
+                            value={hotelEditForm?.countyId || String(hotel.county.id)}
+                            onChange={e => setHotelEditForm({ ...hotelEditForm!, countyId: e.target.value })}
+                          >
+                            {counties.map(c => (
+                              <option key={c.id} value={String(c.id)}>{c.name}</option>
+                            ))}
+                          </select>
+                          <div className="flex gap-2">
+                            <button onClick={saveHotelEdit} disabled={savingHotel} className="text-xs text-green-600 hover:underline disabled:opacity-50 mr-2">
+                              {savingHotel ? 'Saving…' : 'Save Hotel'}
+                            </button>
+                            <button onClick={cancelHotelEdit} className="text-xs text-gray-500 hover:text-gray-800">Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-bold text-gray-900">{hotel.name}</h3>
+                            {hotel.category && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">{hotel.category}</span>}
+                          </div>
+                          <p className="text-sm text-gray-500">
+                            {hotel.county.name}{hotel.stars ? ` · ${'★'.repeat(hotel.stars)}` : ''}
+                            {minRate !== Infinity && <span className="ml-2 text-xs text-orange-600 font-mono">from {fmt(minRate, prices[0].currency)}</span>}
+                          </p>
+                        </>
+                      )}
                     </div>
                     <div className="flex gap-2 items-center">
                       {isAdding ? (
                         <button onClick={cancelAdd} className="text-xs text-gray-500 hover:text-gray-800">Cancel</button>
                       ) : (
                         <button onClick={() => startAdd(key)} className="text-xs text-orange-500 hover:underline">+ Add Rate</button>
+                      )}
+                      {editingHotelId !== hotel.id && (
+                        <>
+                          <button onClick={() => startEditHotel(hotel.id, hotel.name, hotel.county.id)} className="text-blue-500 hover:underline text-xs">✏️ Edit Hotel</button>
+                          <button onClick={() => deleteHotel(hotel.id)} className="text-red-500 hover:text-red-700 text-xs">🗑️</button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -549,6 +674,7 @@ export default function SafariRatesSearchPage() {
                             )}
                             <td className="px-4 py-2.5 text-xs">
                               <button onClick={() => startEdit(p)} className="text-orange-500 hover:underline font-medium mr-2">Edit</button>
+                              <button onClick={() => startExtend(p.season.id)} className="text-purple-600 hover:underline font-medium mr-2">Extend Season</button>
                               <button onClick={() => deletePrice(p.id)} disabled={deletingId === p.id} className="text-red-500 hover:text-red-700 font-medium">
                                 {deletingId === p.id ? '…' : 'Delete'}
                               </button>
@@ -622,6 +748,30 @@ export default function SafariRatesSearchPage() {
                         <div className="col-span-2 lg:col-span-2 flex gap-2 pt-6 lg:pt-0">
                           <button onClick={saveAdd} disabled={savingAdd} className="btn-primary text-sm py-1.5 flex-1">{savingAdd ? 'Adding…' : 'Add Rate'}</button>
                           <button onClick={cancelAdd} className="btn-secondary text-sm py-1.5">Cancel</button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {extendingSeasonId !== null && extendForm && (
+                    <div className="px-5 py-4 border-t border-gray-200 bg-gray-50">
+                      <h4 className="font-semibold text-gray-800 mb-3 text-sm">Extend Season → Copy Rates to New Dates</h4>
+                      <p className="text-xs text-gray-500 mb-3">Creates a new season with new start/end dates and copies all existing rates over unchanged.</p>
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div className="col-span-2 lg:col-span-2">
+                          <label className="label text-xs block mb-1">New Season Name</label>
+                          <input className="input input-sm" value={extendForm.name} onChange={e => setExtendForm({ ...extendForm, name: e.target.value })} />
+                        </div>
+                        <div>
+                          <label className="label text-xs block mb-1">Start Date</label>
+                          <input type="date" className="input input-sm" value={extendForm.startDate} onChange={e => setExtendForm({ ...extendForm, startDate: e.target.value })} />
+                        </div>
+                        <div>
+                          <label className="label text-xs block mb-1">End Date</label>
+                          <input type="date" className="input input-sm" value={extendForm.endDate} onChange={e => setExtendForm({ ...extendForm, endDate: e.target.value })} />
+                        </div>
+                        <div className="col-span-2 lg:col-span-2 flex gap-2 pt-6 lg:pt-0">
+                          <button onClick={saveExtend} disabled={savingExtend} className="btn-primary text-sm py-1.5 flex-1">{savingExtend ? 'Extending…' : 'Extend Season'}</button>
+                          <button onClick={cancelExtend} className="btn-secondary text-sm py-1.5">Cancel</button>
                         </div>
                       </div>
                     </div>
