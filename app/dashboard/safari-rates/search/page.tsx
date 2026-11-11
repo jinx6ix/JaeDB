@@ -526,42 +526,14 @@ export default function SafariRatesSearchPage() {
                 <div key={key} className="card p-0 overflow-hidden">
                   <div className="px-5 py-4 bg-gray-50 border-b border-gray-200 flex items-start justify-between gap-2">
                     <div>
-                      {editingHotelId === hotel.id ? (
-                        <div className="space-y-2">
-                          <input
-                            className="input input-sm"
-                            value={hotelEditForm?.name || hotel.name}
-                            onChange={e => setHotelEditForm({ ...hotelEditForm!, name: e.target.value })}
-                            placeholder="Hotel name"
-                          />
-                          <select
-                            className="input input-sm"
-                            value={hotelEditForm?.countyId || String(hotel.county.id)}
-                            onChange={e => setHotelEditForm({ ...hotelEditForm!, countyId: e.target.value })}
-                          >
-                            {counties.map(c => (
-                              <option key={c.id} value={String(c.id)}>{c.name}</option>
-                            ))}
-                          </select>
-                          <div className="flex gap-2">
-                            <button onClick={saveHotelEdit} disabled={savingHotel} className="text-xs text-green-600 hover:underline disabled:opacity-50 mr-2">
-                              {savingHotel ? 'Saving…' : 'Save Hotel'}
-                            </button>
-                            <button onClick={cancelHotelEdit} className="text-xs text-gray-500 hover:text-gray-800">Cancel</button>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-bold text-gray-900">{hotel.name}</h3>
-                            {hotel.category && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">{hotel.category}</span>}
-                          </div>
-                          <p className="text-sm text-gray-500">
-                            {hotel.county.name}{hotel.stars ? ` · ${'★'.repeat(hotel.stars)}` : ''}
-                            {minRate !== Infinity && <span className="ml-2 text-xs text-orange-600 font-mono">from {fmt(minRate, prices[0].currency)}</span>}
-                          </p>
-                        </>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-gray-900">{hotel.name}</h3>
+                        {hotel.category && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">{hotel.category}</span>}
+                      </div>
+                      <p className="text-sm text-gray-500">
+                        {hotel.county.name}{hotel.stars ? ` · ${'★'.repeat(hotel.stars)}` : ''}
+                        {minRate !== Infinity && <span className="ml-2 text-xs text-orange-600 font-mono">from {fmt(minRate, prices[0].currency)}</span>}
+                      </p>
                     </div>
                     <div className="flex gap-2 items-center">
                       {isAdding ? (
@@ -616,74 +588,6 @@ export default function SafariRatesSearchPage() {
                       })}
                     </tbody>
                   </table>
-                  {isAdding && addForm && (
-                    <div className="px-5 py-4 border-t border-gray-200 bg-gray-50">
-                      <h4 className="font-semibold text-gray-800 mb-3 text-sm">Add New Rate</h4>
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                        <div className="col-span-2 lg:col-span-1">
-                          <label className="label text-xs block mb-1">Room Type</label>
-                          <select className="input input-sm" value={addForm.roomTypeId} onChange={e => setAddForm({ ...addForm, roomTypeId: e.target.value })}>
-                            <option value="new">+ Create new room type…</option>
-                            {hotelRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                          </select>
-                          {addForm.roomTypeId === 'new' && (
-                            <div className="mt-2 space-y-2">
-                              <input type="text" placeholder="New room type name" className="input input-sm" value={addForm.newRoomName} onChange={e => setAddForm({ ...addForm, newRoomName: e.target.value })} />
-                              <input type="number" min={1} placeholder="Max occupancy" className="input input-sm w-24" value={addForm.newRoomMaxOccupancy} onChange={e => setAddForm({ ...addForm, newRoomMaxOccupancy: e.target.value })} />
-                            </div>
-                          )}
-                        </div>
-                        <div className="col-span-2 lg:col-span-1">
-                          <label className="label text-xs block mb-1">Season</label>
-                          <select className="input input-sm" value={addForm.seasonId} onChange={e => setAddForm({ ...addForm, seasonId: e.target.value })}>
-                            <option value="new">+ Create new season…</option>
-                            {hotelSeasons.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                          </select>
-                          {addForm.seasonId === 'new' && (
-                            <div className="mt-2 space-y-2">
-                              <input type="text" placeholder="New season name" className="input input-sm" value={addForm.newSeasonName} onChange={e => setAddForm({ ...addForm, newSeasonName: e.target.value })} />
-                              <div className="flex gap-2">
-                                <input type="date" placeholder="Start" className="input input-sm" value={addForm.newSeasonStart} onChange={e => setAddForm({ ...addForm, newSeasonStart: e.target.value })} />
-                                <input type="date" placeholder="End" className="input input-sm" value={addForm.newSeasonEnd} onChange={e => setAddForm({ ...addForm, newSeasonEnd: e.target.value })} />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <label className="label text-xs block mb-1">Board</label>
-                          <select className="input input-sm" value={addForm.boardBasis} onChange={e => setAddForm({ ...addForm, boardBasis: e.target.value })}>
-                            {Object.entries(BOARD).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                          </select>
-                        </div>
-                        <div className="col-span-2 lg:col-span-1">
-                          <label className="label text-xs block mb-1">Per Person Sharing</label>
-                          <input type="number" min={0} step="0.01" className="input input-sm font-mono" value={addForm.ratePerPersonSharing} onChange={e => setAddForm({ ...addForm, ratePerPersonSharing: e.target.value })} />
-                        </div>
-                        <div>
-                          <label className="label text-xs block mb-1">Single</label>
-                          <input type="number" min={0} step="0.01" className="input input-sm font-mono" value={addForm.singleRoomRate} onChange={e => setAddForm({ ...addForm, singleRoomRate: e.target.value })} />
-                        </div>
-                        <div>
-                          <label className="label text-xs block mb-1">Child</label>
-                          <input type="number" min={0} step="0.01" className="input input-sm font-mono" value={addForm.childRate} onChange={e => setAddForm({ ...addForm, childRate: e.target.value })} />
-                        </div>
-                        <div>
-                          <label className="label text-xs block mb-1">Third Adult</label>
-                          <input type="number" min={0} step="0.01" className="input input-sm font-mono" value={addForm.thirdAdultRate} onChange={e => setAddForm({ ...addForm, thirdAdultRate: e.target.value })} />
-                        </div>
-                        <div>
-                          <label className="label text-xs block mb-1">Currency</label>
-                          <select className="input input-sm" value={addForm.currency} onChange={e => setAddForm({ ...addForm, currency: e.target.value })}>
-                            <option>USD</option><option>KES</option><option>EUR</option>
-                          </select>
-                        </div>
-                        <div className="col-span-2 lg:col-span-2 flex gap-2 pt-6 lg:pt-0">
-                          <button onClick={saveAdd} disabled={savingAdd} className="btn-primary text-sm py-1.5 flex-1">{savingAdd ? 'Adding…' : 'Add Rate'}</button>
-                          <button onClick={cancelAdd} className="btn-secondary text-sm py-1.5">Cancel</button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                   {extendingSeasonId !== null && extendForm && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
                       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={cancelExtend} />
@@ -825,6 +729,141 @@ export default function SafariRatesSearchPage() {
                 </div>
                 <div className="pt-2">
                   <button onClick={cancelEdit} className="text-xs text-gray-500 hover:text-gray-800 underline">Cancel</button>
+                </div>
+              </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* Edit Hotel Popup */}
+      {editingHotelId !== null && hotelEditForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={cancelHotelEdit} />
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md p-6 mx-4 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Edit Hotel</h3>
+              <button onClick={cancelHotelEdit} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="label text-xs block mb-1">Hotel Name</label>
+                <input
+                  className="input input-sm"
+                  value={hotelEditForm.name}
+                  onChange={e => setHotelEditForm({ ...hotelEditForm, name: e.target.value })}
+                  placeholder="Hotel name"
+                />
+              </div>
+              <div>
+                <label className="label text-xs block mb-1">Destination (County)</label>
+                <select className="input input-sm" value={hotelEditForm.countyId} onChange={e => setHotelEditForm({ ...hotelEditForm, countyId: e.target.value })}>
+                  {counties.map(c => (
+                    <option key={c.id} value={String(c.id)}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="pt-4 flex gap-2">
+                <button onClick={saveHotelEdit} disabled={savingHotel} className="btn-primary text-sm py-1.5 flex-1 w-full">
+                  {savingHotel ? 'Saving…' : 'Save Hotel'}
+                </button>
+                <button onClick={cancelHotelEdit} className="btn-secondary text-sm py-1.5 w-full">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Rate Popup */}
+      {addingKey !== null && addForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={cancelAdd} />
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-3xl p-6 mx-4 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Add Rate</h3>
+              <button onClick={cancelAdd} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            {(() => {
+              const addingPrice = results.find(p => `${p.roomType.hotel.county.name}__${p.roomType.hotel.name}` === addingKey);
+              const addHotel = addingPrice?.roomType.hotel;
+              const addRooms = roomTypes.filter(r => r.hotelId === addHotel?.id);
+              const addSeasons = seasons.filter(s => s.hotelId === addHotel?.id);
+              return (
+                <>
+              <p className="text-sm text-gray-500 mb-4">Hotel: {addHotel?.name}</p>
+              <div className="space-y-3">
+                <div>
+                  <label className="label text-xs block mb-1">Room Type</label>
+                  <select className="input input-sm" value={addForm.roomTypeId} onChange={e => setAddForm({ ...addForm, roomTypeId: e.target.value })}>
+                    <option value="new">+ Create new room type…</option>
+                    {addRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  </select>
+                  {addForm.roomTypeId === 'new' && (
+                    <div className="mt-2 space-y-2">
+                      <input type="text" placeholder="New room type name" className="input input-sm" value={addForm.newRoomName} onChange={e => setAddForm({ ...addForm, newRoomName: e.target.value })} />
+                      <input type="number" min={1} placeholder="Max occupancy" className="input input-sm w-24" value={addForm.newRoomMaxOccupancy} onChange={e => setAddForm({ ...addForm, newRoomMaxOccupancy: e.target.value })} />
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="label text-xs block mb-1">Season</label>
+                  <select className="input input-sm" value={addForm.seasonId} onChange={e => setAddForm({ ...addForm, seasonId: e.target.value })}>
+                    <option value="new">+ Create new season…</option>
+                    {addSeasons.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                  {addForm.seasonId === 'new' && (
+                    <div className="mt-2 space-y-2">
+                      <input type="text" placeholder="New season name" className="input input-sm" value={addForm.newSeasonName} onChange={e => setAddForm({ ...addForm, newSeasonName: e.target.value })} />
+                      <div className="flex gap-2">
+                        <input type="date" placeholder="Start" className="input input-sm" value={addForm.newSeasonStart} onChange={e => setAddForm({ ...addForm, newSeasonStart: e.target.value })} />
+                        <input type="date" placeholder="End" className="input input-sm" value={addForm.newSeasonEnd} onChange={e => setAddForm({ ...addForm, newSeasonEnd: e.target.value })} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label text-xs block mb-1">Board</label>
+                    <select className="input input-sm" value={addForm.boardBasis} onChange={e => setAddForm({ ...addForm, boardBasis: e.target.value })}>
+                      {Object.entries(BOARD).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    </select>
+                  </div>
+                  <div className="pt-5 flex items-end">
+                    <button onClick={saveAdd} disabled={savingAdd} className="btn-primary text-sm py-1.5 w-full">
+                      {savingAdd ? 'Adding…' : 'Add Rate'}
+                    </button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 gap-3">
+                  <div>
+                    <label className="label text-xs block mb-1">Per Person Sharing</label>
+                    <input type="number" min={0} step="0.01" className="input input-sm font-mono" value={addForm.ratePerPersonSharing} onChange={e => setAddForm({ ...addForm, ratePerPersonSharing: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="label text-xs block mb-1">Single</label>
+                    <input type="number" min={0} step="0.01" className="input input-sm font-mono" value={addForm.singleRoomRate} onChange={e => setAddForm({ ...addForm, singleRoomRate: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="label text-xs block mb-1">Child</label>
+                    <input type="number" min={0} step="0.01" className="input input-sm font-mono" value={addForm.childRate} onChange={e => setAddForm({ ...addForm, childRate: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="label text-xs block mb-1">Third Adult</label>
+                    <input type="number" min={0} step="0.01" className="input input-sm font-mono" value={addForm.thirdAdultRate} onChange={e => setAddForm({ ...addForm, thirdAdultRate: e.target.value })} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label text-xs block mb-1">Currency</label>
+                    <select className="input input-sm" value={addForm.currency} onChange={e => setAddForm({ ...addForm, currency: e.target.value })}>
+                      <option>USD</option><option>KES</option><option>EUR</option>
+                    </select>
+                  </div>
+                  <div className="pt-2">
+                    <button onClick={cancelAdd} className="text-xs text-gray-500 hover:text-gray-800 underline">Cancel</button>
+                  </div>
                 </div>
               </div>
                 </>
