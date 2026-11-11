@@ -685,25 +685,37 @@ export default function SafariRatesSearchPage() {
                     </div>
                   )}
                   {extendingSeasonId !== null && extendForm && (
-                    <div className="px-5 py-4 border-t border-gray-200 bg-gray-50">
-                      <h4 className="font-semibold text-gray-800 mb-3 text-sm">Extend Season → Copy Rates to New Dates</h4>
-                      <p className="text-xs text-gray-500 mb-3">Creates a new season with new start/end dates and copies all existing rates over unchanged.</p>
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                        <div className="col-span-2 lg:col-span-2">
-                          <label className="label text-xs block mb-1">New Season Name</label>
-                          <input className="input input-sm" value={extendForm.name} onChange={e => setExtendForm({ ...extendForm, name: e.target.value })} />
+                    <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
+                      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={cancelExtend} />
+                      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md p-6 mx-4 animate-in fade-in zoom-in duration-200">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-lg font-bold text-gray-900">Extend Season</h3>
+                          <button onClick={cancelExtend} className="text-gray-400 hover:text-gray-600">✕</button>
                         </div>
-                        <div>
-                          <label className="label text-xs block mb-1">Start Date</label>
-                          <input type="date" className="input input-sm" value={extendForm.startDate} onChange={e => setExtendForm({ ...extendForm, startDate: e.target.value })} />
-                        </div>
-                        <div>
-                          <label className="label text-xs block mb-1">End Date</label>
-                          <input type="date" className="input input-sm" value={extendForm.endDate} onChange={e => setExtendForm({ ...extendForm, endDate: e.target.value })} />
-                        </div>
-                        <div className="col-span-2 lg:col-span-2 flex gap-2 pt-6 lg:pt-0">
-                          <button onClick={saveExtend} disabled={savingExtend} className="btn-primary text-sm py-1.5 flex-1">{savingExtend ? 'Extending…' : 'Extend Season'}</button>
-                          <button onClick={cancelExtend} className="btn-secondary text-sm py-1.5">Cancel</button>
+                        <p className="text-sm text-gray-500 mb-4">
+                          Creates a new season with new start/end dates and copies all existing rates over unchanged.
+                        </p>
+                        <div className="space-y-3">
+                          <div>
+                            <label className="label text-xs block mb-1">New Season Name</label>
+                            <input className="input input-sm" value={extendForm.name} onChange={e => setExtendForm({ ...extendForm, name: e.target.value })} />
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="label text-xs block mb-1">Start Date</label>
+                              <input type="date" className="input input-sm" value={extendForm.startDate} onChange={e => setExtendForm({ ...extendForm, startDate: e.target.value })} />
+                            </div>
+                            <div>
+                              <label className="label text-xs block mb-1">End Date</label>
+                              <input type="date" className="input input-sm" value={extendForm.endDate} onChange={e => setExtendForm({ ...extendForm, endDate: e.target.value })} />
+                            </div>
+                          </div>
+                          <div className="pt-4 flex gap-2">
+                            <button onClick={saveExtend} disabled={savingExtend} className="btn-primary text-sm py-1.5 flex-1 w-full">
+                              {savingExtend ? 'Extending…' : 'Extend Season'}
+                            </button>
+                            <button onClick={cancelExtend} className="btn-secondary text-sm py-1.5 w-full">Cancel</button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -713,7 +725,7 @@ export default function SafariRatesSearchPage() {
             })}
           </div>
         </div>
-      })}
+      )}
 
       {/* Edit Rate Popup */}
       {editingId !== null && editForm && (
