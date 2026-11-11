@@ -4,16 +4,25 @@ import Link from 'next/link';
 
 interface Price {
   id: number; boardBasis: string; ratePerPersonSharing: number|null;
-  singleRoomRate: number|null; childRate: number|null; thirdAdultRate: number|null; // 👈 added
+  singleRoomRate: number|null; childRate: number|null; thirdAdultRate: number|null;
   currency: string;
-  roomType: { name: string; maxOccupancy: number; hotel: { id: number; name: string; stars: number|null; category: string|null; county: { id: number; name: string } } };
-  season: { name: string; startDate: string; endDate: string };
+  roomType: { id: number; name: string; maxOccupancy: number; hotel: { id: number; name: string; stars: number|null; category: string|null; county: { id: number; name: string } } };
+  season: { id: number; name: string; startDate: string; endDate: string };
 }
 interface County { id: number; name: string; }
 interface Hotel { id: number; name: string; county: { id: number; name: string }; stars?: number|null; category?: string|null; }
+interface RoomType { id: number; hotelId: number; name: string; maxOccupancy: number; }
+interface Season { id: number; hotelId: number; name: string; startDate: string; endDate: string; }
 
 const BOARD: Record<string,string> = { RO:'Room Only', BB:'Bed & Breakfast', HB:'Half Board', FB:'Full Board', AI:'All Inclusive' };
 function fmt(v: number|null, cur: string) { return v==null?'—':`${cur} ${Number(v).toLocaleString()}`; }
+
+interface RateForm {
+  roomTypeId: string; seasonId: string; boardBasis: string;
+  ratePerPersonSharing: string; singleRoomRate: string; childRate: string;
+  thirdAdultRate: string; currency: string;
+  newRoomName: string; newRoomMaxOccupancy: string;
+}
 
 export default function SafariRatesSearchPage() {
   const [counties, setCounties] = useState<County[]>([]);
@@ -23,6 +32,9 @@ export default function SafariRatesSearchPage() {
   const hotelInputRef = useRef<HTMLInputElement>(null);
   const suggestionRef = useRef<HTMLDivElement>(null);
 
+  const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
+  const [seasons, setSeasons] = useState<Season[]>([]);
+
   const [results, setResults] = useState<Price[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
@@ -30,13 +42,30 @@ export default function SafariRatesSearchPage() {
   const [sortOrder, setSortOrder] = useState<'price_asc' | 'price_desc'>('price_asc');
   const [form, setForm] = useState({ county: '', hotel: '', checkin: '', checkout: '', board: '' });
 
-  // Load counties and all hotels once
+  // Inline edit state
+  const [editingId, setEditingId] = useState<number|null>(null);
+  const [editForm, setEditForm] = useState<RateForm | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  // Inline add rate state
+  const [addingKey, setAddingKey] = useState<string|null>(null);
+  const [addForm, setAddForm] = useState<RateForm | null>(null);
+  const [savingAdd, setSavingAdd] = useState(false);
+
+  // Inline delete state
+  const [deletingId, setDeletingId] = useState<number|null>(null);
+
+  // Load counties, hotels, room types, seasons once
   useEffect(() => {
     fetch('/api/safari-rates/counties').then(r => r.json()).then(setCounties).catch(()=>{});
     fetch('/api/safari-rates/hotels')
       .then(r => r.json())
       .then(data => { if (Array.isArray(data)) setAllHotels(data); })
       .catch(() => {});
+    fetch('/api/safari-rates/room-types')
+      .then(r => r.json()).then(data => { if (Array.isArray(data)) setRoomTypes(data); }).catch(()=>{});
+    fetch('/api/safari-rates/seasons')
+      .then(r => r.json()).then(data => { if (Array.isArray(data)) setSeasons(data); }).catch(()=>{});
   }, []);
 
   // Filter hotels client‑side based on typed text and selected county
@@ -114,6 +143,142 @@ export default function SafariRatesSearchPage() {
     const rateB = hotelMinRates.find(r => r.key === b)?.minRate || Infinity;
     return sortOrder === 'price_asc' ? rateA - rateB : rateB - rateA;
   });
+
+  // --- Room type creation (inline) ---
+  async function createRoomType(hotelId: number, name: string, maxOccupancy: string): Promise<RoomType | null> {
+    try {
+      const res = await fetch('/api/safari-rates/room-types', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hotelId, name: name.trim(), maxOccupancy: Number(maxOccupancy) || 2 }),
+      });
+      if (!res.ok) throw new Error('Failed to create room type');
+      const data = await res.json();
+      setRoomTypes(prev => [...prev, data]);
+      return data as RoomType;
+    } catch (err: any) {
+      alert(err.message);
+      return null;
+    }
+  }
+
+  // --- Inline edit ---
+  function startEdit(p: Price) {
+    const rt = roomTypes.find(r => r.id === p.roomType.id);
+    setEditForm({
+      roomTypeId: String(p.roomType.id),
+      seasonId: String(p.season.id),
+      boardBasis: p.boardBasis,
+      ratePerPersonSharing: p.ratePerPersonSharing != null ? String(p.ratePerPersonSharing) : '',
+      singleRoomRate: p.singleRoomRate != null ? String(p.singleRoomRate) : '',
+      childRate: p.childRate != null ? String(p.childRate) : '',
+      thirdAdultRate: p.thirdAdultRate != null ? String(p.thirdAdultRate) : '',
+      currency: p.currency,
+      newRoomName: '',
+      newRoomMaxOccupancy: String(rt?.maxOccupancy || 2),
+    });
+    setEditingId(p.id);
+  }
+
+  async function saveEdit() {
+    if (!editForm || editingId === null) return;
+    setSavingEdit(true);
+    try {
+      let roomTypeId = Number(editForm.roomTypeId);
+      // If creating a new room type inline
+      if (editForm.roomTypeId === 'new' && editForm.newRoomName.trim()) {
+        const hotel = editForm && editingId !== null
+          ? results.find(p => p.id === editingId)?.roomType.hotel
+          : null;
+        if (!hotel) throw new Error('Could not determine hotel for new room type');
+        const created = await createRoomType(hotel.id, editForm.newRoomName, editForm.newRoomMaxOccupancy);
+        if (!created) throw new Error('Room type creation failed');
+        roomTypeId = created.id;
+      }
+      const res = await fetch(`/api/safari-rates/prices/${editingId}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomTypeId,
+          seasonId: Number(editForm.seasonId),
+          boardBasis: editForm.boardBasis,
+          ratePerPersonSharing: editForm.ratePerPersonSharing ? Number(editForm.ratePerPersonSharing) : null,
+          singleRoomRate: editForm.singleRoomRate ? Number(editForm.singleRoomRate) : null,
+          childRate: editForm.childRate ? Number(editForm.childRate) : null,
+          thirdAdultRate: editForm.thirdAdultRate ? Number(editForm.thirdAdultRate) : null,
+          currency: editForm.currency || 'USD',
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to update rate');
+      setEditingId(null);
+      setEditForm(null);
+      search();
+    } catch (err: any) { alert(err.message); }
+    finally { setSavingEdit(false); }
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditForm(null);
+  }
+
+  // --- Add rate for a hotel ---
+  function startAdd(key: string) {
+    setAddingKey(key);
+    setAddForm({
+      roomTypeId: '', seasonId: '', boardBasis: 'FB',
+      ratePerPersonSharing: '', singleRoomRate: '', childRate: '', thirdAdultRate: '', currency: 'USD',
+      newRoomName: '', newRoomMaxOccupancy: '2',
+    });
+  }
+
+  async function saveAdd() {
+    if (!addForm || addingKey === null) return;
+    setSavingAdd(true);
+    try {
+      let roomTypeId = Number(addForm.roomTypeId);
+      if (addForm.roomTypeId === 'new' && addForm.newRoomName.trim()) {
+        const hotel = results.find(p => `${p.roomType.hotel.county.name}__${p.roomType.hotel.name}` === addingKey)?.roomType.hotel;
+        if (!hotel) throw new Error('Could not determine hotel for new room type');
+        const created = await createRoomType(hotel.id, addForm.newRoomName, addForm.newRoomMaxOccupancy);
+        if (!created) throw new Error('Room type creation failed');
+        roomTypeId = created.id;
+      }
+      const res = await fetch('/api/safari-rates/prices', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomTypeId,
+          seasonId: Number(addForm.seasonId),
+          boardBasis: addForm.boardBasis,
+          ratePerPersonSharing: addForm.ratePerPersonSharing ? Number(addForm.ratePerPersonSharing) : null,
+          singleRoomRate: addForm.singleRoomRate ? Number(addForm.singleRoomRate) : null,
+          childRate: addForm.childRate ? Number(addForm.childRate) : null,
+          thirdAdultRate: addForm.thirdAdultRate ? Number(addForm.thirdAdultRate) : null,
+          currency: addForm.currency || 'USD',
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to add rate');
+      setAddingKey(null);
+      setAddForm(null);
+      search();
+    } catch (err: any) { alert(err.message); }
+    finally { setSavingAdd(false); }
+  }
+
+  function cancelAdd() {
+    setAddingKey(null);
+    setAddForm(null);
+  }
+
+  // --- Delete rate ---
+  async function deletePrice(id: number) {
+    if (!confirm('Delete this rate?')) return;
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/safari-rates/prices/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete rate');
+      search();
+    } catch (err: any) { alert(err.message); }
+    finally { setDeletingId(null); }
+  }
 
   return (
     <div className="space-y-5">
@@ -222,9 +387,13 @@ export default function SafariRatesSearchPage() {
               const prices = grouped[key];
               const hotel = prices[0].roomType.hotel;
               const minRate = Math.min(...prices.map(p => p.ratePerPersonSharing ?? Infinity));
+              const hotelRooms = roomTypes.filter(r => r.hotelId === hotel.id);
+              const hotelSeasons = seasons.filter(s => s.hotelId === hotel.id);
+              const isAdding = addingKey === key;
+              const isEditingAny = editingId !== null;
               return (
                 <div key={key} className="card p-0 overflow-hidden">
-                  <div className="px-5 py-4 bg-gray-50 border-b border-gray-200 flex items-start justify-between">
+                  <div className="px-5 py-4 bg-gray-50 border-b border-gray-200 flex items-start justify-between gap-2">
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="font-bold text-gray-900">{hotel.name}</h3>
@@ -235,37 +404,168 @@ export default function SafariRatesSearchPage() {
                         {minRate !== Infinity && <span className="ml-2 text-xs text-orange-600 font-mono">from {fmt(minRate, prices[0].currency)}</span>}
                       </p>
                     </div>
+                    <div className="flex gap-2 items-center">
+                      {isAdding ? (
+                        <button onClick={cancelAdd} className="text-xs text-gray-500 hover:text-gray-800">Cancel</button>
+                      ) : (
+                        <button onClick={() => startAdd(key)} className="text-xs text-orange-500 hover:underline">+ Add Rate</button>
+                      )}
+                    </div>
                   </div>
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 border-b border-gray-100">
                       <tr>
-                        {['Room Type','Season','Period','Board','Per Person Sharing','Single','Child','Third Adult', nights>0?`${nights}N Total`:''].filter(Boolean).map(h => (
+                        {['Room Type','Season','Period','Board','Per Person Sharing','Single','Child','Third Adult', nights>0?`${nights}N Total`:'','Actions'].filter(Boolean).map(h => (
                           <th key={h} className="text-left px-4 py-2 font-medium text-gray-600 text-xs">{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {prices.map(p => (
-                        <tr key={p.id} className="hover:bg-orange-50/50">
-                          <td className="px-4 py-2.5 font-medium text-gray-800">{p.roomType.name}</td>
-                          <td className="px-4 py-2.5 text-orange-600 font-medium">{p.season.name}</td>
-                          <td className="px-4 py-2.5 text-gray-500 text-xs">
-                            {new Date(p.season.startDate).toLocaleDateString('en-KE',{day:'2-digit',month:'short'})} – {new Date(p.season.endDate).toLocaleDateString('en-KE',{day:'2-digit',month:'short'})}
-                          </td>
-                          <td className="px-4 py-2.5 text-gray-600">{BOARD[p.boardBasis]||p.boardBasis}</td>
-                          <td className="px-4 py-2.5 font-mono font-bold text-gray-800">{fmt(p.ratePerPersonSharing,p.currency)}</td>
-                          <td className="px-4 py-2.5 font-mono text-gray-600">{fmt(p.singleRoomRate,p.currency)}</td>
-                          <td className="px-4 py-2.5 font-mono text-gray-500">{fmt(p.childRate,p.currency)}</td>
-                          <td className="px-4 py-2.5 font-mono text-gray-500">{fmt(p.thirdAdultRate,p.currency)}</td> {/* 👈 New column */}
-                          {nights>0 && (
-                            <td className="px-4 py-2.5 font-mono font-bold text-green-700">
-                              {p.ratePerPersonSharing ? `${p.currency} ${(p.ratePerPersonSharing*nights).toLocaleString()}` : '—'}
+                      {prices.map(p => {
+                        const isEditing = editingId === p.id;
+                        const period = `${new Date(p.season.startDate).toLocaleDateString('en-KE',{day:'2-digit',month:'short'})} – ${new Date(p.season.endDate).toLocaleDateString('en-KE',{day:'2-digit',month:'short'})}`;
+                        if (isEditing && editForm) {
+                          const selSeason = hotelSeasons.find(s => s.id === Number(editForm.seasonId));
+                          const editPeriod = selSeason
+                            ? `${new Date(selSeason.startDate).toLocaleDateString('en-KE',{day:'2-digit',month:'short'})} – ${new Date(selSeason.endDate).toLocaleDateString('en-KE',{day:'2-digit',month:'short'})}`
+                            : '';
+                          const isNewRoom = editForm.roomTypeId === 'new';
+                          return (
+                            <tr key={p.id} className="bg-orange-50">
+                              <td className="px-4 py-2.5">
+                                <select className="input input-sm" value={editForm.roomTypeId} onChange={e => setEditForm({ ...editForm, roomTypeId: e.target.value })}>
+                                  <option value="new">+ Create new room type…</option>
+                                  {hotelRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                                </select>
+                                {isNewRoom && (
+                                  <div className="mt-2 space-y-2">
+                                    <input type="text" placeholder="New room type name" className="input input-sm" value={editForm.newRoomName} onChange={e => setEditForm({ ...editForm, newRoomName: e.target.value })} />
+                                    <input type="number" min={1} placeholder="Max occupancy" className="input input-sm w-24" value={editForm.newRoomMaxOccupancy} onChange={e => setEditForm({ ...editForm, newRoomMaxOccupancy: e.target.value })} />
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <select className="input input-sm" value={editForm.seasonId} onChange={e => setEditForm({ ...editForm, seasonId: e.target.value })}>
+                                  {hotelSeasons.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                </select>
+                              </td>
+                              <td className="px-4 py-2.5 text-gray-500 text-xs">{editPeriod}</td>
+                              <td className="px-4 py-2.5">
+                                <select className="input input-sm" value={editForm.boardBasis} onChange={e => setEditForm({ ...editForm, boardBasis: e.target.value })}>
+                                  {Object.entries(BOARD).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                                </select>
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <input type="number" min={0} step="0.01" className="input input-sm font-mono" value={editForm.ratePerPersonSharing} onChange={e => setEditForm({ ...editForm, ratePerPersonSharing: e.target.value })} />
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <input type="number" min={0} step="0.01" className="input input-sm font-mono" value={editForm.singleRoomRate} onChange={e => setEditForm({ ...editForm, singleRoomRate: e.target.value })} />
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <input type="number" min={0} step="0.01" className="input input-sm font-mono" value={editForm.childRate} onChange={e => setEditForm({ ...editForm, childRate: e.target.value })} />
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <input type="number" min={0} step="0.01" className="input input-sm font-mono" value={editForm.thirdAdultRate} onChange={e => setEditForm({ ...editForm, thirdAdultRate: e.target.value })} />
+                              </td>
+                              {nights > 0 && (
+                                <td className="px-4 py-2.5 font-mono font-bold text-green-700">
+                                  {editForm.ratePerPersonSharing ? `${editForm.currency} ${(Number(editForm.ratePerPersonSharing) * nights).toLocaleString()}` : '—'}
+                                </td>
+                              )}
+                              <td className="px-4 py-2.5">
+                                <button onClick={saveEdit} disabled={savingEdit} className="text-xs text-green-600 hover:underline disabled:opacity-50 mr-2">
+                                  {savingEdit ? 'Saving…' : 'Save'}
+                                </button>
+                                <button onClick={cancelEdit} className="text-xs text-gray-500 hover:text-gray-800">Cancel</button>
+                              </td>
+                            </tr>
+                          );
+                        }
+                        return (
+                          <tr key={p.id} className="hover:bg-orange-50/50">
+                            <td className="px-4 py-2.5 font-medium text-gray-800">{p.roomType.name}</td>
+                            <td className="px-4 py-2.5 text-orange-600 font-medium">{p.season.name}</td>
+                            <td className="px-4 py-2.5 text-gray-500 text-xs">{period}</td>
+                            <td className="px-4 py-2.5 text-gray-600">{BOARD[p.boardBasis] || p.boardBasis}</td>
+                            <td className="px-4 py-2.5 font-mono font-bold text-gray-800">{fmt(p.ratePerPersonSharing, p.currency)}</td>
+                            <td className="px-4 py-2.5 font-mono text-gray-600">{fmt(p.singleRoomRate, p.currency)}</td>
+                            <td className="px-4 py-2.5 font-mono text-gray-500">{fmt(p.childRate, p.currency)}</td>
+                            <td className="px-4 py-2.5 font-mono text-gray-500">{fmt(p.thirdAdultRate, p.currency)}</td>
+                            {nights > 0 && (
+                              <td className="px-4 py-2.5 font-mono font-bold text-green-700">
+                                {p.ratePerPersonSharing ? `${p.currency} ${(p.ratePerPersonSharing * nights).toLocaleString()}` : '—'}
+                              </td>
+                            )}
+                            <td className="px-4 py-2.5 text-xs">
+                              <button onClick={() => startEdit(p)} className="text-orange-500 hover:underline font-medium mr-2">Edit</button>
+                              <button onClick={() => deletePrice(p.id)} disabled={deletingId === p.id} className="text-red-500 hover:text-red-700 font-medium">
+                                {deletingId === p.id ? '…' : 'Delete'}
+                              </button>
                             </td>
-                          )}
-                        </tr>
-                      ))}
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
+                  {isAdding && addForm && (
+                    <div className="px-5 py-4 border-t border-gray-200 bg-gray-50">
+                      <h4 className="font-semibold text-gray-800 mb-3 text-sm">Add New Rate</h4>
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div className="col-span-2 lg:col-span-1">
+                          <label className="label text-xs block mb-1">Room Type</label>
+                          <select className="input input-sm" value={addForm.roomTypeId} onChange={e => setAddForm({ ...addForm, roomTypeId: e.target.value })}>
+                            <option value="new">+ Create new room type…</option>
+                            {hotelRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                          </select>
+                          {addForm.roomTypeId === 'new' && (
+                            <div className="mt-2 space-y-2">
+                              <input type="text" placeholder="New room type name" className="input input-sm" value={addForm.newRoomName} onChange={e => setAddForm({ ...addForm, newRoomName: e.target.value })} />
+                              <input type="number" min={1} placeholder="Max occupancy" className="input input-sm w-24" value={addForm.newRoomMaxOccupancy} onChange={e => setAddForm({ ...addForm, newRoomMaxOccupancy: e.target.value })} />
+                            </div>
+                          )}
+                        </div>
+                        <div className="col-span-2 lg:col-span-1">
+                          <label className="label text-xs block mb-1">Season</label>
+                          <select className="input input-sm" value={addForm.seasonId} onChange={e => setAddForm({ ...addForm, seasonId: e.target.value })}>
+                            <option value="">—</option>
+                            {hotelSeasons.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="label text-xs block mb-1">Board</label>
+                          <select className="input input-sm" value={addForm.boardBasis} onChange={e => setAddForm({ ...addForm, boardBasis: e.target.value })}>
+                            {Object.entries(BOARD).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                          </select>
+                        </div>
+                        <div className="col-span-2 lg:col-span-1">
+                          <label className="label text-xs block mb-1">Per Person Sharing</label>
+                          <input type="number" min={0} step="0.01" className="input input-sm font-mono" value={addForm.ratePerPersonSharing} onChange={e => setAddForm({ ...addForm, ratePerPersonSharing: e.target.value })} />
+                        </div>
+                        <div>
+                          <label className="label text-xs block mb-1">Single</label>
+                          <input type="number" min={0} step="0.01" className="input input-sm font-mono" value={addForm.singleRoomRate} onChange={e => setAddForm({ ...addForm, singleRoomRate: e.target.value })} />
+                        </div>
+                        <div>
+                          <label className="label text-xs block mb-1">Child</label>
+                          <input type="number" min={0} step="0.01" className="input input-sm font-mono" value={addForm.childRate} onChange={e => setAddForm({ ...addForm, childRate: e.target.value })} />
+                        </div>
+                        <div>
+                          <label className="label text-xs block mb-1">Third Adult</label>
+                          <input type="number" min={0} step="0.01" className="input input-sm font-mono" value={addForm.thirdAdultRate} onChange={e => setAddForm({ ...addForm, thirdAdultRate: e.target.value })} />
+                        </div>
+                        <div>
+                          <label className="label text-xs block mb-1">Currency</label>
+                          <select className="input input-sm" value={addForm.currency} onChange={e => setAddForm({ ...addForm, currency: e.target.value })}>
+                            <option>USD</option><option>KES</option><option>EUR</option>
+                          </select>
+                        </div>
+                        <div className="col-span-2 lg:col-span-2 flex gap-2 pt-6 lg:pt-0">
+                          <button onClick={saveAdd} disabled={savingAdd} className="btn-primary text-sm py-1.5 flex-1">{savingAdd ? 'Adding…' : 'Add Rate'}</button>
+                          <button onClick={cancelAdd} className="btn-secondary text-sm py-1.5">Cancel</button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
