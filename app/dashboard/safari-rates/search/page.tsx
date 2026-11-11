@@ -588,11 +588,11 @@ export default function SafariRatesSearchPage() {
                     <tbody className="divide-y divide-gray-100">
                       {prices.map(p => {
                         const isEditing = editingId === p.id;
-                        const period = `${new Date(p.season.startDate).toLocaleDateString('en-KE',{day:'2-digit',month:'short'})} – ${new Date(p.season.endDate).toLocaleDateString('en-KE',{day:'2-digit',month:'short'})}`;
+                        const period = `${new Date(p.season.startDate).toLocaleDateString('en-KE',{day:'2-digit',month:'short',year:'numeric'})} – ${new Date(p.season.endDate).toLocaleDateString('en-KE',{day:'2-digit',month:'short',year:'numeric'})}`;
                         if (isEditing && editForm) {
                           const selSeason = hotelSeasons.find(s => s.id === Number(editForm.seasonId));
                           const editPeriod = selSeason
-                            ? `${new Date(selSeason.startDate).toLocaleDateString('en-KE',{day:'2-digit',month:'short'})} – ${new Date(selSeason.endDate).toLocaleDateString('en-KE',{day:'2-digit',month:'short'})}`
+                            ? `${new Date(selSeason.startDate).toLocaleDateString('en-KE',{day:'2-digit',month:'short',year:'numeric'})} – ${new Date(selSeason.endDate).toLocaleDateString('en-KE',{day:'2-digit',month:'short',year:'numeric'})}`
                             : '';
                           const isNewRoom = editForm.roomTypeId === 'new';
                           const isNewSeason = editForm.seasonId === 'new';
