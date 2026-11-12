@@ -32,6 +32,7 @@ interface Hotel {
   name: string;
   category?: string | null;
   stars?: number | null;
+  county?: { id: number; name: string };
   images?: { id: string; filename: string; mimeType: string; data: string }[];
 }
 
@@ -459,7 +460,8 @@ export default function NewItineraryPage() {
                       className="input"
                     >
                       <option value="">— No accommodation —</option>
-                      {(day.destinationId ? hotelsByDest[day.destinationId] : [])
+                      {hotels
+                        .filter(h => h.county?.id === day.destinationId)
                         .filter(h => !hotelSearch || h.name.toLowerCase().includes(hotelSearch.toLowerCase()))
                         .map((h: Hotel) => (
                           <option key={h.id} value={h.id}>{h.name}</option>
