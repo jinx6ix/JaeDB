@@ -81,7 +81,6 @@ export default function NewItineraryPage() {
   const [title, setTitle] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const usedImgIds = useRef<Record<string, string[]>>({});
 
   // Destination / accommodation lookups
   const [destinations, setDestinations] = useState<Destination[]>([]);
@@ -91,6 +90,11 @@ export default function NewItineraryPage() {
   const [hotelSearch, setHotelSearch] = useState('');
   const [hotelsByDest, setHotelsByDest] = useState<Record<number, Hotel[]>>({});
   const [loadingHotels, setLoadingHotels] = useState<Record<number, boolean>>({});
+  // Refs hold the latest fetched images so computePreviews can read them
+  // immediately without waiting for a React state re-render (fixes first-click staleness).
+  const destImagesRef = useRef<Record<number, DestinationImage[]>>({});
+  const hotelImagesRef = useRef<Record<number, DestinationImage[]>>({});
+  const usedImgIds = useRef<Record<string, string[]>>({});
 
   useEffect(() => {
     fetch('/api/bookings?withTour=1').then(r => r.json()).then((data: Booking[]) => {
@@ -189,11 +193,14 @@ export default function NewItineraryPage() {
     updateDay(tempId, 'destinationId', dest.id);
 
     // Load destination images for random preview
+    let destImgs: DestinationImage[] = [];
     try {
       const res = await fetch(`/api/destinations/${dest.id}/images`);
       const data = await res.json();
       if (Array.isArray(data)) {
+        destImgs = data;
         setDestImagesById(p => ({ ...p, [dest.id]: data }));
+        destImagesRef.current = { ...destImagesRef.current, [dest.id]: data };
       }
     } catch (err) {
       console.error('Failed to load destination images', err);
@@ -202,6 +209,7 @@ export default function NewItineraryPage() {
     updateDay(tempId, 'previewDestImages', []);
     updateDay(tempId, 'previewHotelImages', []);
 
+    // Load hotels for this destination (includes images)
     if (hotelsByDest[dest.id]) {
       computePreviews(tempId);
       return;
@@ -212,6 +220,14 @@ export default function NewItineraryPage() {
       const data = await res.json();
       const destHotels = Array.isArray(data) ? data : [];
       setHotelsByDest(p => ({ ...p, [dest.id]: destHotels }));
+      // Store any images that came back with the hotels
+      const imgMap: Record<number, DestinationImage[]> = {};
+      destHotels.forEach((h: Hotel) => {
+        if (h.images && h.images.length) imgMap[h.id] = h.images as DestinationImage[];
+      });
+      if (Object.keys(imgMap).length) {
+        hotelImagesRef.current = { ...hotelImagesRef.current, ...imgMap };
+      }
       computePreviews(tempId);
     } catch (err) {
       console.error('Failed to load hotels for destination', err);
@@ -225,6 +241,34 @@ export default function NewItineraryPage() {
     const hotel = [...hotels, ...Object.values(hotelsByDest).flat()].find(h => h.id === hotelId);
     if (!hotel) return;
     updateDay(tempId, 'accommodation', hotel.name);
+
+    // If hotel has no images loaded yet, fetch them directly so they appear immediately
+    const existingImgs = hotelImagesRef.current[hotelId] || (hotel.images as DestinationImage[] | undefined) || [];
+    if (!existingImgs.length) {
+      try {
+        const res = await fetch(`/api/safari-rates/hotels/${hotelId}`);
+        const data = await res.json();
+        if (data && data.images) {
+          const imgs = data.images as DestinationImage[];
+          hotelImagesRef.current = { ...hotelImagesRef.current, [hotelId]: imgs };
+          // Also reflect in hotelsByDest so subsequent looks pick it up
+          Object.keys(hotelsByDest).forEach(destId => {
+            const idx = hotelsByDest[Number(destId)].findIndex(h => h.id === hotelId);
+            if (idx >= 0) {
+              setHotelsByDest(p => ({
+                ...p,
+                [Number(destId)]: p[Number(destId)].map((h: Hotel) =>
+                  h.id === hotelId ? { ...h, images: data.images as any } : h
+                ),
+              }));
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load hotel images', err);
+      }
+    }
+
     computePreviews(tempId);
   }
 
@@ -256,7 +300,7 @@ export default function NewItineraryPage() {
     setDays(prev => prev.map(d => {
       if (d.tempId !== tempId) return d;
       const used: string[] = usedImgIds.current[d.dayNumber.toString()] || [];
-      const destImgs = d.destinationId ? destImagesById[d.destinationId] || [] : [];
+      const destImgs = d.destinationId ? (destImagesRef.current[d.destinationId] || destImagesById[d.destinationId] || []) : [];
       const hotelImgs = d.accommodationId ? hotelImagesFor(d.accommodationId) : [];
       const destPicks = pickRandomUnique(destImgs, 2, used);
       const hotelPicks = pickRandomUnique(hotelImgs, 2, used);
@@ -334,6 +378,8 @@ export default function NewItineraryPage() {
   }
 
   function hotelImagesFor(hotelId: number) {
+    const fromRef = hotelImagesRef.current[hotelId];
+    if (fromRef && fromRef.length) return fromRef;
     return [...hotels, ...Object.values(hotelsByDest).flat()].find(h => h.id === hotelId)?.images || [];
   }
 

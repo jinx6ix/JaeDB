@@ -1,8 +1,8 @@
 'use client';
-import React from 'react';
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import SearchInput from '@/components/SearchInput';
+import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Destination { id: number; name: string; region?: string | null; description?: string | null; images?: DestinationImage[]; }
 interface DestinationImage {
@@ -22,14 +22,26 @@ export default function DestinationsPage() {
   const [form, setForm] = useState({ name: '', region: '', description: '' });
   const [saving, setSaving] = useState(false);
 
-  // Image upload per destination
-  const [selectedDestId, setSelectedDestId] = useState<number | null>(null);
+  // Image state per destination
   const [destImages, setDestImages] = useState<Record<number, DestinationImage[]>>({});
   const [imageUploading, setImageUploading] = useState<Record<number, boolean>>({});
   const [imageEditing, setImageEditing] = useState<Record<string, boolean>>({});
   const [imageCaption, setImageCaption] = useState<Record<string, string>>({});
   const [deletingImage, setDeletingImage] = useState<Record<string, boolean>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Gallery modal state
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [galleryDest, setGalleryDest] = useState<Destination | null>(null);
+  const [galleryImages, setGalleryImages] = useState<DestinationImage[]>([]);
+  const [galleryIndex, setGalleryIndex] = useState(0);
+  const [galleryDescEditing, setGalleryDescEditing] = useState(false);
+  const [galleryDesc, setGalleryDesc] = useState('');
+
+  // Image edit/delete popup state (deliberate buttons — no accidental x-delete)
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [popupImage, setPopupImage] = useState<DestinationImage | null>(null);
+  const [popupCaption, setPopupCaption] = useState('');
 
   async function load() {
     try {
@@ -53,11 +65,6 @@ export default function DestinationsPage() {
     }
   }
 
-  // Load images whenever a destination row is expanded
-  useEffect(() => {
-    if (selectedDestId) loadDestImages(selectedDestId);
-  }, [selectedDestId]);
-
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim()) { alert('Destination name is required'); return; }
@@ -76,10 +83,6 @@ export default function DestinationsPage() {
       setShowForm(false);
       setForm({ name: '', region: '', description: '' });
       await load();
-      if (created.id) {
-        setSelectedDestId(created.id);
-        await loadDestImages(created.id);
-      }
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -135,6 +138,7 @@ export default function DestinationsPage() {
         if (!res.ok) throw new Error('Upload failed');
         const img = await res.json();
         setDestImages(p => ({ ...p, [destId]: [...(p[destId] || []), img] }));
+        setGalleryImages(prev => [...prev, img]);
       } catch (err) {
         console.error('Error uploading image:', file.name, err);
       }
@@ -143,6 +147,7 @@ export default function DestinationsPage() {
   }
 
   async function removeImage(destId: number, imageId: string) {
+    if (!confirm('Delete this image?')) return;
     setDeletingImage(p => ({ ...p, [imageId]: true }));
     try {
       const res = await fetch(`/api/destinations/${destId}/images?imageId=${encodeURIComponent(imageId)}`, {
@@ -150,6 +155,10 @@ export default function DestinationsPage() {
       });
       if (!res.ok) throw new Error('Delete failed');
       setDestImages(p => ({ ...p, [destId]: (p[destId] || []).filter((i: DestinationImage) => i.id !== imageId) }));
+      setGalleryImages(prev => prev.filter(i => i.id !== imageId));
+      if (galleryIndex >= galleryImages.length - 1 && galleryImages.length > 1) {
+        setGalleryIndex(galleryIndex - 1);
+      }
     } catch (err) {
       console.error('Error deleting image:', err);
       alert('Failed to delete image');
@@ -172,55 +181,98 @@ export default function DestinationsPage() {
         ...p,
         [destId]: (p[destId] || []).map((i: DestinationImage) => i.id === imageId ? { ...i, caption } : i),
       }));
+      setGalleryImages(prev => prev.map(i => i.id === imageId ? { ...i, caption } : i));
     } catch (err) {
       console.error('Error saving caption:', err);
     }
   }
 
-  function startEdit(d: Destination) {
-    setSelectedDestId(null);
-    setEditingId(d.id);
-    setEditForm({ name: d.name, region: d.region || '', description: d.description || '' });
-  }
-
-  // Edit state
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', region: '', description: '' });
-  const [savingEdit, setSavingEdit] = useState(false);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
-
-  async function saveEdit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!editForm.name.trim()) return;
-    setSavingEdit(true);
+  async function saveGalleryDescription() {
+    if (!galleryDest) return;
     try {
-      const res = await fetch(`/api/safari-rates/counties/${editingId}`, {
+      const res = await fetch(`/api/safari-rates/counties/${galleryDest.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editForm.name.trim(), region: editForm.region.trim() || null, description: editForm.description.trim() || null }),
+        body: JSON.stringify({ name: galleryDest.name, region: galleryDest.region || null, description: galleryDesc }),
       });
-      if (!res.ok) throw new Error('Failed to update destination');
-      setEditingId(null);
-      await load();
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setSavingEdit(false);
+      if (!res.ok) throw new Error('Failed to update description');
+      const updated = await res.json();
+      setDestinations(prev => prev.map(d => d.id === galleryDest!.id ? { ...d, description: updated.description } : d));
+      setGalleryDescEditing(false);
+    } catch (err) {
+      alert('Failed to update description');
     }
   }
 
-  async function deleteDestination(id: number) {
-    if (!confirm('Delete this destination?')) return;
-    setDeletingId(id);
-    try {
-      const res = await fetch(`/api/safari-rates/counties/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete destination');
-      await load();
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setDeletingId(null);
+  // --- Gallery handlers ---
+  async function openGallery(dest: Destination) {
+    setGalleryDest(dest);
+    setGalleryIndex(0);
+    setGalleryDesc(dest.description || '');
+    setGalleryOpen(true);
+
+    const cached = destImages[dest.id];
+    if (cached && cached.length > 0) {
+      setGalleryImages(cached);
+      return;
     }
+    try {
+      const res = await fetch(`/api/destinations/${dest.id}/images`);
+      const imgs = await res.json();
+      const images = Array.isArray(imgs) ? imgs : [];
+      setDestImages(p => ({ ...p, [dest.id]: images }));
+      setGalleryImages(images);
+    } catch (err) {
+      console.error('Failed to load destination images', err);
+    }
+  }
+
+  function closeGallery() {
+    setGalleryOpen(false);
+    setGalleryDest(null);
+    setGalleryImages([]);
+    setGalleryIndex(0);
+    setGalleryDescEditing(false);
+  }
+
+  // --- Image popup handlers (edit + delete, deliberate actions only) ---
+  function openImagePopup(image: DestinationImage) {
+    setPopupImage(image);
+    setPopupCaption(image.caption || '');
+    setPopupOpen(true);
+  }
+
+  function closeImagePopup() {
+    setPopupOpen(false);
+    setPopupImage(null);
+    setPopupCaption('');
+  }
+
+  async function savePopupCaption() {
+    if (!popupImage || !galleryDest) return;
+    try {
+      const res = await fetch(`/api/destinations/${galleryDest.id}/images/${popupImage.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caption: popupCaption }),
+      });
+      if (!res.ok) throw new Error('Caption save failed');
+      setDestImages(p => ({
+        ...p,
+        [galleryDest.id]: (p[galleryDest.id] || []).map((i: DestinationImage) => i.id === popupImage!.id ? { ...i, caption: popupCaption } : i),
+      }));
+      setGalleryImages(prev => prev.map(i => i.id === popupImage!.id ? { ...i, caption: popupCaption } : i));
+      closeImagePopup();
+    } catch (err) {
+      console.error('Error saving caption:', err);
+      alert('Failed to save caption');
+    }
+  }
+
+  function deletePopupImage() {
+    if (!popupImage || !galleryDest) return;
+    removeImage(galleryDest.id, popupImage.id);
+    closeImagePopup();
   }
 
   const filtered = destinations.filter(d =>
@@ -279,190 +331,263 @@ export default function DestinationsPage() {
         />
       </div>
 
-      <div className="card p-0 overflow-hidden overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              {['Destination','Region','Images','Description','Actions'].map(h => (
-                <th key={h} className="text-left px-4 py-3 font-medium text-gray-600">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {filtered.map(d => (
-              <React.Fragment key={d.id}>
-                {editingId === d.id ? (
-                  <tr>
-                    <td className="px-4 py-2.5 col-span-5">
-                      <form onSubmit={saveEdit} className="flex gap-2 items-center">
-                        <input
-                          required className="input flex-1"
-                          value={editForm.name}
-                          onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+      {/* Card list — 3 images per card, clickable to open gallery */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {filtered.map(d => {
+          const imgs = (d.images || destImages[d.id] || []) as DestinationImage[];
+          return (
+            <div
+              key={d.id}
+              className="card cursor-pointer hover:shadow-md transition-shadow duration-200 group border border-gray-200"
+              onClick={() => openGallery(d)}
+            >
+              <div className="relative h-48 overflow-hidden rounded-t-lg bg-gray-100 flex items-center justify-center">
+                {imgs.length === 0 ? (
+                  <div className="text-gray-400 text-xs">No images</div>
+                ) : (
+                  <div className="absolute inset-0 grid grid-cols-3 gap-0">
+                    {imgs.slice(0, 3).map((img, idx) => (
+                      <div key={img.id} className={idx === 0 ? 'border-r' : idx === 2 ? 'border-l' : ''}>
+                        <img
+                          src={`data:${img.mimeType};base64,${img.data}`}
+                          alt={img.filename}
+                          className="w-full h-full object-cover"
+                          onClick={(e) => { e.stopPropagation(); openImagePopup(img); }}
                         />
-                        <input
-                          className="input flex-1"
-                          value={editForm.region}
-                          onChange={e => setEditForm(f => ({ ...f, region: e.target.value }))}
-                          placeholder="Region"
-                        />
-                        <button type="submit" disabled={savingEdit} className="btn-primary text-xs py-1.5">{savingEdit ? '…' : 'Save'}</button>
-                        <button type="button" onClick={() => setEditingId(null)} className="btn-secondary text-xs py-1.5">Cancel</button>
-                      </form>
-                    </td>
-                  </tr>
+                      </div>
+                    ))}
+                    {imgs.length > 3 && (
+                      <div className="flex items-center justify-center bg-gray-200 border-l border-r text-xs text-gray-500 font-medium">
+                        +{imgs.length - 3}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className="absolute top-2 right-2 bg-black/60 text-white px-2 py-1 rounded text-xs font-medium">
+                  {imgs.length} images
+                </div>
+              </div>
+              <div className="p-3">
+                <h3 className="font-semibold text-gray-800 text-sm leading-tight">{d.name}</h3>
+                {d.region && <p className="text-xs text-gray-500 mt-1">{d.region}</p>}
+                {d.description && (
+                  <p className="text-sm text-gray-700 mt-1 line-clamp-2">{d.description}</p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+        {filtered.length === 0 && (
+          <div className="col-span-full card p-12 text-center">
+            <p className="text-gray-500">No destinations found.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Gallery modal — click card to open, click image to open edit/delete popup */}
+      {galleryOpen && galleryDest && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
+          <div className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gray-50">
+              <div className="flex-1">
+                <h2 className="font-semibold text-gray-800">{galleryDest.name}</h2>
+                <p className="text-xs text-gray-500">{galleryDest.region || '—'}</p>
+              </div>
+              <div className="flex gap-2">
+                {galleryDescEditing ? (
+                  <>
+                    <button
+                      onClick={saveGalleryDescription}
+                      disabled={saving}
+                      className="text-xs text-orange-600 hover:underline font-medium"
+                    >
+                      {saving ? '…' : 'Save'}
+                    </button>
+                    <button
+                      onClick={() => { setGalleryDescEditing(false); setGalleryDesc(galleryDest.description || ''); }}
+                      className="text-xs text-gray-500 hover:underline"
+                    >
+                      Cancel
+                    </button>
+                  </>
                 ) : (
                   <>
-                    <tr className="hover:bg-gray-50 cursor-pointer" onClick={() => setSelectedDestId(d.id === selectedDestId ? null : d.id)}>
-                      <td className="px-4 py-2.5 font-medium text-gray-800">{d.name}</td>
-                      <td className="px-4 py-2.5 text-gray-600">{d.region || '—'}</td>
-                      <td className="px-4 py-2.5">
-                        <span className="text-orange-500 text-xs font-medium">
-                          {(d.images?.length || destImages[d.id]?.length || 0)} images
-                        </span>
-                      </td>
-                      <td className="px-4 py-2.5 text-gray-600 text-sm truncate max-w-xs">{d.description || '—'}</td>
-                      <td className="px-4 py-2.5">
-                        <div className="flex gap-1">
-                          <button type="button" onClick={() => startEdit(d)} className="text-xs text-blue-600 hover:underline px-2 py-1 border border-blue-200 rounded">Edit</button>
-                          <button type="button" onClick={() => deleteDestination(d.id)} disabled={deletingId === d.id} className="text-xs text-red-600 hover:underline px-2 py-1 border border-red-200 rounded">{deletingId === d.id ? '…' : 'Delete'}</button>
-                        </div>
-                      </td>
-                    </tr>
-
-                    {selectedDestId === d.id && (
-                      <tr>
-                        <td colSpan={5} className="px-6 py-4 bg-orange-50 border-b border-orange-100">
-                          <div className="flex flex-wrap items-center gap-4">
-                            <div className="flex-1 min-w-[260px]">
-                              <label className="label block mb-2">Description</label>
-                              <p className="text-gray-600 text-sm mb-2">{d.description || 'No description yet.'}</p>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const desc = prompt('Edit description:', d.description || '');
-                                  if (desc !== null) {
-                                    fetch(`/api/safari-rates/counties/${d.id}`, {
-                                      method: 'PUT',
-                                      headers: { 'Content-Type': 'application/json' },
-                                      body: JSON.stringify({ name: d.name, region: d.region || null, description: desc }),
-                                    }).then(async r => {
-                                      if (!r.ok) throw new Error('Failed to update description');
-                                      const updated = await r.json();
-                                      setDestinations(prev => prev.map(x => x.id === d.id ? { ...x, description: updated.description } : x));
-                                    }).catch(err => alert(err.message));
-                                  }
-                                }}
-                                className="btn-secondary text-xs mt-2 px-3 py-1.5"
-                              >
-                                Edit Description
-                              </button>
-                            </div>
-
-                            <div className="flex-1 min-w-[260px]">
-                              <label className="label block mb-2">Destination Images (drag & drop / browse)</label>
-                              <div
-                                onDragOver={(e) => { e.preventDefault(); }}
-                                onDragLeave={(e) => { e.preventDefault(); }}
-                                onDrop={(e) => {
-                                  e.preventDefault();
-                                  if (e.dataTransfer.files?.length) processFiles(e.dataTransfer.files, d.id);
-                                }}
-                                onClick={() => fileInputRef.current?.click()}
-                                className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${imageUploading[d.id] ? 'border-orange-400 bg-orange-50' : 'border-gray-200 hover:border-orange-300 hover:bg-gray-50'}`}
-                              >
-                                <input
-                                  ref={fileInputRef}
-                                  type="file"
-                                  accept="image/*"
-                                  multiple
-                                  className="hidden"
-                                  onChange={e => e.target.files && processFiles(e.target.files, d.id)}
-                                />
-                                {imageUploading[d.id] ? (
-                                  <p className="text-xs text-orange-500 flex items-center justify-center gap-2 mt-2">
-                                    <span className="inline-block w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
-                                    Uploading…
-                                  </p>
-                                ) : (
-                                  <>
-                                    <p className="text-2xl mb-1">🏞</p>
-                                    <p className="text-xs text-gray-500">Drag & drop images here, or <span className="text-orange-500 font-medium">click to browse</span></p>
-                                  </>
-                                )}
-                              </div>
-
-                              {(d.images || destImages[d.id] || []).length > 0 && (
-                                <div className="space-y-2">
-                                  <div className="grid grid-cols-4 gap-2 mt-3 max-h-[220px] overflow-y-auto">
-                                    {(d.images || destImages[d.id] || []).map((img: DestinationImage) => (
-                                      <div key={img.id} className="relative rounded-lg overflow-hidden border border-gray-200 group">
-                                        <img
-                                          src={`data:${img.mimeType};base64,${img.data}`}
-                                          alt={img.filename}
-                                          className="w-full h-20 object-cover"
-                                        />
-                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
-                                          <button
-                                            type="button"
-                                            onClick={() => removeImage(d.id, img.id)}
-                                            className="opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shadow"
-                                            disabled={deletingImage[img.id]}
-                                          >
-                                            ×
-                                          </button>
-                                        </div>
-                                        <p className="text-xs text-gray-500 truncate px-1 py-0.5 bg-white">{img.filename}</p>
-                                        {imageEditing[img.id] ? (
-                                          <div className="p-1">
-                                            <input
-                                              className="input text-xs w-full"
-                                              value={imageCaption[img.id] || img.caption || ''}
-                                              onChange={e => setImageCaption(p => ({ ...p, [img.id]: e.target.value }))}
-                                              placeholder="Caption"
-                                              autoFocus
-                                            />
-                                            <div className="flex gap-1 mt-1">
-                                              <button onClick={() => saveImageCaption(d.id, img.id)} className="text-xs text-orange-600 hover:underline">Save</button>
-                                              <button onClick={() => setImageEditing(p => ({ ...p, [img.id]: false }))} className="text-xs text-gray-500 hover:underline">Cancel</button>
-                                            </div>
-                                          </div>
-                                        ) : (
-                                          <button
-                                            type="button"
-                                            onClick={() => setImageEditing(p => ({ ...p, [img.id]: true }))}
-                                            className="absolute top-1 right-1 z-10 text-xs text-gray-500 hover:text-orange-600 bg-white/90 px-1 py-0.5 rounded border border-gray-200"
-                                          >
-                                            ✏️
-                                          </button>
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      (d.images || destImages[d.id] || []).forEach(img => saveImageCaption(d.id, img.id));
-                                      alert('Images saved');
-                                    }}
-                                    className="mt-2 text-xs text-orange-600 hover:underline"
-                                  >
-                                    Save Images
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
+                    <button
+                      onClick={() => { setGalleryDesc(galleryDest.description || ''); setGalleryDescEditing(true); }}
+                      className="text-xs text-blue-600 hover:underline font-medium"
+                    >
+                      Edit Description
+                    </button>
+                    <button onClick={closeGallery} className="text-gray-500 hover:text-gray-700">
+                      <X size={20} />
+                    </button>
                   </>
                 )}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
-      </div>
+              </div>
+            </div>
+
+            {galleryDescEditing && (
+              <div className="p-4 border-b border-gray-100 bg-gray-50">
+                <textarea
+                  value={galleryDesc}
+                  onChange={e => setGalleryDesc(e.target.value)}
+                  rows={3}
+                  className="input w-full"
+                  placeholder="Describe the destination…"
+                  autoFocus
+                />
+              </div>
+            )}
+
+            <div className="flex-1 relative flex items-center justify-center p-4 overflow-hidden">
+              {galleryImages.length > 0 ? (
+                <>
+                  {galleryImages.length > 1 && (
+                    <>
+                      <button
+                        onClick={() => setGalleryIndex((i) => (i === 0 ? galleryImages.length - 1 : i - 1))}
+                        className="absolute left-4 bg-white/90 p-2 rounded-full shadow hover:bg-white transition-colors disabled:opacity-30"
+                        disabled={galleryImages.length <= 1}
+                      >
+                        <ChevronLeft size={20} />
+                      </button>
+                      <button
+                        onClick={() => setGalleryIndex((i) => (i === galleryImages.length - 1 ? 0 : i + 1))}
+                        className="absolute right-4 bg-white/90 p-2 rounded-full shadow hover:bg-white transition-colors disabled:opacity-30"
+                        disabled={galleryImages.length <= 1}
+                      >
+                        <ChevronRight size={20} />
+                      </button>
+                    </>
+                  )}
+                  <img
+                    src={`data:${galleryImages[galleryIndex].mimeType};base64,${galleryImages[galleryIndex].data}`}
+                    alt={galleryImages[galleryIndex].filename}
+                    className="max-h-[60vh] max-w-full object-contain cursor-pointer"
+                    onClick={() => openImagePopup(galleryImages[galleryIndex])}
+                  />
+                </>
+              ) : (
+                <div className="text-gray-400">No images</div>
+              )}
+            </div>
+
+            {galleryImages.length > 0 && (
+              <div className="border-t border-gray-100 bg-gray-50 p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-600">
+                    Image {galleryIndex + 1} of {galleryImages.length}
+                  </span>
+                  <button
+                    onClick={() => {
+                      const el = fileInputRef.current;
+                      if (el) el.click();
+                    }}
+                    className="text-xs text-orange-600 hover:underline font-medium"
+                  >
+                    + Add Images
+                  </button>
+                </div>
+                <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto">
+                  {galleryImages.map((img, idx) => (
+                    <div
+                      key={img.id}
+                      className={`relative rounded overflow-hidden border-2 ${
+                        idx === galleryIndex ? 'border-orange-500' : 'border-transparent hover:border-gray-300'
+                      } group cursor-pointer`}
+                      onClick={(e) => { e.stopPropagation(); setGalleryIndex(idx); }}
+                    >
+                      <img
+                        src={`data:${img.mimeType};base64,${img.data}`}
+                        alt={img.filename}
+                        className="w-full h-16 object-cover"
+                        onClick={(e) => { e.stopPropagation(); openImagePopup(img); }}
+                      />
+                      {idx === galleryIndex && (
+                        <div className="absolute bottom-0 left-0 w-full bg-black/50 text-white text-[10px] text-center px-1">
+                          {img.filename}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {galleryImages.length > 4 && (
+                    <div className="flex items-center justify-center bg-gray-100 border text-xs text-gray-500 font-medium">
+                      +{galleryImages.length - 4}
+                    </div>
+                  )}
+                </div>
+                {imageUploading[galleryDest.id] && (
+                  <p className="text-xs text-orange-500 flex items-center justify-center gap-2 mt-2">
+                    <span className="inline-block w-3 h-3 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+                    Uploading…
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={e => e.target.files && galleryDest && processFiles(e.target.files, galleryDest.id)}
+          />
+        </div>
+      )}
+
+      {/* Image edit/delete popup — deliberate buttons, no accidental x-delete */}
+      {popupOpen && popupImage && galleryDest && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col">
+            <div className="p-4 border-b border-gray-100">
+              <h2 className="font-semibold text-gray-800">Image Details</h2>
+            </div>
+            <div className="p-4">
+              <img
+                src={`data:${popupImage.mimeType};base64,${popupImage.data}`}
+                alt={popupImage.filename}
+                className="w-full h-48 object-cover rounded-lg border border-gray-200 mb-4 cursor-pointer"
+                onClick={() => {}}
+              />
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Caption</label>
+                  <input
+                    type="text"
+                    value={popupCaption}
+                    onChange={e => setPopupCaption(e.target.value)}
+                    className="input w-full"
+                    placeholder="Add a caption…"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 truncate">{popupImage.filename}</p>
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-100 flex justify-end gap-2">
+              <button
+                onClick={closeImagePopup}
+                className="btn-secondary text-sm px-4"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => { savePopupCaption(); }}
+                className="btn-primary text-sm px-4"
+              >
+                Save Caption
+              </button>
+              <button
+                onClick={deletePopupImage}
+                className="btn-secondary text-sm px-4 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+              >
+                Delete Image
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
