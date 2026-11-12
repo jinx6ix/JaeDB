@@ -43,7 +43,8 @@ export async function POST(
     },
   });
   if (overlapping) {
-    return NextResponse.json({ error: 'New season dates overlap with an existing season' }, { status: 409 });
+    const fmt = (d: Date) => d.toLocaleDateString('en-KE', { day: '2-digit', month: 'short', year: 'numeric' });
+    return NextResponse.json({ error: `New season dates overlap with existing season "${overlapping.name}" (${fmt(overlapping.startDate)} – ${fmt(overlapping.endDate)})` }, { status: 409 });
   }
 
   // Create the new season

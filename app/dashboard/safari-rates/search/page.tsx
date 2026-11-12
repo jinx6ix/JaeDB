@@ -58,6 +58,12 @@ export default function SafariRatesSearchPage() {
   // Inline delete state
   const [deletingId, setDeletingId] = useState<number|null>(null);
 
+  // Edit/delete season (from Add Rate season dropdown) state
+  const [editingSeason, setEditingSeason] = useState<Season | null>(null);
+  const [seasonEditForm, setSeasonEditForm] = useState<{ name: string; startDate: string; endDate: string } | null>(null);
+  const [savingSeasonEdit, setSavingSeasonEdit] = useState(false);
+  const [deletingSeasonId, setDeletingSeasonId] = useState<number|null>(null);
+
   // Extend season state: copies all prices from a season to a new season with new dates
   const [extendingSeasonId, setExtendingSeasonId] = useState<number|null>(null);
   const [extendForm, setExtendForm] = useState<{ name: string; startDate: string; endDate: string } | null>(null);
@@ -195,6 +201,56 @@ export default function SafariRatesSearchPage() {
       alert(err.message);
       return null;
     }
+  }
+
+  // --- Edit season (from Add Rate dropdown) ---
+  function startEditSeason(s: Season) {
+    setEditingSeason(s);
+    setSeasonEditForm({ name: s.name, startDate: s.startDate, endDate: s.endDate });
+  }
+
+  async function saveEditSeason() {
+    if (!seasonEditForm || !editingSeason) return;
+    setSavingSeasonEdit(true);
+    try {
+      const res = await fetch('/api/safari-rates/seasons', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingSeason.id,
+          name: seasonEditForm.name.trim(),
+          startDate: seasonEditForm.startDate,
+          endDate: seasonEditForm.endDate,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to update season');
+      }
+      const updated = await res.json();
+      setSeasons(prev => prev.map(s => s.id === updated.id ? { ...updated, startDate: updated.startDate, endDate: updated.endDate } : s));
+      setEditingSeason(null);
+      setSeasonEditForm(null);
+    } catch (err: any) { alert(err.message); }
+    finally { setSavingSeasonEdit(false); }
+  }
+
+  function cancelEditSeason() {
+    setEditingSeason(null);
+    setSeasonEditForm(null);
+  }
+
+  async function deleteSeason(id: number) {
+    if (!confirm('Delete this season?')) return;
+    setDeletingSeasonId(id);
+    try {
+      const res = await fetch(`/api/safari-rates/seasons?id=${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to delete season');
+      }
+      setSeasons(prev => prev.filter(s => s.id !== id));
+    } catch (err: any) { alert(err.message); }
+    finally { setDeletingSeasonId(null); }
   }
 
   // Resolve a room type id: if 'new', create it first; otherwise use existing id
@@ -816,6 +872,27 @@ export default function SafariRatesSearchPage() {
                     <option value="new">+ Create new season…</option>
                     {addSeasons.map(s => <option key={s.id} value={s.id}>{`${s.name} (${new Date(s.startDate).toLocaleDateString('en-KE', { day: '2-digit', month: 'short', year: 'numeric' })} – ${new Date(s.endDate).toLocaleDateString('en-KE', { day: '2-digit', month: 'short', year: 'numeric' })}`}</option>)}
                   </select>
+                  {addForm.seasonId !== 'new' && addForm.seasonId !== '' && (
+                    <div className="mt-2 space-y-1 flex gap-2">
+                      <button
+                        onClick={() => {
+                          const s = addSeasons.find(x => x.id === Number(addForm.seasonId));
+                          if (s) startEditSeason(s);
+                        }}
+                        disabled={savingSeasonEdit}
+                        className="text-xs text-blue-600 hover:underline flex-1 py-1 border border-blue-200 rounded"
+                      >
+                        ✏️ Edit season
+                      </button>
+                      <button
+                        onClick={() => deleteSeason(Number(addForm.seasonId))}
+                        disabled={deletingSeasonId !== null}
+                        className="text-xs text-red-600 hover:underline flex-1 py-1 border border-red-200 rounded"
+                      >
+                        🗑️ Delete season
+                      </button>
+                    </div>
+                  )}
                   {addForm.seasonId === 'new' && (
                     <div className="mt-2 space-y-2">
                       <input type="text" placeholder="New season name" className="input input-sm" value={addForm.newSeasonName} onChange={e => setAddForm({ ...addForm, newSeasonName: e.target.value })} />
@@ -872,6 +949,45 @@ export default function SafariRatesSearchPage() {
                 </>
               );
             })()}
+          </div>
+        </div>
+      )}
+      {/* Edit Season Popup (from Add Rate dropdown) */}
+      {editingSeason !== null && seasonEditForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={cancelEditSeason} />
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md p-6 mx-4 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Edit Season</h3>
+              <button onClick={cancelEditSeason} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">Editing: {editingSeason.name}</p>
+            <div className="space-y-3">
+              <div>
+                <label className="label text-xs block mb-1">Season Name</label>
+                <input type="text" className="input input-sm" value={seasonEditForm.name} onChange={e => setSeasonEditForm({ ...seasonEditForm, name: e.target.value })} />
+              </div>
+              <div className="flex gap-2">
+                <div>
+                  <label className="label text-xs block mb-1">Start Date</label>
+                  <input type="date" className="input input-sm" value={seasonEditForm.startDate} onChange={e => setSeasonEditForm({ ...seasonEditForm, startDate: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label text-xs block mb-1">End Date</label>
+                  <input type="date" className="input input-sm" value={seasonEditForm.endDate} onChange={e => setSeasonEditForm({ ...seasonEditForm, endDate: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="pt-5">
+                  <button onClick={saveEditSeason} disabled={savingSeasonEdit} className="btn-primary text-sm py-1.5 w-full">
+                    {savingSeasonEdit ? 'Saving…' : 'Save Changes'}
+                  </button>
+                </div>
+                <div className="pt-2">
+                  <button onClick={cancelEditSeason} className="text-xs text-gray-500 hover:text-gray-800 underline">Cancel</button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -3,9 +3,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-// Helper: check if a new/updated season overlaps any existing season for the same hotel
-async function hasOverlap(hotelId: number, startDate: Date, endDate: Date, excludeId?: number): Promise<boolean> {
-  const overlapping = await prisma.sRSeason.findFirst({
+// Helper: find an overlapping season for the same hotel (returns the conflicting season)
+async function findOverlap(hotelId: number, startDate: Date, endDate: Date, excludeId?: number) {
+  return prisma.sRSeason.findFirst({
     where: {
       hotelId,
       id: excludeId ? { not: excludeId } : undefined,
@@ -19,7 +19,6 @@ async function hasOverlap(hotelId: number, startDate: Date, endDate: Date, exclu
       ]
     }
   });
-  return overlapping !== null;
 }
 
 export async function GET(req: NextRequest) {
@@ -56,8 +55,12 @@ export async function POST(req: NextRequest) {
   }
 
   // Check overlap
-  if (await hasOverlap(hotelIdNum, start, end)) {
-    return NextResponse.json({ error: 'Season dates overlap with an existing season for this hotel' }, { status: 409 });
+  const overlapping = await findOverlap(hotelIdNum, start, end);
+  if (overlapping) {
+    const fmt = (d: Date) => d.toLocaleDateString('en-KE', { day: '2-digit', month: 'short', year: 'numeric' });
+    return NextResponse.json({
+      error: `Season dates overlap with existing season "${overlapping.name}" (${fmt(overlapping.startDate)} – ${fmt(overlapping.endDate)})`,
+    }, { status: 409 });
   }
 
   const season = await prisma.sRSeason.create({
@@ -89,8 +92,12 @@ export async function PUT(req: NextRequest) {
   }
 
   // Check overlap excluding this season
-  if (await hasOverlap(existing.hotelId, start, end, seasonId)) {
-    return NextResponse.json({ error: 'Season dates overlap with an existing season for this hotel' }, { status: 409 });
+  const overlapping = await findOverlap(existing.hotelId, start, end, seasonId);
+  if (overlapping) {
+    const fmt = (d: Date) => d.toLocaleDateString('en-KE', { day: '2-digit', month: 'short', year: 'numeric' });
+    return NextResponse.json({
+      error: `Season dates overlap with existing season "${overlapping.name}" (${fmt(overlapping.startDate)} – ${fmt(overlapping.endDate)})`,
+    }, { status: 409 });
   }
 
   const updated = await prisma.sRSeason.update({
