@@ -352,6 +352,8 @@ model SRHotel {
   contactEmail String?
   contactPhone String?
   notes        String?
+  description  String?
+  images       SRHotelImage[]
   createdAt    DateTime     @default(now())
   county       SRCounty     @relation(fields: [countyId], references: [id])
   roomTypes    SRRoomType[]
@@ -359,6 +361,19 @@ model SRHotel {
 
   @@unique([countyId, name])
   @@map("sr_hotels")
+}
+
+model SRHotelImage {
+  id        String   @id @default(cuid())
+  hotelId   Int
+  filename  String
+  mimeType  String
+  data      String
+  caption   String?
+  createdAt DateTime @default(now())
+  hotel     SRHotel  @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@map("sr_hotel_images")
 }
 
 model SRRoomType {

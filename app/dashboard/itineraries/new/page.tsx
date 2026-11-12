@@ -26,6 +26,15 @@ interface Booking {
   } | null;
 }
 
+interface Destination { id: number; name: string; }
+interface Hotel {
+  id: number;
+  name: string;
+  category?: string | null;
+  stars?: number | null;
+  images?: { id: string; filename: string; mimeType: string; data: string }[];
+}
+
 interface ItineraryImage {
   id: string;
   filename: string;
@@ -40,7 +49,9 @@ interface DayData {
   dayNumber: number;
   date: string;
   destination: string;
+  destinationId?: number | null;
   accommodation: string;
+  accommodationId?: number | null;
   mealPlan: { breakfast: boolean; lunch: boolean; dinner: boolean; note: string };
   activities: string;
   notes: string;
@@ -59,6 +70,12 @@ export default function NewItineraryPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  // Destination / accommodation lookups
+  const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [hotels, setHotels] = useState<Hotel[]>([]);
+  const [hotelsByDest, setHotelsByDest] = useState<Record<number, Hotel[]>>({});
+  const [loadingHotels, setLoadingHotels] = useState<Record<number, boolean>>({});
+
   useEffect(() => {
     fetch('/api/bookings?withTour=1').then(r => r.json()).then((data: Booking[]) => {
       setBookings(data);
@@ -66,6 +83,12 @@ export default function NewItineraryPage() {
         const b = data.find((b: Booking) => b.id === preBookingId);
         if (b) loadBooking(b);
       }
+    });
+    fetch('/api/safari-rates/destinations').then(r => r.json()).then((data: Destination[]) => {
+      setDestinations(Array.isArray(data) ? data : []);
+    });
+    fetch('/api/safari-rates/hotels').then(r => r.json()).then((data: Hotel[]) => {
+      setHotels(Array.isArray(data) ? data : []);
     });
   }, [preBookingId]);
 
@@ -90,7 +113,9 @@ export default function NewItineraryPage() {
           dayNumber: d.dayNumber,
           date: date.toISOString().split('T')[0],
           destination: d.destination?.name || d.title,
+          destinationId: null,
           accommodation: d.accommodation || '',
+          accommodationId: null,
           mealPlan: { breakfast: mp.breakfast || false, lunch: mp.lunch || false, dinner: mp.dinner || false, note: mp.note || '' },
           activities: acts.map((a: any) => `${a.time}: ${a.description}`).join('\n'),
           notes: '',
@@ -103,7 +128,9 @@ export default function NewItineraryPage() {
         dayNumber: 1,
         date: startDate.toISOString().split('T')[0],
         destination: '',
+        destinationId: null,
         accommodation: '',
+        accommodationId: null,
         mealPlan: { breakfast: false, lunch: false, dinner: false, note: '' },
         activities: '',
         notes: '',
@@ -122,7 +149,9 @@ export default function NewItineraryPage() {
       dayNumber: maxDayNumber + 1,
       date: lastDate.toISOString().split('T')[0],
       destination: '',
+      destinationId: null,
       accommodation: '',
+      accommodationId: null,
       mealPlan: { breakfast: false, lunch: false, dinner: false, note: '' },
       activities: '',
       notes: '',
@@ -131,6 +160,37 @@ export default function NewItineraryPage() {
 
   function updateDay(tempId: string, field: string, value: any) {
     setDays(prev => prev.map(d => d.tempId === tempId ? { ...d, [field]: value } : d));
+  }
+
+  async function onDestinationChange(tempId: string, value: string) {
+    updateDay(tempId, 'destination', value);
+    updateDay(tempId, 'destinationId', null);
+    updateDay(tempId, 'accommodation', '');
+    updateDay(tempId, 'accommodationId', null);
+
+    const dest = destinations.find(d => d.name === value);
+    if (!dest) return;
+    updateDay(tempId, 'destinationId', dest.id);
+
+    if (hotelsByDest[dest.id]) return;
+    setLoadingHotels(p => ({ ...p, [dest.id]: true }));
+    try {
+      const res = await fetch(`/api/safari-rates/hotels?destinationId=${dest.id}`);
+      const data = await res.json();
+      const destHotels = Array.isArray(data) ? data : [];
+      setHotelsByDest(p => ({ ...p, [dest.id]: destHotels }));
+    } catch (err) {
+      console.error('Failed to load hotels for destination', err);
+    } finally {
+      setLoadingHotels(p => ({ ...p, [dest.id]: false }));
+    }
+  }
+
+  async function onAccommodationChange(tempId: string, hotelId: number) {
+    updateDay(tempId, 'accommodationId', hotelId);
+    const hotel = [...hotels, ...Object.values(hotelsByDest).flat()].find(h => h.id === hotelId);
+    if (!hotel) return;
+    updateDay(tempId, 'accommodation', hotel.name);
   }
 
   function updateMeal(tempId: string, meal: string, value: boolean) {
@@ -211,6 +271,10 @@ export default function NewItineraryPage() {
     }
   }
 
+  function hotelImagesFor(hotelId: number) {
+    return [...hotels, ...Object.values(hotelsByDest).flat()].find(h => h.id === hotelId)?.images || [];
+  }
+
   return (
     <div className="max-w-4xl space-y-5">
       <div className="flex items-center gap-3">
@@ -289,23 +353,65 @@ export default function NewItineraryPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label text-xs">Destination *</label>
-                  <input
-                    value={day.destination}
-                    onChange={e => updateDay(day.tempId, 'destination', e.target.value)}
+                  <select
+                    value={day.destinationId ? destinations.find(d => d.id === day.destinationId)?.name || day.destination : day.destination}
+                    onChange={e => onDestinationChange(day.tempId, e.target.value)}
                     className="input"
-                    placeholder="Masai Mara National Reserve"
-                  />
+                  >
+                    <option value="">— Select destination —</option>
+                    {destinations.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="label text-xs">Accommodation</label>
-                  <input
-                    value={day.accommodation}
-                    onChange={e => updateDay(day.tempId, 'accommodation', e.target.value)}
+                  <select
+                    value={day.accommodationId || day.accommodation}
+                    onChange={e => {
+                      const val = e.target.value;
+                      const num = Number(val);
+                      if (!isNaN(num) && hotelsByDest[day.destinationId || 0]?.some(h => h.id === num)) {
+                        onAccommodationChange(day.tempId, num);
+                      } else {
+                        updateDay(day.tempId, 'accommodation', val);
+                        updateDay(day.tempId, 'accommodationId', null);
+                      }
+                    }}
                     className="input"
-                    placeholder="Ashnil Mara Camp / No accommodation"
-                  />
+                  >
+                    <option value="">— No accommodation —</option>
+                    {(day.destinationId ? hotelsByDest[day.destinationId] : []) .map((h: Hotel) => (
+                      <option key={h.id} value={h.id}>{h.name}</option>
+                    ))}
+                    <option value="custom">+ Custom / other…</option>
+                  </select>
+                  {day.accommodationId && !hotelsByDest[day.destinationId || 0]?.some(h => h.id === day.accommodationId) && (
+                    <input
+                      type="text"
+                      value={day.accommodation}
+                      onChange={e => updateDay(day.tempId, 'accommodation', e.target.value)}
+                      className="input mt-2 text-sm"
+                      placeholder="Custom accommodation name"
+                    />
+                  )}
                 </div>
               </div>
+
+              {(day.destinationId && hotelsByDest[day.destinationId]?.some(h => h.id === day.accommodationId)) && (
+                <div className="mt-2">
+                  <label className="label text-xs block mb-1">Accommodation Images</label>
+                  <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto">
+                    {day.accommodationId ? hotelImagesFor(day.accommodationId).slice(0, 4).map((img: any) => (
+                      <div key={img.id} className="relative rounded-lg overflow-hidden border border-gray-200">
+                        <img
+                          src={`data:${img.mimeType};base64,${img.data}`}
+                          alt={img.filename}
+                          className="w-full h-16 object-cover"
+                        />
+                      </div>
+                    )) : null}
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="label text-xs">Activities (one per line)</label>

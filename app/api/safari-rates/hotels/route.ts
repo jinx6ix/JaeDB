@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   if (id) {
     const hotel = await prisma.sRHotel.findUnique({
       where: { id: Number(id) },
-      include: { county: true, _count: { select: { roomTypes: true } } },
+      include: { county: true, _count: { select: { roomTypes: true } }, images: true },
     });
     return NextResponse.json(hotel || {});
   }
@@ -109,4 +109,21 @@ export async function POST(req: NextRequest) {
     include: { county: true },
   });
   return NextResponse.json(hotel, { status: 201 });
+}
+
+export async function PATCH(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if ((session.user as any)?.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  const body = await req.json();
+  const { id, description } = body;
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+  const hotel = await prisma.sRHotel.update({
+    where: { id: Number(id) },
+    data: { description: description || null },
+    include: { county: true },
+  });
+  return NextResponse.json(hotel);
 }

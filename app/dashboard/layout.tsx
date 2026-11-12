@@ -9,7 +9,7 @@ import {
   LayoutDashboard, Users2, Bot, Users, BookOpen, Ticket,
   FileText, Map, Compass, Calculator, Table2, BarChart3,
   Building2, PenLine, UserCog, LogOut, Menu, X,
-  CalendarDays, ShieldCheck,
+  CalendarDays, ShieldCheck, Building, MapPin,
 } from 'lucide-react';
 
 const nav = [
@@ -26,6 +26,8 @@ const nav = [
   { label: 'Cost Sheets',    href: '/dashboard/cost-sheets',      icon: Table2,          adminOnly: false },
   { label: 'Reports',        href: '/dashboard/reports',          icon: BarChart3,       adminOnly: false },
   { label: 'Contract Rates', href: '/dashboard/safari-rates',     icon: Building2,       adminOnly: false },
+  { label: 'Hotels',         href: '/dashboard/hotels',           icon: Building,        adminOnly: false },
+  { label: 'Destinations',   href: '/dashboard/destinations',     icon: MapPin,          adminOnly: false },
   { label: 'Amend Voucher',  href: '/dashboard/vouchers/amend',   icon: PenLine,         adminOnly: false },
   { label: 'Users',          href: '/dashboard/admin/users',      icon: UserCog,         adminOnly: true  },
 ];

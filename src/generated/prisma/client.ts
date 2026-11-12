@@ -132,6 +132,11 @@ export type SRCounty = Prisma.SRCountyModel
  */
 export type SRHotel = Prisma.SRHotelModel
 /**
+ * Model SRHotelImage
+ * 
+ */
+export type SRHotelImage = Prisma.SRHotelImageModel
+/**
  * Model SRRoomType
  * 
  */

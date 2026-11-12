@@ -402,6 +402,7 @@ export const ModelName = {
   CostSheet: 'CostSheet',
   SRCounty: 'SRCounty',
   SRHotel: 'SRHotel',
+  SRHotelImage: 'SRHotelImage',
   SRRoomType: 'SRRoomType',
   SRSeason: 'SRSeason',
   SRRoomPrice: 'SRRoomPrice',
@@ -424,7 +425,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "agent" | "client" | "destination" | "tourPackage" | "tourDay" | "rateCard" | "property" | "vehicle" | "booking" | "itinerary" | "itineraryDay" | "itineraryImage" | "voucher" | "invoice" | "costSheet" | "sRCounty" | "sRHotel" | "sRRoomType" | "sRSeason" | "sRRoomPrice" | "log" | "agentRun" | "agentMessage" | "itineraryEmbed"
+    modelProps: "user" | "agent" | "client" | "destination" | "tourPackage" | "tourDay" | "rateCard" | "property" | "vehicle" | "booking" | "itinerary" | "itineraryDay" | "itineraryImage" | "voucher" | "invoice" | "costSheet" | "sRCounty" | "sRHotel" | "sRHotelImage" | "sRRoomType" | "sRSeason" | "sRRoomPrice" | "log" | "agentRun" | "agentMessage" | "itineraryEmbed"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1760,6 +1761,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    SRHotelImage: {
+      payload: Prisma.$SRHotelImagePayload<ExtArgs>
+      fields: Prisma.SRHotelImageFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.SRHotelImageFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SRHotelImagePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.SRHotelImageFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SRHotelImagePayload>
+        }
+        findFirst: {
+          args: Prisma.SRHotelImageFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SRHotelImagePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.SRHotelImageFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SRHotelImagePayload>
+        }
+        findMany: {
+          args: Prisma.SRHotelImageFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SRHotelImagePayload>[]
+        }
+        create: {
+          args: Prisma.SRHotelImageCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SRHotelImagePayload>
+        }
+        createMany: {
+          args: Prisma.SRHotelImageCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.SRHotelImageCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SRHotelImagePayload>[]
+        }
+        delete: {
+          args: Prisma.SRHotelImageDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SRHotelImagePayload>
+        }
+        update: {
+          args: Prisma.SRHotelImageUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SRHotelImagePayload>
+        }
+        deleteMany: {
+          args: Prisma.SRHotelImageDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.SRHotelImageUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.SRHotelImageUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SRHotelImagePayload>[]
+        }
+        upsert: {
+          args: Prisma.SRHotelImageUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SRHotelImagePayload>
+        }
+        aggregate: {
+          args: Prisma.SRHotelImageAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateSRHotelImage>
+        }
+        groupBy: {
+          args: Prisma.SRHotelImageGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SRHotelImageGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.SRHotelImageCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SRHotelImageCountAggregateOutputType> | number
+        }
+      }
+    }
     SRRoomType: {
       payload: Prisma.$SRRoomTypePayload<ExtArgs>
       fields: Prisma.SRRoomTypeFieldRefs
@@ -2664,10 +2739,24 @@ export const SRHotelScalarFieldEnum = {
   contactEmail: 'contactEmail',
   contactPhone: 'contactPhone',
   notes: 'notes',
+  description: 'description',
   createdAt: 'createdAt'
 } as const
 
 export type SRHotelScalarFieldEnum = (typeof SRHotelScalarFieldEnum)[keyof typeof SRHotelScalarFieldEnum]
+
+
+export const SRHotelImageScalarFieldEnum = {
+  id: 'id',
+  hotelId: 'hotelId',
+  filename: 'filename',
+  mimeType: 'mimeType',
+  data: 'data',
+  caption: 'caption',
+  createdAt: 'createdAt'
+} as const
+
+export type SRHotelImageScalarFieldEnum = (typeof SRHotelImageScalarFieldEnum)[keyof typeof SRHotelImageScalarFieldEnum]
 
 
 export const SRRoomTypeScalarFieldEnum = {
@@ -3018,6 +3107,7 @@ export type GlobalOmitConfig = {
   costSheet?: Prisma.CostSheetOmit
   sRCounty?: Prisma.SRCountyOmit
   sRHotel?: Prisma.SRHotelOmit
+  sRHotelImage?: Prisma.SRHotelImageOmit
   sRRoomType?: Prisma.SRRoomTypeOmit
   sRSeason?: Prisma.SRSeasonOmit
   sRRoomPrice?: Prisma.SRRoomPriceOmit

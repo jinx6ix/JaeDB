@@ -47,6 +47,7 @@ export type SRHotelMinAggregateOutputType = {
   contactEmail: string | null
   contactPhone: string | null
   notes: string | null
+  description: string | null
   createdAt: Date | null
 }
 
@@ -59,6 +60,7 @@ export type SRHotelMaxAggregateOutputType = {
   contactEmail: string | null
   contactPhone: string | null
   notes: string | null
+  description: string | null
   createdAt: Date | null
 }
 
@@ -71,6 +73,7 @@ export type SRHotelCountAggregateOutputType = {
   contactEmail: number
   contactPhone: number
   notes: number
+  description: number
   createdAt: number
   _all: number
 }
@@ -97,6 +100,7 @@ export type SRHotelMinAggregateInputType = {
   contactEmail?: true
   contactPhone?: true
   notes?: true
+  description?: true
   createdAt?: true
 }
 
@@ -109,6 +113,7 @@ export type SRHotelMaxAggregateInputType = {
   contactEmail?: true
   contactPhone?: true
   notes?: true
+  description?: true
   createdAt?: true
 }
 
@@ -121,6 +126,7 @@ export type SRHotelCountAggregateInputType = {
   contactEmail?: true
   contactPhone?: true
   notes?: true
+  description?: true
   createdAt?: true
   _all?: true
 }
@@ -220,6 +226,7 @@ export type SRHotelGroupByOutputType = {
   contactEmail: string | null
   contactPhone: string | null
   notes: string | null
+  description: string | null
   createdAt: Date
   _count: SRHotelCountAggregateOutputType | null
   _avg: SRHotelAvgAggregateOutputType | null
@@ -255,7 +262,9 @@ export type SRHotelWhereInput = {
   contactEmail?: Prisma.StringNullableFilter<"SRHotel"> | string | null
   contactPhone?: Prisma.StringNullableFilter<"SRHotel"> | string | null
   notes?: Prisma.StringNullableFilter<"SRHotel"> | string | null
+  description?: Prisma.StringNullableFilter<"SRHotel"> | string | null
   createdAt?: Prisma.DateTimeFilter<"SRHotel"> | Date | string
+  images?: Prisma.SRHotelImageListRelationFilter
   county?: Prisma.XOR<Prisma.SRCountyScalarRelationFilter, Prisma.SRCountyWhereInput>
   roomTypes?: Prisma.SRRoomTypeListRelationFilter
   seasons?: Prisma.SRSeasonListRelationFilter
@@ -270,7 +279,9 @@ export type SRHotelOrderByWithRelationInput = {
   contactEmail?: Prisma.SortOrderInput | Prisma.SortOrder
   contactPhone?: Prisma.SortOrderInput | Prisma.SortOrder
   notes?: Prisma.SortOrderInput | Prisma.SortOrder
+  description?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  images?: Prisma.SRHotelImageOrderByRelationAggregateInput
   county?: Prisma.SRCountyOrderByWithRelationInput
   roomTypes?: Prisma.SRRoomTypeOrderByRelationAggregateInput
   seasons?: Prisma.SRSeasonOrderByRelationAggregateInput
@@ -289,7 +300,9 @@ export type SRHotelWhereUniqueInput = Prisma.AtLeast<{
   contactEmail?: Prisma.StringNullableFilter<"SRHotel"> | string | null
   contactPhone?: Prisma.StringNullableFilter<"SRHotel"> | string | null
   notes?: Prisma.StringNullableFilter<"SRHotel"> | string | null
+  description?: Prisma.StringNullableFilter<"SRHotel"> | string | null
   createdAt?: Prisma.DateTimeFilter<"SRHotel"> | Date | string
+  images?: Prisma.SRHotelImageListRelationFilter
   county?: Prisma.XOR<Prisma.SRCountyScalarRelationFilter, Prisma.SRCountyWhereInput>
   roomTypes?: Prisma.SRRoomTypeListRelationFilter
   seasons?: Prisma.SRSeasonListRelationFilter
@@ -304,6 +317,7 @@ export type SRHotelOrderByWithAggregationInput = {
   contactEmail?: Prisma.SortOrderInput | Prisma.SortOrder
   contactPhone?: Prisma.SortOrderInput | Prisma.SortOrder
   notes?: Prisma.SortOrderInput | Prisma.SortOrder
+  description?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.SRHotelCountOrderByAggregateInput
   _avg?: Prisma.SRHotelAvgOrderByAggregateInput
@@ -324,6 +338,7 @@ export type SRHotelScalarWhereWithAggregatesInput = {
   contactEmail?: Prisma.StringNullableWithAggregatesFilter<"SRHotel"> | string | null
   contactPhone?: Prisma.StringNullableWithAggregatesFilter<"SRHotel"> | string | null
   notes?: Prisma.StringNullableWithAggregatesFilter<"SRHotel"> | string | null
+  description?: Prisma.StringNullableWithAggregatesFilter<"SRHotel"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"SRHotel"> | Date | string
 }
 
@@ -334,7 +349,9 @@ export type SRHotelCreateInput = {
   contactEmail?: string | null
   contactPhone?: string | null
   notes?: string | null
+  description?: string | null
   createdAt?: Date | string
+  images?: Prisma.SRHotelImageCreateNestedManyWithoutHotelInput
   county: Prisma.SRCountyCreateNestedOneWithoutHotelsInput
   roomTypes?: Prisma.SRRoomTypeCreateNestedManyWithoutHotelInput
   seasons?: Prisma.SRSeasonCreateNestedManyWithoutHotelInput
@@ -349,7 +366,9 @@ export type SRHotelUncheckedCreateInput = {
   contactEmail?: string | null
   contactPhone?: string | null
   notes?: string | null
+  description?: string | null
   createdAt?: Date | string
+  images?: Prisma.SRHotelImageUncheckedCreateNestedManyWithoutHotelInput
   roomTypes?: Prisma.SRRoomTypeUncheckedCreateNestedManyWithoutHotelInput
   seasons?: Prisma.SRSeasonUncheckedCreateNestedManyWithoutHotelInput
 }
@@ -361,7 +380,9 @@ export type SRHotelUpdateInput = {
   contactEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  images?: Prisma.SRHotelImageUpdateManyWithoutHotelNestedInput
   county?: Prisma.SRCountyUpdateOneRequiredWithoutHotelsNestedInput
   roomTypes?: Prisma.SRRoomTypeUpdateManyWithoutHotelNestedInput
   seasons?: Prisma.SRSeasonUpdateManyWithoutHotelNestedInput
@@ -376,7 +397,9 @@ export type SRHotelUncheckedUpdateInput = {
   contactEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  images?: Prisma.SRHotelImageUncheckedUpdateManyWithoutHotelNestedInput
   roomTypes?: Prisma.SRRoomTypeUncheckedUpdateManyWithoutHotelNestedInput
   seasons?: Prisma.SRSeasonUncheckedUpdateManyWithoutHotelNestedInput
 }
@@ -390,6 +413,7 @@ export type SRHotelCreateManyInput = {
   contactEmail?: string | null
   contactPhone?: string | null
   notes?: string | null
+  description?: string | null
   createdAt?: Date | string
 }
 
@@ -400,6 +424,7 @@ export type SRHotelUpdateManyMutationInput = {
   contactEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -412,6 +437,7 @@ export type SRHotelUncheckedUpdateManyInput = {
   contactEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -439,6 +465,7 @@ export type SRHotelCountOrderByAggregateInput = {
   contactEmail?: Prisma.SortOrder
   contactPhone?: Prisma.SortOrder
   notes?: Prisma.SortOrder
+  description?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -457,6 +484,7 @@ export type SRHotelMaxOrderByAggregateInput = {
   contactEmail?: Prisma.SortOrder
   contactPhone?: Prisma.SortOrder
   notes?: Prisma.SortOrder
+  description?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -469,6 +497,7 @@ export type SRHotelMinOrderByAggregateInput = {
   contactEmail?: Prisma.SortOrder
   contactPhone?: Prisma.SortOrder
   notes?: Prisma.SortOrder
+  description?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -525,6 +554,20 @@ export type SRHotelUncheckedUpdateManyWithoutCountyNestedInput = {
   deleteMany?: Prisma.SRHotelScalarWhereInput | Prisma.SRHotelScalarWhereInput[]
 }
 
+export type SRHotelCreateNestedOneWithoutImagesInput = {
+  create?: Prisma.XOR<Prisma.SRHotelCreateWithoutImagesInput, Prisma.SRHotelUncheckedCreateWithoutImagesInput>
+  connectOrCreate?: Prisma.SRHotelCreateOrConnectWithoutImagesInput
+  connect?: Prisma.SRHotelWhereUniqueInput
+}
+
+export type SRHotelUpdateOneRequiredWithoutImagesNestedInput = {
+  create?: Prisma.XOR<Prisma.SRHotelCreateWithoutImagesInput, Prisma.SRHotelUncheckedCreateWithoutImagesInput>
+  connectOrCreate?: Prisma.SRHotelCreateOrConnectWithoutImagesInput
+  upsert?: Prisma.SRHotelUpsertWithoutImagesInput
+  connect?: Prisma.SRHotelWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.SRHotelUpdateToOneWithWhereWithoutImagesInput, Prisma.SRHotelUpdateWithoutImagesInput>, Prisma.SRHotelUncheckedUpdateWithoutImagesInput>
+}
+
 export type SRHotelCreateNestedOneWithoutRoomTypesInput = {
   create?: Prisma.XOR<Prisma.SRHotelCreateWithoutRoomTypesInput, Prisma.SRHotelUncheckedCreateWithoutRoomTypesInput>
   connectOrCreate?: Prisma.SRHotelCreateOrConnectWithoutRoomTypesInput
@@ -560,7 +603,9 @@ export type SRHotelCreateWithoutCountyInput = {
   contactEmail?: string | null
   contactPhone?: string | null
   notes?: string | null
+  description?: string | null
   createdAt?: Date | string
+  images?: Prisma.SRHotelImageCreateNestedManyWithoutHotelInput
   roomTypes?: Prisma.SRRoomTypeCreateNestedManyWithoutHotelInput
   seasons?: Prisma.SRSeasonCreateNestedManyWithoutHotelInput
 }
@@ -573,7 +618,9 @@ export type SRHotelUncheckedCreateWithoutCountyInput = {
   contactEmail?: string | null
   contactPhone?: string | null
   notes?: string | null
+  description?: string | null
   createdAt?: Date | string
+  images?: Prisma.SRHotelImageUncheckedCreateNestedManyWithoutHotelInput
   roomTypes?: Prisma.SRRoomTypeUncheckedCreateNestedManyWithoutHotelInput
   seasons?: Prisma.SRSeasonUncheckedCreateNestedManyWithoutHotelInput
 }
@@ -616,7 +663,82 @@ export type SRHotelScalarWhereInput = {
   contactEmail?: Prisma.StringNullableFilter<"SRHotel"> | string | null
   contactPhone?: Prisma.StringNullableFilter<"SRHotel"> | string | null
   notes?: Prisma.StringNullableFilter<"SRHotel"> | string | null
+  description?: Prisma.StringNullableFilter<"SRHotel"> | string | null
   createdAt?: Prisma.DateTimeFilter<"SRHotel"> | Date | string
+}
+
+export type SRHotelCreateWithoutImagesInput = {
+  name: string
+  stars?: number | null
+  category?: string | null
+  contactEmail?: string | null
+  contactPhone?: string | null
+  notes?: string | null
+  description?: string | null
+  createdAt?: Date | string
+  county: Prisma.SRCountyCreateNestedOneWithoutHotelsInput
+  roomTypes?: Prisma.SRRoomTypeCreateNestedManyWithoutHotelInput
+  seasons?: Prisma.SRSeasonCreateNestedManyWithoutHotelInput
+}
+
+export type SRHotelUncheckedCreateWithoutImagesInput = {
+  id?: number
+  countyId: number
+  name: string
+  stars?: number | null
+  category?: string | null
+  contactEmail?: string | null
+  contactPhone?: string | null
+  notes?: string | null
+  description?: string | null
+  createdAt?: Date | string
+  roomTypes?: Prisma.SRRoomTypeUncheckedCreateNestedManyWithoutHotelInput
+  seasons?: Prisma.SRSeasonUncheckedCreateNestedManyWithoutHotelInput
+}
+
+export type SRHotelCreateOrConnectWithoutImagesInput = {
+  where: Prisma.SRHotelWhereUniqueInput
+  create: Prisma.XOR<Prisma.SRHotelCreateWithoutImagesInput, Prisma.SRHotelUncheckedCreateWithoutImagesInput>
+}
+
+export type SRHotelUpsertWithoutImagesInput = {
+  update: Prisma.XOR<Prisma.SRHotelUpdateWithoutImagesInput, Prisma.SRHotelUncheckedUpdateWithoutImagesInput>
+  create: Prisma.XOR<Prisma.SRHotelCreateWithoutImagesInput, Prisma.SRHotelUncheckedCreateWithoutImagesInput>
+  where?: Prisma.SRHotelWhereInput
+}
+
+export type SRHotelUpdateToOneWithWhereWithoutImagesInput = {
+  where?: Prisma.SRHotelWhereInput
+  data: Prisma.XOR<Prisma.SRHotelUpdateWithoutImagesInput, Prisma.SRHotelUncheckedUpdateWithoutImagesInput>
+}
+
+export type SRHotelUpdateWithoutImagesInput = {
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  stars?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  contactEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  county?: Prisma.SRCountyUpdateOneRequiredWithoutHotelsNestedInput
+  roomTypes?: Prisma.SRRoomTypeUpdateManyWithoutHotelNestedInput
+  seasons?: Prisma.SRSeasonUpdateManyWithoutHotelNestedInput
+}
+
+export type SRHotelUncheckedUpdateWithoutImagesInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  countyId?: Prisma.IntFieldUpdateOperationsInput | number
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  stars?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  category?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  contactEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  roomTypes?: Prisma.SRRoomTypeUncheckedUpdateManyWithoutHotelNestedInput
+  seasons?: Prisma.SRSeasonUncheckedUpdateManyWithoutHotelNestedInput
 }
 
 export type SRHotelCreateWithoutRoomTypesInput = {
@@ -626,7 +748,9 @@ export type SRHotelCreateWithoutRoomTypesInput = {
   contactEmail?: string | null
   contactPhone?: string | null
   notes?: string | null
+  description?: string | null
   createdAt?: Date | string
+  images?: Prisma.SRHotelImageCreateNestedManyWithoutHotelInput
   county: Prisma.SRCountyCreateNestedOneWithoutHotelsInput
   seasons?: Prisma.SRSeasonCreateNestedManyWithoutHotelInput
 }
@@ -640,7 +764,9 @@ export type SRHotelUncheckedCreateWithoutRoomTypesInput = {
   contactEmail?: string | null
   contactPhone?: string | null
   notes?: string | null
+  description?: string | null
   createdAt?: Date | string
+  images?: Prisma.SRHotelImageUncheckedCreateNestedManyWithoutHotelInput
   seasons?: Prisma.SRSeasonUncheckedCreateNestedManyWithoutHotelInput
 }
 
@@ -667,7 +793,9 @@ export type SRHotelUpdateWithoutRoomTypesInput = {
   contactEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  images?: Prisma.SRHotelImageUpdateManyWithoutHotelNestedInput
   county?: Prisma.SRCountyUpdateOneRequiredWithoutHotelsNestedInput
   seasons?: Prisma.SRSeasonUpdateManyWithoutHotelNestedInput
 }
@@ -681,7 +809,9 @@ export type SRHotelUncheckedUpdateWithoutRoomTypesInput = {
   contactEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  images?: Prisma.SRHotelImageUncheckedUpdateManyWithoutHotelNestedInput
   seasons?: Prisma.SRSeasonUncheckedUpdateManyWithoutHotelNestedInput
 }
 
@@ -692,7 +822,9 @@ export type SRHotelCreateWithoutSeasonsInput = {
   contactEmail?: string | null
   contactPhone?: string | null
   notes?: string | null
+  description?: string | null
   createdAt?: Date | string
+  images?: Prisma.SRHotelImageCreateNestedManyWithoutHotelInput
   county: Prisma.SRCountyCreateNestedOneWithoutHotelsInput
   roomTypes?: Prisma.SRRoomTypeCreateNestedManyWithoutHotelInput
 }
@@ -706,7 +838,9 @@ export type SRHotelUncheckedCreateWithoutSeasonsInput = {
   contactEmail?: string | null
   contactPhone?: string | null
   notes?: string | null
+  description?: string | null
   createdAt?: Date | string
+  images?: Prisma.SRHotelImageUncheckedCreateNestedManyWithoutHotelInput
   roomTypes?: Prisma.SRRoomTypeUncheckedCreateNestedManyWithoutHotelInput
 }
 
@@ -733,7 +867,9 @@ export type SRHotelUpdateWithoutSeasonsInput = {
   contactEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  images?: Prisma.SRHotelImageUpdateManyWithoutHotelNestedInput
   county?: Prisma.SRCountyUpdateOneRequiredWithoutHotelsNestedInput
   roomTypes?: Prisma.SRRoomTypeUpdateManyWithoutHotelNestedInput
 }
@@ -747,7 +883,9 @@ export type SRHotelUncheckedUpdateWithoutSeasonsInput = {
   contactEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  images?: Prisma.SRHotelImageUncheckedUpdateManyWithoutHotelNestedInput
   roomTypes?: Prisma.SRRoomTypeUncheckedUpdateManyWithoutHotelNestedInput
 }
 
@@ -759,6 +897,7 @@ export type SRHotelCreateManyCountyInput = {
   contactEmail?: string | null
   contactPhone?: string | null
   notes?: string | null
+  description?: string | null
   createdAt?: Date | string
 }
 
@@ -769,7 +908,9 @@ export type SRHotelUpdateWithoutCountyInput = {
   contactEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  images?: Prisma.SRHotelImageUpdateManyWithoutHotelNestedInput
   roomTypes?: Prisma.SRRoomTypeUpdateManyWithoutHotelNestedInput
   seasons?: Prisma.SRSeasonUpdateManyWithoutHotelNestedInput
 }
@@ -782,7 +923,9 @@ export type SRHotelUncheckedUpdateWithoutCountyInput = {
   contactEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  images?: Prisma.SRHotelImageUncheckedUpdateManyWithoutHotelNestedInput
   roomTypes?: Prisma.SRRoomTypeUncheckedUpdateManyWithoutHotelNestedInput
   seasons?: Prisma.SRSeasonUncheckedUpdateManyWithoutHotelNestedInput
 }
@@ -795,6 +938,7 @@ export type SRHotelUncheckedUpdateManyWithoutCountyInput = {
   contactEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -804,11 +948,13 @@ export type SRHotelUncheckedUpdateManyWithoutCountyInput = {
  */
 
 export type SRHotelCountOutputType = {
+  images: number
   roomTypes: number
   seasons: number
 }
 
 export type SRHotelCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  images?: boolean | SRHotelCountOutputTypeCountImagesArgs
   roomTypes?: boolean | SRHotelCountOutputTypeCountRoomTypesArgs
   seasons?: boolean | SRHotelCountOutputTypeCountSeasonsArgs
 }
@@ -821,6 +967,13 @@ export type SRHotelCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Exte
    * Select specific fields to fetch from the SRHotelCountOutputType
    */
   select?: Prisma.SRHotelCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * SRHotelCountOutputType without action
+ */
+export type SRHotelCountOutputTypeCountImagesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.SRHotelImageWhereInput
 }
 
 /**
@@ -847,7 +1000,9 @@ export type SRHotelSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   contactEmail?: boolean
   contactPhone?: boolean
   notes?: boolean
+  description?: boolean
   createdAt?: boolean
+  images?: boolean | Prisma.SRHotel$imagesArgs<ExtArgs>
   county?: boolean | Prisma.SRCountyDefaultArgs<ExtArgs>
   roomTypes?: boolean | Prisma.SRHotel$roomTypesArgs<ExtArgs>
   seasons?: boolean | Prisma.SRHotel$seasonsArgs<ExtArgs>
@@ -863,6 +1018,7 @@ export type SRHotelSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   contactEmail?: boolean
   contactPhone?: boolean
   notes?: boolean
+  description?: boolean
   createdAt?: boolean
   county?: boolean | Prisma.SRCountyDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["sRHotel"]>
@@ -876,6 +1032,7 @@ export type SRHotelSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   contactEmail?: boolean
   contactPhone?: boolean
   notes?: boolean
+  description?: boolean
   createdAt?: boolean
   county?: boolean | Prisma.SRCountyDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["sRHotel"]>
@@ -889,11 +1046,13 @@ export type SRHotelSelectScalar = {
   contactEmail?: boolean
   contactPhone?: boolean
   notes?: boolean
+  description?: boolean
   createdAt?: boolean
 }
 
-export type SRHotelOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "countyId" | "name" | "stars" | "category" | "contactEmail" | "contactPhone" | "notes" | "createdAt", ExtArgs["result"]["sRHotel"]>
+export type SRHotelOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "countyId" | "name" | "stars" | "category" | "contactEmail" | "contactPhone" | "notes" | "description" | "createdAt", ExtArgs["result"]["sRHotel"]>
 export type SRHotelInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  images?: boolean | Prisma.SRHotel$imagesArgs<ExtArgs>
   county?: boolean | Prisma.SRCountyDefaultArgs<ExtArgs>
   roomTypes?: boolean | Prisma.SRHotel$roomTypesArgs<ExtArgs>
   seasons?: boolean | Prisma.SRHotel$seasonsArgs<ExtArgs>
@@ -909,6 +1068,7 @@ export type SRHotelIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Exte
 export type $SRHotelPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "SRHotel"
   objects: {
+    images: Prisma.$SRHotelImagePayload<ExtArgs>[]
     county: Prisma.$SRCountyPayload<ExtArgs>
     roomTypes: Prisma.$SRRoomTypePayload<ExtArgs>[]
     seasons: Prisma.$SRSeasonPayload<ExtArgs>[]
@@ -922,6 +1082,7 @@ export type $SRHotelPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     contactEmail: string | null
     contactPhone: string | null
     notes: string | null
+    description: string | null
     createdAt: Date
   }, ExtArgs["result"]["sRHotel"]>
   composites: {}
@@ -1317,6 +1478,7 @@ readonly fields: SRHotelFieldRefs;
  */
 export interface Prisma__SRHotelClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
+  images<T extends Prisma.SRHotel$imagesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.SRHotel$imagesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SRHotelImagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   county<T extends Prisma.SRCountyDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.SRCountyDefaultArgs<ExtArgs>>): Prisma.Prisma__SRCountyClient<runtime.Types.Result.GetResult<Prisma.$SRCountyPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   roomTypes<T extends Prisma.SRHotel$roomTypesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.SRHotel$roomTypesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SRRoomTypePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   seasons<T extends Prisma.SRHotel$seasonsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.SRHotel$seasonsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SRSeasonPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -1357,6 +1519,7 @@ export interface SRHotelFieldRefs {
   readonly contactEmail: Prisma.FieldRef<"SRHotel", 'String'>
   readonly contactPhone: Prisma.FieldRef<"SRHotel", 'String'>
   readonly notes: Prisma.FieldRef<"SRHotel", 'String'>
+  readonly description: Prisma.FieldRef<"SRHotel", 'String'>
   readonly createdAt: Prisma.FieldRef<"SRHotel", 'DateTime'>
 }
     
@@ -1756,6 +1919,30 @@ export type SRHotelDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Inter
    * Limit how many SRHotels to delete.
    */
   limit?: number
+}
+
+/**
+ * SRHotel.images
+ */
+export type SRHotel$imagesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the SRHotelImage
+   */
+  select?: Prisma.SRHotelImageSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the SRHotelImage
+   */
+  omit?: Prisma.SRHotelImageOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SRHotelImageInclude<ExtArgs> | null
+  where?: Prisma.SRHotelImageWhereInput
+  orderBy?: Prisma.SRHotelImageOrderByWithRelationInput | Prisma.SRHotelImageOrderByWithRelationInput[]
+  cursor?: Prisma.SRHotelImageWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.SRHotelImageScalarFieldEnum | Prisma.SRHotelImageScalarFieldEnum[]
 }
 
 /**

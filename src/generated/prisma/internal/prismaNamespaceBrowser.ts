@@ -69,6 +69,7 @@ export const ModelName = {
   CostSheet: 'CostSheet',
   SRCounty: 'SRCounty',
   SRHotel: 'SRHotel',
+  SRHotelImage: 'SRHotelImage',
   SRRoomType: 'SRRoomType',
   SRSeason: 'SRSeason',
   SRRoomPrice: 'SRRoomPrice',
@@ -441,10 +442,24 @@ export const SRHotelScalarFieldEnum = {
   contactEmail: 'contactEmail',
   contactPhone: 'contactPhone',
   notes: 'notes',
+  description: 'description',
   createdAt: 'createdAt'
 } as const
 
 export type SRHotelScalarFieldEnum = (typeof SRHotelScalarFieldEnum)[keyof typeof SRHotelScalarFieldEnum]
+
+
+export const SRHotelImageScalarFieldEnum = {
+  id: 'id',
+  hotelId: 'hotelId',
+  filename: 'filename',
+  mimeType: 'mimeType',
+  data: 'data',
+  caption: 'caption',
+  createdAt: 'createdAt'
+} as const
+
+export type SRHotelImageScalarFieldEnum = (typeof SRHotelImageScalarFieldEnum)[keyof typeof SRHotelImageScalarFieldEnum]
 
 
 export const SRRoomTypeScalarFieldEnum = {
