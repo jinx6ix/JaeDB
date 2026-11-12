@@ -513,22 +513,24 @@ export default function HotelsPage() {
               )}
             </div>
 
-            {galleryImages.length > 0 && (
-              <div className="border-t border-gray-100 bg-gray-50 p-3">
-                <div className="flex items-center justify-between mb-2">
+            <div className="border-t border-gray-100 bg-gray-50 p-3">
+              <div className="flex items-center justify-between mb-2">
+                {galleryImages.length > 0 && (
                   <span className="text-sm text-gray-600">
                     Image {galleryIndex + 1} of {galleryImages.length}
                   </span>
-                  <button
-                    onClick={() => {
-                      const el = fileInputRef.current;
-                      if (el) el.click();
-                    }}
-                    className="text-xs text-orange-600 hover:underline font-medium"
-                  >
-                    + Add Images
-                  </button>
-                </div>
+                )}
+                <button
+                  onClick={() => {
+                    const el = fileInputRef.current;
+                    if (el) el.click();
+                  }}
+                  className="text-xs text-orange-600 hover:underline font-medium"
+                >
+                  + Add Images
+                </button>
+              </div>
+              {galleryImages.length > 0 && (
                 <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto">
                   {galleryImages.map((img, idx) => (
                     <div
@@ -557,14 +559,14 @@ export default function HotelsPage() {
                     </div>
                   )}
                 </div>
-                {imageUploading[galleryHotel.id] && (
-                  <p className="text-xs text-orange-500 flex items-center justify-center gap-2 mt-2">
-                    <span className="inline-block w-3 h-3 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
-                    Uploading…
-                  </p>
-                )}
-              </div>
-            )}
+              )}
+              {imageUploading[galleryHotel.id] && (
+                <p className="text-xs text-orange-500 flex items-center justify-center gap-2 mt-2">
+                  <span className="inline-block w-3 h-3 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+                  Uploading…
+                </p>
+              )}
+            </div>
           </div>
 
           <input
