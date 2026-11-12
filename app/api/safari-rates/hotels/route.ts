@@ -24,7 +24,19 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(hotel || {});
   }
 
-  // If no filters, return standard hotel list (original behavior)
+  // If destinationId only (no date/boardBasis): list all hotels in that destination
+  // used by itinerary accommodation dropdown
+  if (destinationId && !dateStr && !boardBasis) {
+    const destinationIdNum = Number(destinationId);
+    const hotels = await prisma.sRHotel.findMany({
+      where: { countyId: destinationIdNum },
+      orderBy: [{ stars: 'desc' }, { name: 'asc' }],
+      include: { county: true, images: true },
+    });
+    return NextResponse.json(hotels);
+  }
+
+  // If no filters at all, return standard hotel list (original behavior)
   if (!destinationId && !dateStr && !boardBasis) {
     const hotels = await prisma.sRHotel.findMany({
       orderBy: [{ county: { name: 'asc' } }, { stars: 'desc' }, { name: 'asc' }],

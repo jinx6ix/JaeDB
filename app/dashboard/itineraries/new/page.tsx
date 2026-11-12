@@ -72,7 +72,9 @@ export default function NewItineraryPage() {
 
   // Destination / accommodation lookups
   const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [destSearch, setDestSearch] = useState('');
   const [hotels, setHotels] = useState<Hotel[]>([]);
+  const [hotelSearch, setHotelSearch] = useState('');
   const [hotelsByDest, setHotelsByDest] = useState<Record<number, Hotel[]>>({});
   const [loadingHotels, setLoadingHotels] = useState<Record<number, boolean>>({});
 
@@ -353,46 +355,68 @@ export default function NewItineraryPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label text-xs">Destination *</label>
-                  <select
-                    value={day.destinationId ? destinations.find(d => d.id === day.destinationId)?.name || day.destination : day.destination}
-                    onChange={e => onDestinationChange(day.tempId, e.target.value)}
-                    className="input"
-                  >
-                    <option value="">— Select destination —</option>
-                    {destinations.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-                  </select>
+                  <div className="space-y-1">
+                    <input
+                      type="text"
+                      value={destSearch}
+                      onChange={e => setDestSearch(e.target.value)}
+                      className="input text-sm"
+                      placeholder="Search destinations…"
+                    />
+                    <select
+                      value={day.destinationId ? destinations.find(d => d.id === day.destinationId)?.name || day.destination : day.destination}
+                      onChange={e => onDestinationChange(day.tempId, e.target.value)}
+                      className="input"
+                    >
+                      <option value="">— Select destination —</option>
+                      {destinations
+                        .filter(d => !destSearch || d.name.toLowerCase().includes(destSearch.toLowerCase()))
+                        .map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                    </select>
+                  </div>
                 </div>
                 <div>
                   <label className="label text-xs">Accommodation</label>
-                  <select
-                    value={day.accommodationId || day.accommodation}
-                    onChange={e => {
-                      const val = e.target.value;
-                      const num = Number(val);
-                      if (!isNaN(num) && hotelsByDest[day.destinationId || 0]?.some(h => h.id === num)) {
-                        onAccommodationChange(day.tempId, num);
-                      } else {
-                        updateDay(day.tempId, 'accommodation', val);
-                        updateDay(day.tempId, 'accommodationId', null);
-                      }
-                    }}
-                    className="input"
-                  >
-                    <option value="">— No accommodation —</option>
-                    {(day.destinationId ? hotelsByDest[day.destinationId] : []) .map((h: Hotel) => (
-                      <option key={h.id} value={h.id}>{h.name}</option>
-                    ))}
-                    <option value="custom">+ Custom / other…</option>
-                  </select>
-                  {day.accommodationId && !hotelsByDest[day.destinationId || 0]?.some(h => h.id === day.accommodationId) && (
+                  <div className="space-y-1">
                     <input
                       type="text"
-                      value={day.accommodation}
-                      onChange={e => updateDay(day.tempId, 'accommodation', e.target.value)}
-                      className="input mt-2 text-sm"
-                      placeholder="Custom accommodation name"
+                      value={hotelSearch}
+                      onChange={e => setHotelSearch(e.target.value)}
+                      className="input text-sm"
+                      placeholder="Search hotels…"
                     />
-                  )}
+                    <select
+                      value={day.accommodationId || day.accommodation}
+                      onChange={e => {
+                        const val = e.target.value;
+                        const num = Number(val);
+                        if (!isNaN(num) && hotelsByDest[day.destinationId || 0]?.some(h => h.id === num)) {
+                          onAccommodationChange(day.tempId, num);
+                        } else {
+                          updateDay(day.tempId, 'accommodation', val);
+                          updateDay(day.tempId, 'accommodationId', null);
+                        }
+                      }}
+                      className="input"
+                    >
+                      <option value="">— No accommodation —</option>
+                      {(day.destinationId ? hotelsByDest[day.destinationId] : [])
+                        .filter(h => !hotelSearch || h.name.toLowerCase().includes(hotelSearch.toLowerCase()))
+                        .map((h: Hotel) => (
+                          <option key={h.id} value={h.id}>{h.name}</option>
+                        ))}
+                      <option value="custom">+ Custom / other…</option>
+                    </select>
+                    {day.accommodationId && !hotelsByDest[day.destinationId || 0]?.some(h => h.id === day.accommodationId) && (
+                      <input
+                        type="text"
+                        value={day.accommodation}
+                        onChange={e => updateDay(day.tempId, 'accommodation', e.target.value)}
+                        className="input mt-2 text-sm"
+                        placeholder="Custom accommodation name"
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
 
