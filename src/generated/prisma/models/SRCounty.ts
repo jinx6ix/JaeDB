@@ -208,6 +208,7 @@ export type SRCountyWhereInput = {
   name?: Prisma.StringFilter<"SRCounty"> | string
   region?: Prisma.StringNullableFilter<"SRCounty"> | string | null
   createdAt?: Prisma.DateTimeFilter<"SRCounty"> | Date | string
+  images?: Prisma.DestinationImageListRelationFilter
   hotels?: Prisma.SRHotelListRelationFilter
 }
 
@@ -216,6 +217,7 @@ export type SRCountyOrderByWithRelationInput = {
   name?: Prisma.SortOrder
   region?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  images?: Prisma.DestinationImageOrderByRelationAggregateInput
   hotels?: Prisma.SRHotelOrderByRelationAggregateInput
 }
 
@@ -227,6 +229,7 @@ export type SRCountyWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.SRCountyWhereInput | Prisma.SRCountyWhereInput[]
   region?: Prisma.StringNullableFilter<"SRCounty"> | string | null
   createdAt?: Prisma.DateTimeFilter<"SRCounty"> | Date | string
+  images?: Prisma.DestinationImageListRelationFilter
   hotels?: Prisma.SRHotelListRelationFilter
 }, "id" | "name">
 
@@ -256,6 +259,7 @@ export type SRCountyCreateInput = {
   name: string
   region?: string | null
   createdAt?: Date | string
+  images?: Prisma.DestinationImageCreateNestedManyWithoutDestinationInput
   hotels?: Prisma.SRHotelCreateNestedManyWithoutCountyInput
 }
 
@@ -264,6 +268,7 @@ export type SRCountyUncheckedCreateInput = {
   name: string
   region?: string | null
   createdAt?: Date | string
+  images?: Prisma.DestinationImageUncheckedCreateNestedManyWithoutDestinationInput
   hotels?: Prisma.SRHotelUncheckedCreateNestedManyWithoutCountyInput
 }
 
@@ -271,6 +276,7 @@ export type SRCountyUpdateInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   region?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  images?: Prisma.DestinationImageUpdateManyWithoutDestinationNestedInput
   hotels?: Prisma.SRHotelUpdateManyWithoutCountyNestedInput
 }
 
@@ -279,6 +285,7 @@ export type SRCountyUncheckedUpdateInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   region?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  images?: Prisma.DestinationImageUncheckedUpdateManyWithoutDestinationNestedInput
   hotels?: Prisma.SRHotelUncheckedUpdateManyWithoutCountyNestedInput
 }
 
@@ -300,6 +307,11 @@ export type SRCountyUncheckedUpdateManyInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   region?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type SRCountyScalarRelationFilter = {
+  is?: Prisma.SRCountyWhereInput
+  isNot?: Prisma.SRCountyWhereInput
 }
 
 export type SRCountyCountOrderByAggregateInput = {
@@ -331,9 +343,18 @@ export type SRCountySumOrderByAggregateInput = {
   id?: Prisma.SortOrder
 }
 
-export type SRCountyScalarRelationFilter = {
-  is?: Prisma.SRCountyWhereInput
-  isNot?: Prisma.SRCountyWhereInput
+export type SRCountyCreateNestedOneWithoutImagesInput = {
+  create?: Prisma.XOR<Prisma.SRCountyCreateWithoutImagesInput, Prisma.SRCountyUncheckedCreateWithoutImagesInput>
+  connectOrCreate?: Prisma.SRCountyCreateOrConnectWithoutImagesInput
+  connect?: Prisma.SRCountyWhereUniqueInput
+}
+
+export type SRCountyUpdateOneRequiredWithoutImagesNestedInput = {
+  create?: Prisma.XOR<Prisma.SRCountyCreateWithoutImagesInput, Prisma.SRCountyUncheckedCreateWithoutImagesInput>
+  connectOrCreate?: Prisma.SRCountyCreateOrConnectWithoutImagesInput
+  upsert?: Prisma.SRCountyUpsertWithoutImagesInput
+  connect?: Prisma.SRCountyWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.SRCountyUpdateToOneWithWhereWithoutImagesInput, Prisma.SRCountyUpdateWithoutImagesInput>, Prisma.SRCountyUncheckedUpdateWithoutImagesInput>
 }
 
 export type SRCountyCreateNestedOneWithoutHotelsInput = {
@@ -350,10 +371,57 @@ export type SRCountyUpdateOneRequiredWithoutHotelsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.SRCountyUpdateToOneWithWhereWithoutHotelsInput, Prisma.SRCountyUpdateWithoutHotelsInput>, Prisma.SRCountyUncheckedUpdateWithoutHotelsInput>
 }
 
+export type SRCountyCreateWithoutImagesInput = {
+  name: string
+  region?: string | null
+  createdAt?: Date | string
+  hotels?: Prisma.SRHotelCreateNestedManyWithoutCountyInput
+}
+
+export type SRCountyUncheckedCreateWithoutImagesInput = {
+  id?: number
+  name: string
+  region?: string | null
+  createdAt?: Date | string
+  hotels?: Prisma.SRHotelUncheckedCreateNestedManyWithoutCountyInput
+}
+
+export type SRCountyCreateOrConnectWithoutImagesInput = {
+  where: Prisma.SRCountyWhereUniqueInput
+  create: Prisma.XOR<Prisma.SRCountyCreateWithoutImagesInput, Prisma.SRCountyUncheckedCreateWithoutImagesInput>
+}
+
+export type SRCountyUpsertWithoutImagesInput = {
+  update: Prisma.XOR<Prisma.SRCountyUpdateWithoutImagesInput, Prisma.SRCountyUncheckedUpdateWithoutImagesInput>
+  create: Prisma.XOR<Prisma.SRCountyCreateWithoutImagesInput, Prisma.SRCountyUncheckedCreateWithoutImagesInput>
+  where?: Prisma.SRCountyWhereInput
+}
+
+export type SRCountyUpdateToOneWithWhereWithoutImagesInput = {
+  where?: Prisma.SRCountyWhereInput
+  data: Prisma.XOR<Prisma.SRCountyUpdateWithoutImagesInput, Prisma.SRCountyUncheckedUpdateWithoutImagesInput>
+}
+
+export type SRCountyUpdateWithoutImagesInput = {
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  region?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  hotels?: Prisma.SRHotelUpdateManyWithoutCountyNestedInput
+}
+
+export type SRCountyUncheckedUpdateWithoutImagesInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  region?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  hotels?: Prisma.SRHotelUncheckedUpdateManyWithoutCountyNestedInput
+}
+
 export type SRCountyCreateWithoutHotelsInput = {
   name: string
   region?: string | null
   createdAt?: Date | string
+  images?: Prisma.DestinationImageCreateNestedManyWithoutDestinationInput
 }
 
 export type SRCountyUncheckedCreateWithoutHotelsInput = {
@@ -361,6 +429,7 @@ export type SRCountyUncheckedCreateWithoutHotelsInput = {
   name: string
   region?: string | null
   createdAt?: Date | string
+  images?: Prisma.DestinationImageUncheckedCreateNestedManyWithoutDestinationInput
 }
 
 export type SRCountyCreateOrConnectWithoutHotelsInput = {
@@ -383,6 +452,7 @@ export type SRCountyUpdateWithoutHotelsInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   region?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  images?: Prisma.DestinationImageUpdateManyWithoutDestinationNestedInput
 }
 
 export type SRCountyUncheckedUpdateWithoutHotelsInput = {
@@ -390,6 +460,7 @@ export type SRCountyUncheckedUpdateWithoutHotelsInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   region?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  images?: Prisma.DestinationImageUncheckedUpdateManyWithoutDestinationNestedInput
 }
 
 
@@ -398,10 +469,12 @@ export type SRCountyUncheckedUpdateWithoutHotelsInput = {
  */
 
 export type SRCountyCountOutputType = {
+  images: number
   hotels: number
 }
 
 export type SRCountyCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  images?: boolean | SRCountyCountOutputTypeCountImagesArgs
   hotels?: boolean | SRCountyCountOutputTypeCountHotelsArgs
 }
 
@@ -418,6 +491,13 @@ export type SRCountyCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Ext
 /**
  * SRCountyCountOutputType without action
  */
+export type SRCountyCountOutputTypeCountImagesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.DestinationImageWhereInput
+}
+
+/**
+ * SRCountyCountOutputType without action
+ */
 export type SRCountyCountOutputTypeCountHotelsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.SRHotelWhereInput
 }
@@ -428,6 +508,7 @@ export type SRCountySelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
   name?: boolean
   region?: boolean
   createdAt?: boolean
+  images?: boolean | Prisma.SRCounty$imagesArgs<ExtArgs>
   hotels?: boolean | Prisma.SRCounty$hotelsArgs<ExtArgs>
   _count?: boolean | Prisma.SRCountyCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["sRCounty"]>
@@ -455,6 +536,7 @@ export type SRCountySelectScalar = {
 
 export type SRCountyOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "region" | "createdAt", ExtArgs["result"]["sRCounty"]>
 export type SRCountyInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  images?: boolean | Prisma.SRCounty$imagesArgs<ExtArgs>
   hotels?: boolean | Prisma.SRCounty$hotelsArgs<ExtArgs>
   _count?: boolean | Prisma.SRCountyCountOutputTypeDefaultArgs<ExtArgs>
 }
@@ -464,6 +546,7 @@ export type SRCountyIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Ext
 export type $SRCountyPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "SRCounty"
   objects: {
+    images: Prisma.$DestinationImagePayload<ExtArgs>[]
     hotels: Prisma.$SRHotelPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
@@ -865,6 +948,7 @@ readonly fields: SRCountyFieldRefs;
  */
 export interface Prisma__SRCountyClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
+  images<T extends Prisma.SRCounty$imagesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.SRCounty$imagesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$DestinationImagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   hotels<T extends Prisma.SRCounty$hotelsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.SRCounty$hotelsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SRHotelPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -1289,6 +1373,30 @@ export type SRCountyDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Inte
    * Limit how many SRCounties to delete.
    */
   limit?: number
+}
+
+/**
+ * SRCounty.images
+ */
+export type SRCounty$imagesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the DestinationImage
+   */
+  select?: Prisma.DestinationImageSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the DestinationImage
+   */
+  omit?: Prisma.DestinationImageOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.DestinationImageInclude<ExtArgs> | null
+  where?: Prisma.DestinationImageWhereInput
+  orderBy?: Prisma.DestinationImageOrderByWithRelationInput | Prisma.DestinationImageOrderByWithRelationInput[]
+  cursor?: Prisma.DestinationImageWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.DestinationImageScalarFieldEnum | Prisma.DestinationImageScalarFieldEnum[]
 }
 
 /**

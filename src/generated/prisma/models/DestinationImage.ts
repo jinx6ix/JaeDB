@@ -20,13 +20,23 @@ export type DestinationImageModel = runtime.Types.Result.DefaultSelection<Prisma
 
 export type AggregateDestinationImage = {
   _count: DestinationImageCountAggregateOutputType | null
+  _avg: DestinationImageAvgAggregateOutputType | null
+  _sum: DestinationImageSumAggregateOutputType | null
   _min: DestinationImageMinAggregateOutputType | null
   _max: DestinationImageMaxAggregateOutputType | null
 }
 
+export type DestinationImageAvgAggregateOutputType = {
+  destinationId: number | null
+}
+
+export type DestinationImageSumAggregateOutputType = {
+  destinationId: number | null
+}
+
 export type DestinationImageMinAggregateOutputType = {
   id: string | null
-  destinationId: string | null
+  destinationId: number | null
   filename: string | null
   mimeType: string | null
   data: string | null
@@ -36,7 +46,7 @@ export type DestinationImageMinAggregateOutputType = {
 
 export type DestinationImageMaxAggregateOutputType = {
   id: string | null
-  destinationId: string | null
+  destinationId: number | null
   filename: string | null
   mimeType: string | null
   data: string | null
@@ -55,6 +65,14 @@ export type DestinationImageCountAggregateOutputType = {
   _all: number
 }
 
+
+export type DestinationImageAvgAggregateInputType = {
+  destinationId?: true
+}
+
+export type DestinationImageSumAggregateInputType = {
+  destinationId?: true
+}
 
 export type DestinationImageMinAggregateInputType = {
   id?: true
@@ -125,6 +143,18 @@ export type DestinationImageAggregateArgs<ExtArgs extends runtime.Types.Extensio
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
+   * Select which fields to average
+  **/
+  _avg?: DestinationImageAvgAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
+   * Select which fields to sum
+  **/
+  _sum?: DestinationImageSumAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
    * Select which fields to find the minimum value
   **/
   _min?: DestinationImageMinAggregateInputType
@@ -155,19 +185,23 @@ export type DestinationImageGroupByArgs<ExtArgs extends runtime.Types.Extensions
   take?: number
   skip?: number
   _count?: DestinationImageCountAggregateInputType | true
+  _avg?: DestinationImageAvgAggregateInputType
+  _sum?: DestinationImageSumAggregateInputType
   _min?: DestinationImageMinAggregateInputType
   _max?: DestinationImageMaxAggregateInputType
 }
 
 export type DestinationImageGroupByOutputType = {
   id: string
-  destinationId: string
+  destinationId: number
   filename: string
   mimeType: string
   data: string
   caption: string | null
   createdAt: Date
   _count: DestinationImageCountAggregateOutputType | null
+  _avg: DestinationImageAvgAggregateOutputType | null
+  _sum: DestinationImageSumAggregateOutputType | null
   _min: DestinationImageMinAggregateOutputType | null
   _max: DestinationImageMaxAggregateOutputType | null
 }
@@ -192,13 +226,13 @@ export type DestinationImageWhereInput = {
   OR?: Prisma.DestinationImageWhereInput[]
   NOT?: Prisma.DestinationImageWhereInput | Prisma.DestinationImageWhereInput[]
   id?: Prisma.StringFilter<"DestinationImage"> | string
-  destinationId?: Prisma.StringFilter<"DestinationImage"> | string
+  destinationId?: Prisma.IntFilter<"DestinationImage"> | number
   filename?: Prisma.StringFilter<"DestinationImage"> | string
   mimeType?: Prisma.StringFilter<"DestinationImage"> | string
   data?: Prisma.StringFilter<"DestinationImage"> | string
   caption?: Prisma.StringNullableFilter<"DestinationImage"> | string | null
   createdAt?: Prisma.DateTimeFilter<"DestinationImage"> | Date | string
-  destination?: Prisma.XOR<Prisma.DestinationScalarRelationFilter, Prisma.DestinationWhereInput>
+  destination?: Prisma.XOR<Prisma.SRCountyScalarRelationFilter, Prisma.SRCountyWhereInput>
 }
 
 export type DestinationImageOrderByWithRelationInput = {
@@ -209,7 +243,7 @@ export type DestinationImageOrderByWithRelationInput = {
   data?: Prisma.SortOrder
   caption?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
-  destination?: Prisma.DestinationOrderByWithRelationInput
+  destination?: Prisma.SRCountyOrderByWithRelationInput
 }
 
 export type DestinationImageWhereUniqueInput = Prisma.AtLeast<{
@@ -217,13 +251,13 @@ export type DestinationImageWhereUniqueInput = Prisma.AtLeast<{
   AND?: Prisma.DestinationImageWhereInput | Prisma.DestinationImageWhereInput[]
   OR?: Prisma.DestinationImageWhereInput[]
   NOT?: Prisma.DestinationImageWhereInput | Prisma.DestinationImageWhereInput[]
-  destinationId?: Prisma.StringFilter<"DestinationImage"> | string
+  destinationId?: Prisma.IntFilter<"DestinationImage"> | number
   filename?: Prisma.StringFilter<"DestinationImage"> | string
   mimeType?: Prisma.StringFilter<"DestinationImage"> | string
   data?: Prisma.StringFilter<"DestinationImage"> | string
   caption?: Prisma.StringNullableFilter<"DestinationImage"> | string | null
   createdAt?: Prisma.DateTimeFilter<"DestinationImage"> | Date | string
-  destination?: Prisma.XOR<Prisma.DestinationScalarRelationFilter, Prisma.DestinationWhereInput>
+  destination?: Prisma.XOR<Prisma.SRCountyScalarRelationFilter, Prisma.SRCountyWhereInput>
 }, "id">
 
 export type DestinationImageOrderByWithAggregationInput = {
@@ -235,8 +269,10 @@ export type DestinationImageOrderByWithAggregationInput = {
   caption?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.DestinationImageCountOrderByAggregateInput
+  _avg?: Prisma.DestinationImageAvgOrderByAggregateInput
   _max?: Prisma.DestinationImageMaxOrderByAggregateInput
   _min?: Prisma.DestinationImageMinOrderByAggregateInput
+  _sum?: Prisma.DestinationImageSumOrderByAggregateInput
 }
 
 export type DestinationImageScalarWhereWithAggregatesInput = {
@@ -244,7 +280,7 @@ export type DestinationImageScalarWhereWithAggregatesInput = {
   OR?: Prisma.DestinationImageScalarWhereWithAggregatesInput[]
   NOT?: Prisma.DestinationImageScalarWhereWithAggregatesInput | Prisma.DestinationImageScalarWhereWithAggregatesInput[]
   id?: Prisma.StringWithAggregatesFilter<"DestinationImage"> | string
-  destinationId?: Prisma.StringWithAggregatesFilter<"DestinationImage"> | string
+  destinationId?: Prisma.IntWithAggregatesFilter<"DestinationImage"> | number
   filename?: Prisma.StringWithAggregatesFilter<"DestinationImage"> | string
   mimeType?: Prisma.StringWithAggregatesFilter<"DestinationImage"> | string
   data?: Prisma.StringWithAggregatesFilter<"DestinationImage"> | string
@@ -259,12 +295,12 @@ export type DestinationImageCreateInput = {
   data: string
   caption?: string | null
   createdAt?: Date | string
-  destination: Prisma.DestinationCreateNestedOneWithoutImagesInput
+  destination: Prisma.SRCountyCreateNestedOneWithoutImagesInput
 }
 
 export type DestinationImageUncheckedCreateInput = {
   id?: string
-  destinationId: string
+  destinationId: number
   filename: string
   mimeType: string
   data: string
@@ -279,12 +315,12 @@ export type DestinationImageUpdateInput = {
   data?: Prisma.StringFieldUpdateOperationsInput | string
   caption?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  destination?: Prisma.DestinationUpdateOneRequiredWithoutImagesNestedInput
+  destination?: Prisma.SRCountyUpdateOneRequiredWithoutImagesNestedInput
 }
 
 export type DestinationImageUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  destinationId?: Prisma.StringFieldUpdateOperationsInput | string
+  destinationId?: Prisma.IntFieldUpdateOperationsInput | number
   filename?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
   data?: Prisma.StringFieldUpdateOperationsInput | string
@@ -294,7 +330,7 @@ export type DestinationImageUncheckedUpdateInput = {
 
 export type DestinationImageCreateManyInput = {
   id?: string
-  destinationId: string
+  destinationId: number
   filename: string
   mimeType: string
   data: string
@@ -313,22 +349,12 @@ export type DestinationImageUpdateManyMutationInput = {
 
 export type DestinationImageUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  destinationId?: Prisma.StringFieldUpdateOperationsInput | string
+  destinationId?: Prisma.IntFieldUpdateOperationsInput | number
   filename?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
   data?: Prisma.StringFieldUpdateOperationsInput | string
   caption?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-}
-
-export type DestinationImageListRelationFilter = {
-  every?: Prisma.DestinationImageWhereInput
-  some?: Prisma.DestinationImageWhereInput
-  none?: Prisma.DestinationImageWhereInput
-}
-
-export type DestinationImageOrderByRelationAggregateInput = {
-  _count?: Prisma.SortOrder
 }
 
 export type DestinationImageCountOrderByAggregateInput = {
@@ -339,6 +365,10 @@ export type DestinationImageCountOrderByAggregateInput = {
   data?: Prisma.SortOrder
   caption?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+}
+
+export type DestinationImageAvgOrderByAggregateInput = {
+  destinationId?: Prisma.SortOrder
 }
 
 export type DestinationImageMaxOrderByAggregateInput = {
@@ -359,6 +389,28 @@ export type DestinationImageMinOrderByAggregateInput = {
   data?: Prisma.SortOrder
   caption?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+}
+
+export type DestinationImageSumOrderByAggregateInput = {
+  destinationId?: Prisma.SortOrder
+}
+
+export type DestinationImageListRelationFilter = {
+  every?: Prisma.DestinationImageWhereInput
+  some?: Prisma.DestinationImageWhereInput
+  none?: Prisma.DestinationImageWhereInput
+}
+
+export type DestinationImageOrderByRelationAggregateInput = {
+  _count?: Prisma.SortOrder
+}
+
+export type IntFieldUpdateOperationsInput = {
+  set?: number
+  increment?: number
+  decrement?: number
+  multiply?: number
+  divide?: number
 }
 
 export type DestinationImageCreateNestedManyWithoutDestinationInput = {
@@ -452,7 +504,7 @@ export type DestinationImageScalarWhereInput = {
   OR?: Prisma.DestinationImageScalarWhereInput[]
   NOT?: Prisma.DestinationImageScalarWhereInput | Prisma.DestinationImageScalarWhereInput[]
   id?: Prisma.StringFilter<"DestinationImage"> | string
-  destinationId?: Prisma.StringFilter<"DestinationImage"> | string
+  destinationId?: Prisma.IntFilter<"DestinationImage"> | number
   filename?: Prisma.StringFilter<"DestinationImage"> | string
   mimeType?: Prisma.StringFilter<"DestinationImage"> | string
   data?: Prisma.StringFilter<"DestinationImage"> | string
@@ -506,7 +558,7 @@ export type DestinationImageSelect<ExtArgs extends runtime.Types.Extensions.Inte
   data?: boolean
   caption?: boolean
   createdAt?: boolean
-  destination?: boolean | Prisma.DestinationDefaultArgs<ExtArgs>
+  destination?: boolean | Prisma.SRCountyDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["destinationImage"]>
 
 export type DestinationImageSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -517,7 +569,7 @@ export type DestinationImageSelectCreateManyAndReturn<ExtArgs extends runtime.Ty
   data?: boolean
   caption?: boolean
   createdAt?: boolean
-  destination?: boolean | Prisma.DestinationDefaultArgs<ExtArgs>
+  destination?: boolean | Prisma.SRCountyDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["destinationImage"]>
 
 export type DestinationImageSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -528,7 +580,7 @@ export type DestinationImageSelectUpdateManyAndReturn<ExtArgs extends runtime.Ty
   data?: boolean
   caption?: boolean
   createdAt?: boolean
-  destination?: boolean | Prisma.DestinationDefaultArgs<ExtArgs>
+  destination?: boolean | Prisma.SRCountyDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["destinationImage"]>
 
 export type DestinationImageSelectScalar = {
@@ -543,23 +595,23 @@ export type DestinationImageSelectScalar = {
 
 export type DestinationImageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "destinationId" | "filename" | "mimeType" | "data" | "caption" | "createdAt", ExtArgs["result"]["destinationImage"]>
 export type DestinationImageInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  destination?: boolean | Prisma.DestinationDefaultArgs<ExtArgs>
+  destination?: boolean | Prisma.SRCountyDefaultArgs<ExtArgs>
 }
 export type DestinationImageIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  destination?: boolean | Prisma.DestinationDefaultArgs<ExtArgs>
+  destination?: boolean | Prisma.SRCountyDefaultArgs<ExtArgs>
 }
 export type DestinationImageIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  destination?: boolean | Prisma.DestinationDefaultArgs<ExtArgs>
+  destination?: boolean | Prisma.SRCountyDefaultArgs<ExtArgs>
 }
 
 export type $DestinationImagePayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "DestinationImage"
   objects: {
-    destination: Prisma.$DestinationPayload<ExtArgs>
+    destination: Prisma.$SRCountyPayload<ExtArgs>
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
-    destinationId: string
+    destinationId: number
     filename: string
     mimeType: string
     data: string
@@ -959,7 +1011,7 @@ readonly fields: DestinationImageFieldRefs;
  */
 export interface Prisma__DestinationImageClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
-  destination<T extends Prisma.DestinationDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.DestinationDefaultArgs<ExtArgs>>): Prisma.Prisma__DestinationClient<runtime.Types.Result.GetResult<Prisma.$DestinationPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  destination<T extends Prisma.SRCountyDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.SRCountyDefaultArgs<ExtArgs>>): Prisma.Prisma__SRCountyClient<runtime.Types.Result.GetResult<Prisma.$SRCountyPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -990,7 +1042,7 @@ export interface Prisma__DestinationImageClient<T, Null = never, ExtArgs extends
  */
 export interface DestinationImageFieldRefs {
   readonly id: Prisma.FieldRef<"DestinationImage", 'String'>
-  readonly destinationId: Prisma.FieldRef<"DestinationImage", 'String'>
+  readonly destinationId: Prisma.FieldRef<"DestinationImage", 'Int'>
   readonly filename: Prisma.FieldRef<"DestinationImage", 'String'>
   readonly mimeType: Prisma.FieldRef<"DestinationImage", 'String'>
   readonly data: Prisma.FieldRef<"DestinationImage", 'String'>

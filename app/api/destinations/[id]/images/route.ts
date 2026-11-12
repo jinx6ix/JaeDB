@@ -12,8 +12,9 @@ export async function GET(
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
+  const destinationId = Number(id);
   const images = await prisma.destinationImage.findMany({
-    where: { destinationId: id },
+    where: { destinationId },
     orderBy: { createdAt: 'asc' },
   });
   return NextResponse.json(images);
@@ -28,6 +29,7 @@ export async function POST(
   if ((session.user as any)?.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { id } = await params;
+  const destinationId = Number(id);
   const body = await req.json();
   const { filename, mimeType, data, caption } = body;
 
@@ -37,7 +39,7 @@ export async function POST(
 
   const image = await prisma.destinationImage.create({
     data: {
-      destinationId: id,
+      destinationId,
       filename,
       mimeType,
       data: data.replace(/^data:image\/[^;]+;base64,/, ''),
@@ -71,6 +73,7 @@ export async function PATCH(
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if ((session.user as any)?.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
+  const { id } = await params;
   const body = await req.json();
   const { imageId, caption } = body;
   if (!imageId) return NextResponse.json({ error: 'imageId required' }, { status: 400 });
