@@ -199,7 +199,10 @@ export default function SafariRatesSearchPage() {
 
   // Resolve a room type id: if 'new', create it first; otherwise use existing id
   async function resolveRoomType(formData: RateForm, hotel: Hotel): Promise<number> {
-    if (formData.roomTypeId === 'new' && formData.newRoomName.trim()) {
+    if (formData.roomTypeId === 'new') {
+      if (!formData.newRoomName.trim()) {
+        throw new Error('Room type name is required');
+      }
       const created = await createRoomType(hotel.id, formData.newRoomName, formData.newRoomMaxOccupancy);
       if (!created) throw new Error('Room type creation failed');
       return created.id;
@@ -277,7 +280,7 @@ export default function SafariRatesSearchPage() {
   function startAdd(key: string) {
     setAddingKey(key);
     setAddForm({
-      roomTypeId: '', seasonId: '', boardBasis: 'FB',
+      roomTypeId: 'new', seasonId: 'new', boardBasis: 'FB',
       ratePerPersonSharing: '', singleRoomRate: '', childRate: '', thirdAdultRate: '', currency: 'USD',
       newRoomName: '', newRoomMaxOccupancy: '2',
       newSeasonName: '', newSeasonStart: '', newSeasonEnd: '',
