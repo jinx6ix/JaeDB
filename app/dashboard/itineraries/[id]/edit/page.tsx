@@ -343,11 +343,17 @@ export default function EditItineraryPage() {
       body: JSON.stringify(body),
     });
 
-    if (res.ok) {
-      router.push(`/dashboard/itineraries/${id}`);
-    } else {
-      const d = await res.json();
-      setError(d.error || 'Failed');
+    try {
+      if (res.ok) {
+        router.push(`/dashboard/itineraries/${id}`);
+      } else {
+        const d = await res.json();
+        setError(d.error || 'Failed');
+      }
+    } catch (err) {
+      console.error('Save error:', err);
+      setError('Failed to save itinerary');
+    } finally {
       setSaving(false);
     }
   }
