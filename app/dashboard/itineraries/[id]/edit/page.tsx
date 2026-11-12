@@ -11,7 +11,7 @@ interface Hotel {
   category?: string | null;
   stars?: number | null;
   county?: { id: number; name: string };
-  images?: HotelImage[];
+  images?: { id: string; filename: string; mimeType: string; data: string }[];
 }
 interface DestinationImage {
   id: string;
@@ -63,18 +63,17 @@ export default function EditItineraryPage() {
   const [hotelSearch, setHotelSearch] = useState('');
   const [hotelsByDest, setHotelsByDest] = useState<Record<number, Hotel[]>>({});
   const [loadingHotels, setLoadingHotels] = useState<Record<number, boolean>>({});
-  const [hotelImagesByDest, setHotelImagesByDest] = useState<Record<number, HotelImage[]>>({});
-  // Refs hold the latest fetched images so computePreviews can read them
-  // immediately without waiting for a React state re-render (fixes first-click staleness).
   const destImagesRef = useRef<Record<number, DestinationImage[]>>({});
-  const hotelImagesRef = useRef<Record<number, HotelImage[]>>({});
+  const hotelImagesRef = useRef<Record<number, DestinationImage[]>>({});
   const usedImgIds = useRef<Record<string, string[]>>({});
+
+  const [editingDayIdx, setEditingDayIdx] = useState<number | null>(null);
 
   useEffect(() => {
     fetch(`/api/itineraries/${id}`).then(r => r.json()).then(data => {
       setItinerary({
         ...data,
-        days: data.days.map((d: any) => ({
+        days: data.days.map((d: any, i: number) => ({
           ...d,
           mealPlan: d.mealPlan ? JSON.parse(d.mealPlan) : { breakfast: false, lunch: false, dinner: false, note: '' },
           activities: d.activities
@@ -104,7 +103,7 @@ export default function EditItineraryPage() {
         computePreviews(i);
       }
     });
-  }, [itinerary, destinations, hotelsByDest, destImagesById, hotelImagesByDest]);
+  }, [itinerary, destinations, hotelsByDest, destImagesById, hotelImagesRef]);
 
   if (!itinerary) return (
     <div className="flex items-center justify-center py-20">
@@ -132,6 +131,26 @@ export default function EditItineraryPage() {
       setError('Failed to link booking');
     }
     setLinkingBooking(false);
+  }
+
+  function getDay(i: number) {
+    return itinerary.days[i];
+  }
+
+  function updateDay(i: number, field: string, value: any) {
+    setItinerary((prev: any) => ({
+      ...prev,
+      days: prev.days.map((d: any, j: number) => j === i ? { ...d, [field]: value } : d),
+    }));
+  }
+
+  function updateMeal(i: number, meal: string, value: boolean) {
+    setItinerary((prev: any) => ({
+      ...prev,
+      days: prev.days.map((d: any, j: number) =>
+        j === i ? { ...d, mealPlan: { ...d.mealPlan, [meal]: value } } : d
+      ),
+    }));
   }
 
   function addDay() {
@@ -166,22 +185,7 @@ export default function EditItineraryPage() {
         .map((d: any, j: number) => ({ ...d, dayNumber: j + 1 })),
     }));
     delete usedImgIds.current[String(i + 1)];
-  }
-
-  function updateDay(i: number, field: string, value: any) {
-    setItinerary((prev: any) => ({
-      ...prev,
-      days: prev.days.map((d: any, j: number) => j === i ? { ...d, [field]: value } : d),
-    }));
-  }
-
-  function updateMeal(i: number, meal: string, value: boolean) {
-    setItinerary((prev: any) => ({
-      ...prev,
-      days: prev.days.map((d: any, j: number) =>
-        j === i ? { ...d, mealPlan: { ...d.mealPlan, [meal]: value } } : d
-      ),
-    }));
+    if (editingDayIdx === i) setEditingDayIdx(null);
   }
 
   function pickRandomUnique<T extends { id: string }>(items: T[], count: number, excludeIds: string[]): T[] {
@@ -190,16 +194,19 @@ export default function EditItineraryPage() {
     return shuffled.slice(0, count);
   }
 
+  function hotelImagesFor(hotelId: number) {
+    const fromRef = hotelImagesRef.current[hotelId];
+    if (fromRef && fromRef.length) return fromRef;
+    return [...hotels, ...Object.values(hotelsByDest).flat()].find(h => h.id === hotelId)?.images || [];
+  }
+
   function computePreviews(i: number) {
     setItinerary((prev: any) => {
       const day = prev.days[i];
       if (!day) return prev;
       const used: string[] = usedImgIds.current[String(day.dayNumber)] || [];
       const destImgs = day.destinationId ? (destImagesRef.current[day.destinationId] || destImagesById[day.destinationId] || []) : [];
-      const hotelFromLists = [...hotels, ...Object.values(hotelsByDest).flat()].find(h => h.id === day.accommodationId)?.images || [];
-      const hotelFromSingle = hotelImagesByDest[day.accommodationId || 0] || hotelImagesRef.current[day.accommodationId || 0] || [];
-      // merge, dedupe by id
-      const hotelImgs = [...hotelFromSingle, ...hotelFromLists.filter(h => !hotelFromSingle.some(s => s.id === h.id))];
+      const hotelImgs = day.accommodationId ? hotelImagesFor(day.accommodationId) : [];
       const destPicks = pickRandomUnique(destImgs, 2, used);
       const hotelPicks = pickRandomUnique(hotelImgs, 2, used);
       const picked = [...destPicks, ...hotelPicks];
@@ -216,6 +223,8 @@ export default function EditItineraryPage() {
   }
 
   async function onDestinationChange(i: number, value: string) {
+    const day = getDay(i);
+    if (!day) return;
     updateDay(i, 'destination', value);
     updateDay(i, 'destinationId', null);
     updateDay(i, 'accommodation', '');
@@ -255,10 +264,9 @@ export default function EditItineraryPage() {
       const data = await res.json();
       const destHotels = Array.isArray(data) ? data : [];
       setHotelsByDest(p => ({ ...p, [dest.id]: destHotels }));
-      // Store any images that came back with the hotels
-      const imgMap: Record<number, HotelImage[]> = {};
+      const imgMap: Record<number, DestinationImage[]> = {};
       destHotels.forEach((h: Hotel) => {
-        if (h.images && h.images.length) imgMap[h.id] = h.images as HotelImage[];
+        if (h.images && h.images.length) imgMap[h.id] = h.images as DestinationImage[];
       });
       if (Object.keys(imgMap).length) {
         hotelImagesRef.current = { ...hotelImagesRef.current, ...imgMap };
@@ -278,23 +286,21 @@ export default function EditItineraryPage() {
     updateDay(i, 'accommodation', hotel.name);
 
     // If hotel has no images loaded yet, fetch them directly so they appear immediately
-    const existingImgs = hotelImagesRef.current[hotelId] || (hotel.images as HotelImage[] | undefined) || [];
+    const existingImgs = hotelImagesRef.current[hotelId] || (hotel.images as DestinationImage[] | undefined) || [];
     if (!existingImgs.length) {
       try {
         const res = await fetch(`/api/safari-rates/hotels/${hotelId}`);
         const data = await res.json();
         if (data && data.images) {
-          const imgs = data.images as HotelImage[];
+          const imgs = data.images as DestinationImage[];
           hotelImagesRef.current = { ...hotelImagesRef.current, [hotelId]: imgs };
-          setHotelImagesByDest(p => ({ ...p, [hotelId]: imgs }));
-          // Also reflect in hotelsByDest so subsequent looks pick it up
           Object.keys(hotelsByDest).forEach(destId => {
             const idx = hotelsByDest[Number(destId)].findIndex(h => h.id === hotelId);
             if (idx >= 0) {
               setHotelsByDest(p => ({
                 ...p,
                 [Number(destId)]: p[Number(destId)].map((h: Hotel) =>
-                  h.id === hotelId ? { ...h, images: data.images } : h
+                  h.id === hotelId ? { ...h, images: data.images as any } : h
                 ),
               }));
             }
@@ -346,6 +352,11 @@ export default function EditItineraryPage() {
     }
   }
 
+  const mealSummary = (mp: any) => {
+    const on = ['breakfast', 'lunch', 'dinner'].filter(m => mp[m]);
+    return on.length ? on.map(m => m.charAt(0).toUpperCase() + m.slice(1)).join(', ') : '—';
+  };
+
   return (
     <div className="max-w-4xl space-y-5">
       <div className="flex items-center gap-3">
@@ -396,151 +407,260 @@ export default function EditItineraryPage() {
           {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
         </div>
 
+        {/* Days table — click a day row to open its details popup */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-gray-800">Day by Day ({itinerary.days.length} day{itinerary.days.length !== 1 ? 's' : ''})</h2>
             <button type="button" onClick={addDay} className="btn-secondary text-sm">+ Add Day</button>
           </div>
-          {itinerary.days.map((day: any, i: number) => (
-            <div key={day.id} className="card space-y-3">
-              <div className="flex items-center gap-2 justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="bg-orange-500 text-white text-xs font-bold px-3 py-1.5 rounded-full">Day {day.dayNumber}</span>
-                  <input type="date" value={day.date} onChange={e => updateDay(i, 'date', e.target.value)} className="input w-40 text-sm" />
-                </div>
-                {itinerary.days.length > 1 && (
-                  <button type="button" onClick={() => removeDay(i)} className="text-red-400 hover:text-red-600 text-xs font-medium">✕ Remove Day</button>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label text-xs">Destination *</label>
-                  <div className="space-y-1">
-                    <input
-                      type="text"
-                      value={destSearch}
-                      onChange={e => setDestSearch(e.target.value)}
-                      className="input text-sm"
-                      placeholder="Search destinations…"
-                    />
-                    <select
-                      value={day.destinationId ? destinations.find(d => d.id === day.destinationId)?.name || day.destination : day.destination}
-                      onChange={e => onDestinationChange(i, e.target.value)}
-                      className="input"
-                    >
-                      <option value="">— Select destination —</option>
-                      {destinations
-                        .filter(d => !destSearch || d.name.toLowerCase().includes(destSearch.toLowerCase()))
-                        .map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="label text-xs">Accommodation</label>
-                  <div className="space-y-1">
-                    <input
-                      type="text"
-                      value={hotelSearch}
-                      onChange={e => setHotelSearch(e.target.value)}
-                      className="input text-sm"
-                      placeholder="Search hotels…"
-                    />
-                    <select
-                      value={day.accommodationId || day.accommodation}
-                      onChange={e => {
-                        const val = e.target.value;
-                        const num = Number(val);
-                        if (!isNaN(num) && hotelsByDest[day.destinationId || 0]?.some(h => h.id === num)) {
-                          onAccommodationChange(i, num);
-                        } else {
-                          updateDay(i, 'accommodation', val);
-                          updateDay(i, 'accommodationId', null);
-                          computePreviews(i);
-                        }
-                      }}
-                      className="input"
-                    >
-                      <option value="">— No accommodation —</option>
-                      {(day.destinationId ? hotels.filter(h => h.county?.id === day.destinationId) : [])
-                        .filter(h => !hotelSearch || h.name.toLowerCase().includes(hotelSearch.toLowerCase()))
-                        .map((h: Hotel) => (
-                          <option key={h.id} value={h.id}>{h.name}</option>
-                        ))}
-                      <option value="custom">+ Custom / other…</option>
-                    </select>
-                    {day.accommodationId && !hotelsByDest[day.destinationId || 0]?.some(h => h.id === day.accommodationId) && (
-                      <input
-                        type="text"
-                        value={day.accommodation}
-                        onChange={e => updateDay(i, 'accommodation', e.target.value)}
-                        className="input mt-2 text-sm"
-                        placeholder="Custom accommodation name"
-                      />
-                    )}
-                  </div>
-                </div>
-              </div>
 
-              {(day.destinationId || day.accommodationId) && (
-                <div className="mt-2">
-                  <label className="label text-xs block mb-1">Destination &amp; Accommodation Images</label>
-                  <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto">
-                    {(() => {
-                      const picks: any[] = [
-                        ...(day.previewDestImages || []).map((img: any) => ({ ...img, source: 'Destination' })),
-                        ...(day.previewHotelImages || []).map((img: any) => ({ ...img, source: 'Accommodation' })),
-                      ];
-                      return picks.map((img: any) => (
-                        <div key={img.id} className="relative rounded-lg overflow-hidden border border-gray-200 group">
-                          <img
-                            src={`data:${img.mimeType};base64,${img.data}`}
-                            alt={img.filename}
-                            className="w-full h-16 object-cover"
-                          />
-                          <div className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1 rounded">
-                            {img.source === 'Destination' ? '🏞 Destination' : '🏨 Accommodation'}
-                          </div>
-                        </div>
-                      ));
-                    })()}
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="label text-xs">Activities (one per line)</label>
-                <textarea value={day.activities} onChange={e => updateDay(i, 'activities', e.target.value)}
-                  rows={3} className="input resize-none text-sm" />
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="text-xs font-medium text-gray-600">Meals:</span>
-                {['breakfast', 'lunch', 'dinner'].map(m => (
-                  <label key={m} className="flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
-                    <input type="checkbox" checked={day.mealPlan?.[m] || false}
-                      onChange={e => updateMeal(i, m, e.target.checked)} className="rounded" />
-                    {m.charAt(0).toUpperCase() + m.slice(1)}
-                  </label>
+          <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
+            <table className="w-full text-sm divide-y divide-gray-100">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600 w-14">Day</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600">Destination</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600">Accommodation</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600">Activities</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600 w-40">Meal Plan</th>
+                </tr>
+              </thead>
+              <tbody>
+                {itinerary.days.map((day: any, i: number) => (
+                  <tr
+                    key={day.id}
+                    className="hover:bg-orange-50 cursor-pointer transition-colors"
+                    onClick={() => setEditingDayIdx(i)}
+                  >
+                    <td className="px-4 py-3 font-medium text-gray-800">
+                      <span className="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded">Day {day.dayNumber}</span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 truncate max-w-xs">
+                      {day.destination || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 truncate max-w-xs">
+                      {day.accommodation || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 truncate max-w-sm">
+                      {day.activities || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">
+                      <span className="text-xs text-gray-500">{mealSummary(day.mealPlan)}</span>
+                    </td>
+                  </tr>
                 ))}
-                <input value={day.mealPlan?.note || ''}
-                  onChange={e => setItinerary((prev: any) => ({
-                    ...prev,
-                    days: prev.days.map((d: any, j: number) =>
-                      j === i ? { ...d, mealPlan: { ...d.mealPlan, note: e.target.value } } : d
-                    ),
-                  }))}
-                  className="input w-32 text-xs" placeholder="e.g. Packed lunch" />
-              </div>
-              <div>
-                <label className="label text-xs">Notes</label>
-                <input value={day.notes || ''} onChange={e => updateDay(i, 'notes', e.target.value)} className="input text-sm" />
-              </div>
-              <DayImagePicker
-                attachedImages={day.images || []}
-                onImagesChange={(imgs) => updateDay(i, 'images', imgs)}
-                dayId={day.id}
+                {itinerary.days.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500 text-sm">
+                      No days yet. Click "+ Add Day" below to get started.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Day details popup card */}
+          {editingDayIdx !== null && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+                onClick={() => setEditingDayIdx(null)}
               />
+              <div className="relative z-10 bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+                <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-gray-50">
+                  <div>
+                    <h2 className="font-semibold text-gray-800">Day {getDay(editingDayIdx)?.dayNumber}</h2>
+                    <p className="text-xs text-gray-500">
+                      {getDay(editingDayIdx)?.date && <span>Date: {new Date(getDay(editingDayIdx)!.date).toLocaleDateString()}</span>}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditingDayIdx(null)}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-5 space-y-6">
+                  <div className="space-y-3">
+                    <div>
+                      <label className="label text-xs block mb-1">Date *</label>
+                      <input
+                        type="date"
+                        value={getDay(editingDayIdx)?.date || ''}
+                        onChange={e => updateDay(editingDayIdx, 'date', e.target.value)}
+                        className="input w-full"
+                      />
+                    </div>
+                    <div>
+                      <label className="label text-xs block mb-1">Destination *</label>
+                      <div className="space-y-1">
+                        <input
+                          type="text"
+                          value={destSearch}
+                          onChange={e => setDestSearch(e.target.value)}
+                          className="input text-sm"
+                          placeholder="Search destinations…"
+                        />
+                        <select
+                          value={getDay(editingDayIdx)?.destinationId ? destinations.find(d => d.id === getDay(editingDayIdx)!.destinationId)?.name || getDay(editingDayIdx)?.destination : getDay(editingDayIdx)?.destination}
+                          onChange={e => onDestinationChange(editingDayIdx, e.target.value)}
+                          className="input"
+                        >
+                          <option value="">— Select destination —</option>
+                          {destinations
+                            .filter(d => !destSearch || d.name.toLowerCase().includes(destSearch.toLowerCase()))
+                            .map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="label text-xs block mb-1">Accommodation</label>
+                      <div className="space-y-1">
+                        <input
+                          type="text"
+                          value={hotelSearch}
+                          onChange={e => setHotelSearch(e.target.value)}
+                          className="input text-sm"
+                          placeholder="Search hotels…"
+                        />
+                        <select
+                          value={getDay(editingDayIdx)?.accommodationId || getDay(editingDayIdx)?.accommodation}
+                          onChange={e => {
+                            const val = e.target.value;
+                            const num = Number(val);
+                            if (!isNaN(num) && hotelsByDest[getDay(editingDayIdx)!.destinationId || 0]?.some(h => h.id === num)) {
+                              onAccommodationChange(editingDayIdx, num);
+                            } else {
+                              updateDay(editingDayIdx, 'accommodation', val);
+                              updateDay(editingDayIdx, 'accommodationId', null);
+                            }
+                          }}
+                          className="input"
+                        >
+                          <option value="">— No accommodation —</option>
+                          {hotels
+                            .filter(h => h.county?.id === getDay(editingDayIdx)!.destinationId)
+                            .filter(h => !hotelSearch || h.name.toLowerCase().includes(hotelSearch.toLowerCase()))
+                            .map((h: Hotel) => (
+                              <option key={h.id} value={h.id}>{h.name}</option>
+                            ))}
+                          <option value="custom">+ Custom / other…</option>
+                        </select>
+                        {getDay(editingDayIdx)?.accommodationId && !hotelsByDest[getDay(editingDayIdx)!.destinationId || 0]?.some(h => h.id === getDay(editingDayIdx)!.accommodationId) && (
+                          <input
+                            type="text"
+                            value={getDay(editingDayIdx)!.accommodation}
+                            onChange={e => updateDay(editingDayIdx, 'accommodation', e.target.value)}
+                            className="input mt-2 text-sm"
+                            placeholder="Custom accommodation name"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {(getDay(editingDayIdx)?.destinationId || getDay(editingDayIdx)?.accommodationId) && (
+                    <div>
+                      <label className="label text-xs block mb-1">Destination &amp; Accommodation Images</label>
+                      <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto">
+                        {(() => {
+                          const day = getDay(editingDayIdx)!;
+                          const picks: any[] = [
+                            ...(day.previewDestImages || []).map((img: any) => ({ ...img, source: 'Destination' })),
+                            ...(day.previewHotelImages || []).map((img: any) => ({ ...img, source: 'Accommodation' })),
+                          ];
+                          return picks.map((img: any) => (
+                            <div key={img.id} className="relative rounded-lg overflow-hidden border border-gray-200 group">
+                              <img
+                                src={`data:${img.mimeType};base64,${img.data}`}
+                                alt={img.filename}
+                                className="w-full h-20 object-cover"
+                              />
+                              <div className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1 rounded">
+                                {img.source === 'Destination' ? '🏞 Destination' : '🏨 Accommodation'}
+                              </div>
+                            </div>
+                          ));
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="label text-xs block mb-1">Activities (one per line)</label>
+                    <textarea
+                      value={getDay(editingDayIdx)?.activities || ''}
+                      onChange={e => updateDay(editingDayIdx, 'activities', e.target.value)}
+                      rows={3}
+                      className="input resize-none text-sm w-full"
+                      placeholder="Early Morning: Transfer from Nairobi&#10;Mid Morning: Full day game drive&#10;Afternoon: Return to Nairobi"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="label text-xs block mb-1">Meals</label>
+                    <div className="flex items-center gap-4">
+                      {['breakfast', 'lunch', 'dinner'].map(m => (
+                        <label key={m} className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={getDay(editingDayIdx)?.mealPlan[m] || false}
+                            onChange={e => updateMeal(editingDayIdx, m, e.target.checked)}
+                            className="rounded"
+                          />
+                          {m.charAt(0).toUpperCase() + m.slice(1)}
+                        </label>
+                      ))}
+                    </div>
+                    <div className="mt-2">
+                      <label className="label text-xs block mb-1">Meal note</label>
+                      <input
+                        value={getDay(editingDayIdx)?.mealPlan.note || ''}
+                        onChange={e => setItinerary((prev: any) => ({
+                          ...prev,
+                          days: prev.days.map((d: any, j: number) =>
+                            j === editingDayIdx ? { ...d, mealPlan: { ...d.mealPlan, note: e.target.value } } : d
+                          ),
+                        }))}
+                        className="input w-48 text-xs"
+                        placeholder="e.g. Packed lunch"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="label text-xs block mb-1">Notes</label>
+                    <input
+                      value={getDay(editingDayIdx)?.notes || ''}
+                      onChange={e => updateDay(editingDayIdx, 'notes', e.target.value)}
+                      className="input text-sm w-full"
+                      placeholder="Any special notes for this day…"
+                    />
+                  </div>
+
+                  <DayImagePicker
+                    attachedImages={getDay(editingDayIdx)?.images || []}
+                    onImagesChange={(imgs) => updateDay(editingDayIdx, 'images', imgs)}
+                    dayId={getDay(editingDayIdx)?.id}
+                  />
+                </div>
+
+                <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditingDayIdx(null)}
+                    className="btn-secondary text-sm px-4"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
             </div>
-          ))}
+          )}
         </div>
 
         <div className="flex gap-3">
