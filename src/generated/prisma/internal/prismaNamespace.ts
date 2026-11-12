@@ -388,6 +388,7 @@ export const ModelName = {
   Agent: 'Agent',
   Client: 'Client',
   Destination: 'Destination',
+  DestinationImage: 'DestinationImage',
   TourPackage: 'TourPackage',
   TourDay: 'TourDay',
   RateCard: 'RateCard',
@@ -425,7 +426,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "agent" | "client" | "destination" | "tourPackage" | "tourDay" | "rateCard" | "property" | "vehicle" | "booking" | "itinerary" | "itineraryDay" | "itineraryImage" | "voucher" | "invoice" | "costSheet" | "sRCounty" | "sRHotel" | "sRHotelImage" | "sRRoomType" | "sRSeason" | "sRRoomPrice" | "log" | "agentRun" | "agentMessage" | "itineraryEmbed"
+    modelProps: "user" | "agent" | "client" | "destination" | "destinationImage" | "tourPackage" | "tourDay" | "rateCard" | "property" | "vehicle" | "booking" | "itinerary" | "itineraryDay" | "itineraryImage" | "voucher" | "invoice" | "costSheet" | "sRCounty" | "sRHotel" | "sRHotelImage" | "sRRoomType" | "sRSeason" | "sRRoomPrice" | "log" | "agentRun" | "agentMessage" | "itineraryEmbed"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -722,6 +723,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.DestinationCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.DestinationCountAggregateOutputType> | number
+        }
+      }
+    }
+    DestinationImage: {
+      payload: Prisma.$DestinationImagePayload<ExtArgs>
+      fields: Prisma.DestinationImageFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.DestinationImageFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DestinationImagePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.DestinationImageFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DestinationImagePayload>
+        }
+        findFirst: {
+          args: Prisma.DestinationImageFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DestinationImagePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.DestinationImageFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DestinationImagePayload>
+        }
+        findMany: {
+          args: Prisma.DestinationImageFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DestinationImagePayload>[]
+        }
+        create: {
+          args: Prisma.DestinationImageCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DestinationImagePayload>
+        }
+        createMany: {
+          args: Prisma.DestinationImageCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.DestinationImageCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DestinationImagePayload>[]
+        }
+        delete: {
+          args: Prisma.DestinationImageDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DestinationImagePayload>
+        }
+        update: {
+          args: Prisma.DestinationImageUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DestinationImagePayload>
+        }
+        deleteMany: {
+          args: Prisma.DestinationImageDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.DestinationImageUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.DestinationImageUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DestinationImagePayload>[]
+        }
+        upsert: {
+          args: Prisma.DestinationImageUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DestinationImagePayload>
+        }
+        aggregate: {
+          args: Prisma.DestinationImageAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateDestinationImage>
+        }
+        groupBy: {
+          args: Prisma.DestinationImageGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.DestinationImageGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.DestinationImageCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.DestinationImageCountAggregateOutputType> | number
         }
       }
     }
@@ -2452,6 +2527,19 @@ export const DestinationScalarFieldEnum = {
 export type DestinationScalarFieldEnum = (typeof DestinationScalarFieldEnum)[keyof typeof DestinationScalarFieldEnum]
 
 
+export const DestinationImageScalarFieldEnum = {
+  id: 'id',
+  destinationId: 'destinationId',
+  filename: 'filename',
+  mimeType: 'mimeType',
+  data: 'data',
+  caption: 'caption',
+  createdAt: 'createdAt'
+} as const
+
+export type DestinationImageScalarFieldEnum = (typeof DestinationImageScalarFieldEnum)[keyof typeof DestinationImageScalarFieldEnum]
+
+
 export const TourPackageScalarFieldEnum = {
   id: 'id',
   title: 'title',
@@ -3093,6 +3181,7 @@ export type GlobalOmitConfig = {
   agent?: Prisma.AgentOmit
   client?: Prisma.ClientOmit
   destination?: Prisma.DestinationOmit
+  destinationImage?: Prisma.DestinationImageOmit
   tourPackage?: Prisma.TourPackageOmit
   tourDay?: Prisma.TourDayOmit
   rateCard?: Prisma.RateCardOmit

@@ -63,8 +63,22 @@ model Destination {
   country     String    @default("KENYA")
   description String?
   highlights  String?
+  images      DestinationImage[]
   createdAt   DateTime  @default(now())
   tourDays    TourDay[]
+}
+
+model DestinationImage {
+  id        String   @id @default(cuid())
+  destinationId String
+  filename  String
+  mimeType  String
+  data      String
+  caption   String?
+  createdAt DateTime @default(now())
+  destination Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+
+  @@map("destination_images")
 }
 
 model TourPackage {

@@ -55,6 +55,7 @@ export const ModelName = {
   Agent: 'Agent',
   Client: 'Client',
   Destination: 'Destination',
+  DestinationImage: 'DestinationImage',
   TourPackage: 'TourPackage',
   TourDay: 'TourDay',
   RateCard: 'RateCard',
@@ -153,6 +154,19 @@ export const DestinationScalarFieldEnum = {
 } as const
 
 export type DestinationScalarFieldEnum = (typeof DestinationScalarFieldEnum)[keyof typeof DestinationScalarFieldEnum]
+
+
+export const DestinationImageScalarFieldEnum = {
+  id: 'id',
+  destinationId: 'destinationId',
+  filename: 'filename',
+  mimeType: 'mimeType',
+  data: 'data',
+  caption: 'caption',
+  createdAt: 'createdAt'
+} as const
+
+export type DestinationImageScalarFieldEnum = (typeof DestinationImageScalarFieldEnum)[keyof typeof DestinationImageScalarFieldEnum]
 
 
 export const TourPackageScalarFieldEnum = {

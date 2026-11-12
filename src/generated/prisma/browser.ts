@@ -38,6 +38,11 @@ export type Client = Prisma.ClientModel
  */
 export type Destination = Prisma.DestinationModel
 /**
+ * Model DestinationImage
+ * 
+ */
+export type DestinationImage = Prisma.DestinationImageModel
+/**
  * Model TourPackage
  * 
  */
