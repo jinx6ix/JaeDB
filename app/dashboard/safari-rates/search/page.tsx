@@ -814,7 +814,7 @@ export default function SafariRatesSearchPage() {
                   <label className="label text-xs block mb-1">Season</label>
                   <select className="input input-sm" value={addForm.seasonId} onChange={e => setAddForm({ ...addForm, seasonId: e.target.value })}>
                     <option value="new">+ Create new season…</option>
-                    {addSeasons.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    {addSeasons.map(s => <option key={s.id} value={s.id}>{`${s.name} (${new Date(s.startDate).toLocaleDateString('en-KE', { day: '2-digit', month: 'short', year: 'numeric' })} – ${new Date(s.endDate).toLocaleDateString('en-KE', { day: '2-digit', month: 'short', year: 'numeric' })}`}</option>)}
                   </select>
                   {addForm.seasonId === 'new' && (
                     <div className="mt-2 space-y-2">
