@@ -783,7 +783,7 @@ export default function SafariRatesSearchPage() {
       {addingKey !== null && addForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={cancelAdd} />
-          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-3xl p-6 mx-4 animate-in fade-in zoom-in duration-200">
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-3xl p-6 mx-4 animate-in fade-in zoom-in duration-200 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-gray-900">Add Rate</h3>
               <button onClick={cancelAdd} className="text-gray-400 hover:text-gray-600">✕</button>
