@@ -243,6 +243,7 @@ function ItineraryPDF({ itinerary, costSheet, imagesByDay }: {
   imagesByDay: Record<string, any[]>;
 }) {
   const b = itinerary.booking;
+  const hasBooking = !!b;
   const dayCount = itinerary.days.length;
   const nightCount = Math.max(0, dayCount - 1);
   const costItems = safeParseJson(costSheet?.items || costSheet?.lineItems);
@@ -250,13 +251,20 @@ function ItineraryPDF({ itinerary, costSheet, imagesByDay }: {
   const totalAmount = costSheet?.total || 0;
   const coverHeight = estimateCoverHeight(itinerary, costSheet);
 
+  const bookingRef = hasBooking ? b.bookingRef || '-' : '-';
+  const numAdults = hasBooking ? b.numAdults : 0;
+  const isResident = hasBooking ? b.isResident : false;
+  const startDate = hasBooking ? b.startDate : new Date();
+  const clientName = hasBooking && b.client ? b.client.name : 'Client';
+  const startDestination = hasBooking ? b.startDestination : 'Nairobi';
+
   const firstPage = React.createElement(Page, { size: [PAGE_WIDTH, coverHeight], style: S.page, key: 'cover' },
     React.createElement(View, { style: S.header },
       React.createElement(View, { style: { flexDirection: 'row', alignItems: 'center', gap: 10 } },
         React.createElement(View, { style: S.headerLogo }, React.createElement(Text, { style: S.headerLogoTx }, 'JT')),
         React.createElement(View, null,
           React.createElement(Text, { style: S.headerTitle }, 'Jae Travel Expeditions'),
-          React.createElement(Text, { style: S.headerSub }, `Proposal Ref: #${b.bookingRef}`),
+          React.createElement(Text, { style: S.headerSub }, `Proposal Ref: #${bookingRef}`),
         ),
       ),
       React.createElement(View, { style: S.headerRight },
@@ -267,14 +275,14 @@ function ItineraryPDF({ itinerary, costSheet, imagesByDay }: {
       React.createElement(Text, { style: S.heroTitle }, itinerary.title),
       React.createElement(View, { style: S.heroMeta },
         React.createElement(Text, { style: S.heroMetaTxt }, 'Tour Length: ', React.createElement(Text, { style: S.heroMetaVal }, `${dayCount} Days / ${nightCount} Nights`)),
-        React.createElement(Text, { style: S.heroMetaTxt }, 'Travelers: ', React.createElement(Text, { style: S.heroMetaVal }, `${b.numAdults}x ${b.isResident ? 'Residents' : 'Non-Residents'}`)),
-        React.createElement(Text, { style: S.heroMetaTxt }, 'Start: ', React.createElement(Text, { style: S.heroMetaVal }, fmt(b.startDate))),
+        React.createElement(Text, { style: S.heroMetaTxt }, 'Travelers: ', React.createElement(Text, { style: S.heroMetaVal }, `${numAdults}x ${isResident ? 'Residents' : 'Non-Residents'}`)),
+        React.createElement(Text, { style: S.heroMetaTxt }, 'Start: ', React.createElement(Text, { style: S.heroMetaVal }, fmt(startDate))),
       ),
     ),
     React.createElement(View, { style: S.section },
-      React.createElement(Text, { style: [S.body, S.bold] }, `Dear ${b.client.name},`),
+      React.createElement(Text, { style: [S.body, S.bold] }, `Dear ${clientName},`),
       React.createElement(Text, { style: [S.body, { marginTop: 6 }] }, `Thank you for giving us the opportunity to prepare this custom-made quote for your ${itinerary.title}.`),
-      React.createElement(Text, { style: [S.body, { marginTop: 4 }] }, `Your tour begins in ${b.startDestination || 'Nairobi'} on ${fmt(b.startDate)} and runs for ${dayCount} day${dayCount !== 1 ? 's' : ''} and ${nightCount} night${nightCount !== 1 ? 's' : ''}.`),
+      React.createElement(Text, { style: [S.body, { marginTop: 4 }] }, `Your tour begins in ${startDestination} on ${fmt(startDate)} and runs for ${dayCount} day${dayCount !== 1 ? 's' : ''} and ${nightCount} night${nightCount !== 1 ? 's' : ''}.`),
       React.createElement(Text, { style: [S.body, { marginTop: 4 }] }, 'Please let us know if you have any questions, or if you would like any further details.'),
       React.createElement(Text, { style: [S.body, { marginTop: 6 }] }, 'Best regards,'),
       React.createElement(Text, { style: [S.body, S.bold] }, 'Jae Travel Expeditions'),

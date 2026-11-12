@@ -71,6 +71,11 @@ export default function HotelsPage() {
     }
   }
 
+  // Load images whenever a hotel row is expanded
+  useEffect(() => {
+    if (selectedHotelId) loadHotelImages(selectedHotelId);
+  }, [selectedHotelId]);
+
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!form.countyId) { alert('Please select a destination'); return; }

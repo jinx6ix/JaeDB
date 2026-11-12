@@ -53,6 +53,11 @@ export default function DestinationsPage() {
     }
   }
 
+  // Load images whenever a destination row is expanded
+  useEffect(() => {
+    if (selectedDestId) loadDestImages(selectedDestId);
+  }, [selectedDestId]);
+
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim()) { alert('Destination name is required'); return; }

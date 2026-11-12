@@ -1,8 +1,25 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import DayImagePicker from '@/components/DayImagePicker';
+
+interface Destination { id: number; name: string; }
+interface Hotel {
+  id: number;
+  name: string;
+  category?: string | null;
+  stars?: number | null;
+  images?: { id: string; filename: string; mimeType: string; data: string }[];
+}
+interface DestinationImage {
+  id: string;
+  destinationId: number;
+  filename: string;
+  mimeType: string;
+  data: string;
+  caption?: string | null;
+}
 
 interface ItineraryImage {
   id: string;
@@ -28,6 +45,16 @@ export default function EditItineraryPage() {
   const [linkingBooking, setLinkingBooking] = useState(false);
   const [error, setError] = useState('');
 
+  // Destination / accommodation lookups
+  const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [destSearch, setDestSearch] = useState('');
+  const [destImagesById, setDestImagesById] = useState<Record<number, DestinationImage[]>>({});
+  const [hotels, setHotels] = useState<Hotel[]>([]);
+  const [hotelSearch, setHotelSearch] = useState('');
+  const [hotelsByDest, setHotelsByDest] = useState<Record<number, Hotel[]>>({});
+  const [loadingHotels, setLoadingHotels] = useState<Record<number, boolean>>({});
+  const usedImgIds = useRef<Record<string, string[]>>({});
+
   useEffect(() => {
     fetch(`/api/itineraries/${id}`).then(r => r.json()).then(data => {
       setItinerary({
@@ -45,6 +72,12 @@ export default function EditItineraryPage() {
     });
     fetch('/api/bookings?withTour=1').then(r => r.json()).then(data => {
       setBookings(Array.isArray(data) ? data : []);
+    });
+    fetch('/api/safari-rates/destinations').then(r => r.json()).then((data: Destination[]) => {
+      setDestinations(Array.isArray(data) ? data : []);
+    });
+    fetch('/api/safari-rates/hotels').then(r => r.json()).then((data: Hotel[]) => {
+      setHotels(Array.isArray(data) ? data : []);
     });
   }, [id]);
 
@@ -89,7 +122,9 @@ export default function EditItineraryPage() {
         dayNumber: prev.days.length + 1,
         date: nextDate,
         destination: '',
+        destinationId: null,
         accommodation: '',
+        accommodationId: null,
         mealPlan: { breakfast: false, lunch: false, dinner: false, note: '' },
         activities: '',
         notes: '',
@@ -105,6 +140,7 @@ export default function EditItineraryPage() {
         .filter((_: any, j: number) => j !== i)
         .map((d: any, j: number) => ({ ...d, dayNumber: j + 1 })),
     }));
+    delete usedImgIds.current[String(i + 1)];
   }
 
   function updateDay(i: number, field: string, value: any) {
@@ -121,6 +157,84 @@ export default function EditItineraryPage() {
         j === i ? { ...d, mealPlan: { ...d.mealPlan, [meal]: value } } : d
       ),
     }));
+  }
+
+  function pickRandomUnique<T extends { id: string }>(items: T[], count: number, excludeIds: string[]): T[] {
+    const pool = items.filter(i => !excludeIds.includes(i.id));
+    const shuffled = [...pool].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, count);
+  }
+
+  function computePreviews(i: number) {
+    setItinerary((prev: any) => {
+      const day = prev.days[i];
+      if (!day) return prev;
+      const used: string[] = usedImgIds.current[String(day.dayNumber)] || [];
+      const destImgs = day.destinationId ? destImagesById[day.destinationId] || [] : [];
+      const hotelImgs = day.accommodationId
+        ? ([...hotels, ...Object.values(hotelsByDest).flat()].find(h => h.id === day.accommodationId)?.images || [])
+        : [];
+      const destPicks = pickRandomUnique(destImgs, 2, used);
+      const hotelPicks = pickRandomUnique(hotelImgs, 2, used);
+      const picked = [...destPicks, ...hotelPicks];
+      usedImgIds.current[String(day.dayNumber)] = [...used, ...picked.map((p: any) => p.id)];
+      return {
+        ...prev,
+        days: prev.days.map((d: any, j: number) => j === i ? {
+          ...d,
+          previewDestImages: destPicks,
+          previewHotelImages: hotelPicks,
+        } : d),
+      };
+    });
+  }
+
+  async function onDestinationChange(i: number, value: string) {
+    updateDay(i, 'destination', value);
+    updateDay(i, 'destinationId', null);
+    updateDay(i, 'accommodation', '');
+    updateDay(i, 'accommodationId', null);
+    updateDay(i, 'previewDestImages', []);
+    updateDay(i, 'previewHotelImages', []);
+
+    const dest = destinations.find(d => d.name === value);
+    if (!dest) return;
+    updateDay(i, 'destinationId', dest.id);
+
+    try {
+      const res = await fetch(`/api/destinations/${dest.id}/images`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setDestImagesById(p => ({ ...p, [dest.id]: data }));
+      }
+    } catch (err) {
+      console.error('Failed to load destination images', err);
+    }
+
+    if (hotelsByDest[dest.id]) {
+      computePreviews(i);
+      return;
+    }
+    setLoadingHotels(p => ({ ...p, [dest.id]: true }));
+    try {
+      const res = await fetch(`/api/safari-rates/hotels?destinationId=${dest.id}`);
+      const data = await res.json();
+      const destHotels = Array.isArray(data) ? data : [];
+      setHotelsByDest(p => ({ ...p, [dest.id]: destHotels }));
+      computePreviews(i);
+    } catch (err) {
+      console.error('Failed to load hotels for destination', err);
+    } finally {
+      setLoadingHotels(p => ({ ...p, [dest.id]: false }));
+    }
+  }
+
+  async function onAccommodationChange(i: number, hotelId: number) {
+    updateDay(i, 'accommodationId', hotelId);
+    const hotel = [...hotels, ...Object.values(hotelsByDest).flat()].find(h => h.id === hotelId);
+    if (!hotel) return;
+    updateDay(i, 'accommodation', hotel.name);
+    computePreviews(i);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -229,14 +343,99 @@ export default function EditItineraryPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="label text-xs">Destination</label>
-                  <input value={day.destination} onChange={e => updateDay(i, 'destination', e.target.value)} className="input" />
+                  <label className="label text-xs">Destination *</label>
+                  <div className="space-y-1">
+                    <input
+                      type="text"
+                      value={destSearch}
+                      onChange={e => setDestSearch(e.target.value)}
+                      className="input text-sm"
+                      placeholder="Search destinations…"
+                    />
+                    <select
+                      value={day.destinationId ? destinations.find(d => d.id === day.destinationId)?.name || day.destination : day.destination}
+                      onChange={e => onDestinationChange(i, e.target.value)}
+                      className="input"
+                    >
+                      <option value="">— Select destination —</option>
+                      {destinations
+                        .filter(d => !destSearch || d.name.toLowerCase().includes(destSearch.toLowerCase()))
+                        .map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                    </select>
+                  </div>
                 </div>
                 <div>
                   <label className="label text-xs">Accommodation</label>
-                  <input value={day.accommodation || ''} onChange={e => updateDay(i, 'accommodation', e.target.value)} className="input" />
+                  <div className="space-y-1">
+                    <input
+                      type="text"
+                      value={hotelSearch}
+                      onChange={e => setHotelSearch(e.target.value)}
+                      className="input text-sm"
+                      placeholder="Search hotels…"
+                    />
+                    <select
+                      value={day.accommodationId || day.accommodation}
+                      onChange={e => {
+                        const val = e.target.value;
+                        const num = Number(val);
+                        if (!isNaN(num) && hotelsByDest[day.destinationId || 0]?.some(h => h.id === num)) {
+                          onAccommodationChange(i, num);
+                        } else {
+                          updateDay(i, 'accommodation', val);
+                          updateDay(i, 'accommodationId', null);
+                          computePreviews(i);
+                        }
+                      }}
+                      className="input"
+                    >
+                      <option value="">— No accommodation —</option>
+                      {(day.destinationId ? hotelsByDest[day.destinationId] : [])
+                        .filter(h => !hotelSearch || h.name.toLowerCase().includes(hotelSearch.toLowerCase()))
+                        .map((h: Hotel) => (
+                          <option key={h.id} value={h.id}>{h.name}</option>
+                        ))}
+                      <option value="custom">+ Custom / other…</option>
+                    </select>
+                    {day.accommodationId && !hotelsByDest[day.destinationId || 0]?.some(h => h.id === day.accommodationId) && (
+                      <input
+                        type="text"
+                        value={day.accommodation}
+                        onChange={e => updateDay(i, 'accommodation', e.target.value)}
+                        className="input mt-2 text-sm"
+                        placeholder="Custom accommodation name"
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
+
+              {(day.destinationId || day.accommodationId) && (
+                <div className="mt-2">
+                  <label className="label text-xs block mb-1">Destination &amp; Accommodation Images</label>
+                  <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto">
+                    {(() => {
+                      const picks: any[] = [
+                        ...(day.previewDestImages || []).map((img: any) => ({ ...img, source: 'Destination' })),
+                        ...(day.previewHotelImages || []).map((img: any) => ({ ...img, source: 'Accommodation' })),
+                      ];
+                      return picks.map((img: any) => (
+                        <div key={img.id} className="relative rounded-lg overflow-hidden border border-gray-200 group">
+                          <img
+                            src={`data:${img.mimeType};base64,${img.data}`}
+                            alt={img.filename}
+                            className="w-full h-16 object-cover"
+                          />
+                          <div className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1 rounded">
+                            {img.source === 'Destination' ? '🏞 Destination' : '🏨 Accommodation'}
+                          </div>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="label text-xs">Activities (one per line)</label>
                 <textarea value={day.activities} onChange={e => updateDay(i, 'activities', e.target.value)}
