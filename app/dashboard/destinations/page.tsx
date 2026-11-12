@@ -533,7 +533,7 @@ export default function DestinationsPage() {
             type="file"
             accept="image/*"
             multiple
-            className="hidden"
+            className="absolute -top-[9999px] left-[-9999px]"
             onChange={e => e.target.files && galleryDest && processFiles(e.target.files, galleryDest.id)}
           />
         </div>

@@ -574,7 +574,7 @@ export default function HotelsPage() {
             type="file"
             accept="image/*"
             multiple
-            className="hidden"
+            className="absolute -top-[9999px] left-[-9999px]"
             onChange={e => e.target.files && galleryHotel && processFiles(e.target.files, galleryHotel.id)}
           />
         </div>
