@@ -356,50 +356,62 @@ export default function HotelsPage() {
                           </div>
 
                           {((h.images || hotelImages[h.id] || []) as HotelImage[]).length > 0 && (
-                            <div className="grid grid-cols-4 gap-2 mt-3 max-h-[220px] overflow-y-auto">
-                              {(h.images || hotelImages[h.id] || []).map((img: HotelImage) => (
-                                <div key={img.id} className="relative rounded-lg overflow-hidden border border-gray-200 group">
-                                  <img
-                                    src={`data:${img.mimeType};base64,${img.data}`}
-                                    alt={img.filename}
-                                    className="w-full h-20 object-cover"
-                                  />
-                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
-                                    <button
-                                      type="button"
-                                      onClick={() => removeImage(h.id, img.id)}
-                                      className="opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shadow"
-                                      disabled={deletingImage[img.id]}
-                                    >
-                                      ×
-                                    </button>
-                                  </div>
-                                  <p className="text-xs text-gray-500 truncate px-1 py-0.5 bg-white">{img.filename}</p>
-                                  {imageEditing[img.id] ? (
-                                    <div className="p-1">
-                                      <input
-                                        className="input text-xs w-full"
-                                        value={imageCaption[img.id] || img.caption || ''}
-                                        onChange={e => setImageCaption(p => ({ ...p, [img.id]: e.target.value }))}
-                                        placeholder="Caption"
-                                        autoFocus
-                                      />
-                                      <div className="flex gap-1 mt-1">
-                                        <button onClick={() => saveImageCaption(h.id, img.id)} className="text-xs text-orange-600 hover:underline">Save</button>
-                                        <button onClick={() => setImageEditing(p => ({ ...p, [img.id]: false }))} className="text-xs text-gray-500 hover:underline">Cancel</button>
-                                      </div>
+                            <div className="space-y-2">
+                              <div className="grid grid-cols-4 gap-2 mt-3 max-h-[220px] overflow-y-auto">
+                                {(h.images || hotelImages[h.id] || []).map((img: HotelImage) => (
+                                  <div key={img.id} className="relative rounded-lg overflow-hidden border border-gray-200 group">
+                                    <img
+                                      src={`data:${img.mimeType};base64,${img.data}`}
+                                      alt={img.filename}
+                                      className="w-full h-20 object-cover"
+                                    />
+                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
+                                      <button
+                                        type="button"
+                                        onClick={() => removeImage(h.id, img.id)}
+                                        className="opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shadow"
+                                        disabled={deletingImage[img.id]}
+                                      >
+                                        ×
+                                      </button>
                                     </div>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() => setImageEditing(p => ({ ...p, [img.id]: true }))}
-                                      className="absolute top-1 right-1 z-10 text-xs text-gray-500 hover:text-orange-600 bg-white/90 px-1 py-0.5 rounded border border-gray-200"
-                                    >
-                                      ✏️
-                                    </button>
-                                  )}
-                                </div>
-                              ))}
+                                    <p className="text-xs text-gray-500 truncate px-1 py-0.5 bg-white">{img.filename}</p>
+                                    {imageEditing[img.id] ? (
+                                      <div className="p-1">
+                                        <input
+                                          className="input text-xs w-full"
+                                          value={imageCaption[img.id] || img.caption || ''}
+                                          onChange={e => setImageCaption(p => ({ ...p, [img.id]: e.target.value }))}
+                                          placeholder="Caption"
+                                          autoFocus
+                                        />
+                                        <div className="flex gap-1 mt-1">
+                                          <button onClick={() => saveImageCaption(h.id, img.id)} className="text-xs text-orange-600 hover:underline">Save</button>
+                                          <button onClick={() => setImageEditing(p => ({ ...p, [img.id]: false }))} className="text-xs text-gray-500 hover:underline">Cancel</button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => setImageEditing(p => ({ ...p, [img.id]: true }))}
+                                        className="absolute top-1 right-1 z-10 text-xs text-gray-500 hover:text-orange-600 bg-white/90 px-1 py-0.5 rounded border border-gray-200"
+                                      >
+                                        ✏️
+                                      </button>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  (h.images || hotelImages[h.id] || []).forEach(img => saveImageCaption(h.id, img.id));
+                                  alert('Images saved');
+                                }}
+                                className="mt-2 text-xs text-orange-600 hover:underline"
+                              >
+                                Save Images
+                              </button>
                             </div>
                           )}
                         </div>

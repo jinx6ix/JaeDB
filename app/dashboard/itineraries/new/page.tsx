@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import DayImagePicker from '@/components/DayImagePicker';
@@ -35,6 +35,15 @@ interface Hotel {
   images?: { id: string; filename: string; mimeType: string; data: string }[];
 }
 
+interface DestinationImage {
+  id: string;
+  destinationId: number;
+  filename: string;
+  mimeType: string;
+  data: string;
+  caption?: string | null;
+}
+
 interface ItineraryImage {
   id: string;
   filename: string;
@@ -55,6 +64,8 @@ interface DayData {
   mealPlan: { breakfast: boolean; lunch: boolean; dinner: boolean; note: string };
   activities: string;
   notes: string;
+  previewDestImages?: any[];
+  previewHotelImages?: any[];
 }
 
 export default function NewItineraryPage() {
@@ -69,10 +80,12 @@ export default function NewItineraryPage() {
   const [title, setTitle] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const usedImgIds = useRef<Record<string, string[]>>({});
 
   // Destination / accommodation lookups
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [destSearch, setDestSearch] = useState('');
+  const [destImagesById, setDestImagesById] = useState<Record<number, DestinationImage[]>>({});
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [hotelSearch, setHotelSearch] = useState('');
   const [hotelsByDest, setHotelsByDest] = useState<Record<number, Hotel[]>>({});
@@ -174,13 +187,31 @@ export default function NewItineraryPage() {
     if (!dest) return;
     updateDay(tempId, 'destinationId', dest.id);
 
-    if (hotelsByDest[dest.id]) return;
+    // Load destination images for random preview
+    try {
+      const res = await fetch(`/api/destinations/${dest.id}/images`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setDestImagesById(p => ({ ...p, [dest.id]: data }));
+      }
+    } catch (err) {
+      console.error('Failed to load destination images', err);
+    }
+
+    updateDay(tempId, 'previewDestImages', []);
+    updateDay(tempId, 'previewHotelImages', []);
+
+    if (hotelsByDest[dest.id]) {
+      computePreviews(tempId);
+      return;
+    }
     setLoadingHotels(p => ({ ...p, [dest.id]: true }));
     try {
       const res = await fetch(`/api/safari-rates/hotels?destinationId=${dest.id}`);
       const data = await res.json();
       const destHotels = Array.isArray(data) ? data : [];
       setHotelsByDest(p => ({ ...p, [dest.id]: destHotels }));
+      computePreviews(tempId);
     } catch (err) {
       console.error('Failed to load hotels for destination', err);
     } finally {
@@ -193,6 +224,7 @@ export default function NewItineraryPage() {
     const hotel = [...hotels, ...Object.values(hotelsByDest).flat()].find(h => h.id === hotelId);
     if (!hotel) return;
     updateDay(tempId, 'accommodation', hotel.name);
+    computePreviews(tempId);
   }
 
   function updateMeal(tempId: string, meal: string, value: boolean) {
@@ -208,6 +240,33 @@ export default function NewItineraryPage() {
       delete newPrev[dayToRemove.dayNumber];
       return newPrev;
     });
+    delete usedImgIds.current[dayToRemove.dayNumber];
+  }
+
+  /** Pick up to `count` unique random images from a list, excluding already-used ids. */
+  function pickRandomUnique<T extends { id: string }>(items: T[], count: number, excludeIds: string[]): T[] {
+    const pool = items.filter(i => !excludeIds.includes(i.id));
+    const shuffled = [...pool].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, count);
+  }
+
+  /** Compute destination + accommodation preview images for a day and stash on the day. */
+  function computePreviews(tempId: string) {
+    setDays(prev => prev.map(d => {
+      if (d.tempId !== tempId) return d;
+      const used: string[] = usedImgIds.current[d.dayNumber.toString()] || [];
+      const destImgs = d.destinationId ? destImagesById[d.destinationId] || [] : [];
+      const hotelImgs = d.accommodationId ? hotelImagesFor(d.accommodationId) : [];
+      const destPicks = pickRandomUnique(destImgs, 2, used);
+      const hotelPicks = pickRandomUnique(hotelImgs, 2, used);
+      const picked = [...destPicks, ...hotelPicks];
+      usedImgIds.current[d.dayNumber.toString()] = [...used, ...picked.map((i: any) => i.id)];
+      return {
+        ...d,
+        previewDestImages: destPicks,
+        previewHotelImages: hotelPicks,
+      };
+    }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -420,19 +479,28 @@ export default function NewItineraryPage() {
                 </div>
               </div>
 
-              {(day.destinationId && hotelsByDest[day.destinationId]?.some(h => h.id === day.accommodationId)) && (
+              {(day.destinationId || day.accommodationId) && (
                 <div className="mt-2">
-                  <label className="label text-xs block mb-1">Accommodation Images</label>
+                  <label className="label text-xs block mb-1">Destination &amp; Accommodation Images</label>
                   <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto">
-                    {day.accommodationId ? hotelImagesFor(day.accommodationId).slice(0, 4).map((img: any) => (
-                      <div key={img.id} className="relative rounded-lg overflow-hidden border border-gray-200">
-                        <img
-                          src={`data:${img.mimeType};base64,${img.data}`}
-                          alt={img.filename}
-                          className="w-full h-16 object-cover"
-                        />
-                      </div>
-                    )) : null}
+                    {(() => {
+                      const picks: any[] = [
+                        ...(day.previewDestImages || []).map(img => ({ ...img, source: 'Destination' })),
+                        ...(day.previewHotelImages || []).map(img => ({ ...img, source: 'Accommodation' })),
+                      ];
+                      return picks.map((img: any) => (
+                        <div key={img.id} className="relative rounded-lg overflow-hidden border border-gray-200 group">
+                          <img
+                            src={`data:${img.mimeType};base64,${img.data}`}
+                            alt={img.filename}
+                            className="w-full h-16 object-cover"
+                          />
+                          <div className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1 rounded">
+                            {img.source === 'Destination' ? '🏞 Destination' : '🏨 Accommodation'}
+                          </div>
+                        </div>
+                      ));
+                    })()}
                   </div>
                 </div>
               )}
