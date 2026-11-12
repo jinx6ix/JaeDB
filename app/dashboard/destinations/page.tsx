@@ -387,7 +387,7 @@ export default function DestinationsPage() {
       {/* Gallery modal — click card to open, click image to open edit/delete popup */}
       {galleryOpen && galleryDest && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
-          <div className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden">
+          <div className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-xl shadow-2xl flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gray-50">
               <div className="flex-1">
                 <h2 className="font-semibold text-gray-800">{galleryDest.name}</h2>
@@ -439,7 +439,7 @@ export default function DestinationsPage() {
               </div>
             )}
 
-            <div className="flex-1 relative flex items-center justify-center p-4 overflow-hidden">
+            <div className="flex-1 relative flex flex-col overflow-y-auto p-4">
               {galleryImages.length > 0 ? (
                 <>
                   {galleryImages.length > 1 && (
@@ -463,12 +463,12 @@ export default function DestinationsPage() {
                   <img
                     src={`data:${galleryImages[galleryIndex].mimeType};base64,${galleryImages[galleryIndex].data}`}
                     alt={galleryImages[galleryIndex].filename}
-                    className="max-h-[60vh] max-w-full object-contain cursor-pointer"
+                    className="max-h-[60vh] max-w-full object-contain cursor-pointer mx-auto"
                     onClick={() => openImagePopup(galleryImages[galleryIndex])}
                   />
                 </>
               ) : (
-                <div className="text-gray-400">No images</div>
+                <div className="text-gray-400 text-center py-10">No images</div>
               )}
             </div>
 
