@@ -2,6 +2,7 @@
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import SendItineraryWhatsApp from '@/components/SendItineraryWhatsApp';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,18 +83,18 @@ export default async function ItineraryDetailPage({ params }: { params: Promise<
 
   const getDestinationImages = (destinationName: string): DestinationImage[] => {
     const county = countyByName.get(destinationName.toLowerCase());
-    const imgs = county?.images || [];
+    const imgs = (county?.images || []) as any[];
     return imgs
-      .filter(img => !usedDestImgIds.has(img.id))
-      .map(img => ({ ...img, source: 'destination' as const }));
+      .filter((img: any) => !usedDestImgIds.has(img.id))
+      .map((img: any) => ({ ...img, source: 'destination' as const }));
   };
 
   const getHotelImages = (accommodationName: string): HotelImage[] => {
     const hotel = hotelByName.get(accommodationName.toLowerCase());
-    const imgs = hotel?.images || [];
+    const imgs = (hotel?.images || []) as any[];
     return imgs
-      .filter(img => !usedHotelImgIds.has(img.id))
-      .map(img => ({ ...img, source: 'hotel' as const }));
+      .filter((img: any) => !usedHotelImgIds.has(img.id))
+      .map((img: any) => ({ ...img, source: 'hotel' as const }));
   };
 
   // Mark images as used after rendering a day's gallery so later days with the same
@@ -137,6 +138,13 @@ export default async function ItineraryDetailPage({ params }: { params: Promise<
           <Link href={`/dashboard/itineraries/${itinerary.id}/embed`} className="btn-secondary text-sm">🔗 Embed</Link>
           <Link href={`/dashboard/itineraries/${itinerary.id}/edit`} className="btn-secondary">Edit</Link>
           <Link href={`/api/itineraries/${itinerary.id}/pdf`} target="_blank" className="btn-primary">⬇ Download PDF</Link>
+          <SendItineraryWhatsApp
+            itineraryId={itinerary.id}
+            itineraryTitle={itinerary.title}
+            clientPhone={b?.client?.phone || null}
+            clientName={b?.client?.name || null}
+            bookingRef={b?.bookingRef || null}
+          />
         </div>
       </div>
 
