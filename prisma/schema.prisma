@@ -228,6 +228,8 @@ model ItineraryImage {
   caption   String?
   createdAt DateTime      @default(now())
   day       ItineraryDay? @relation(fields: [dayId], references: [id], onDelete: Cascade)
+
+  @@map("itinerary_images")
 }
 
 model Voucher {
