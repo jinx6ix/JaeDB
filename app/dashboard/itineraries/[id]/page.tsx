@@ -5,6 +5,26 @@ import { notFound } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
+type DestinationImage = {
+  id: string;
+  destinationId: number;
+  filename: string;
+  mimeType: string;
+  data: string;
+  caption?: string | null;
+  createdAt: Date;
+};
+
+type HotelImage = {
+  id: string;
+  hotelId: number;
+  filename: string;
+  mimeType: string;
+  data: string;
+  caption?: string | null;
+  createdAt: Date;
+};
+
 export default async function ItineraryDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const itinerary = await prisma.itinerary.findUnique({
@@ -26,6 +46,34 @@ export default async function ItineraryDetailPage({ params }: { params: Promise<
   if (!itinerary) notFound();
 
   const b = itinerary.booking;
+
+  // Fetch all counties (destinations) with their images for matching by name
+  const counties = await prisma.sRCounty.findMany({
+    include: { images: { orderBy: { createdAt: 'asc' } } },
+  });
+
+  // Fetch all hotels with their images for matching by name
+  const hotels = await prisma.sRHotel.findMany({
+    include: { images: { orderBy: { createdAt: 'asc' } } },
+  });
+
+  // Build lookup maps by name (case-insensitive)
+  const countyByName = new Map(
+    counties.map(c => [c.name.toLowerCase(), c])
+  );
+  const hotelByName = new Map(
+    hotels.map(h => [h.name.toLowerCase(), h])
+  );
+
+  const getDestinationImages = (destinationName: string): DestinationImage[] => {
+    const county = countyByName.get(destinationName.toLowerCase());
+    return county?.images || [];
+  };
+
+  const getHotelImages = (accommodationName: string): HotelImage[] => {
+    const hotel = hotelByName.get(accommodationName.toLowerCase());
+    return hotel?.images || [];
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -165,6 +213,10 @@ export default async function ItineraryDetailPage({ params }: { params: Promise<
             meals.note && `→ ${meals.note}`,
           ].filter(Boolean);
 
+          const destImages = getDestinationImages(day.destination);
+          const hotelImages = day.accommodation ? getHotelImages(day.accommodation) : [];
+          const itineraryImgs = (day as any).images || [];
+
           return (
             <div key={day.id} className="day-page p-8 border-b border-gray-100 last:border-0 bg-white">
               <div className="flex items-start gap-2 mb-4">
@@ -207,27 +259,80 @@ export default async function ItineraryDetailPage({ params }: { params: Promise<
                 </div>
               </div>
 
-              {(day as any).images?.length > 0 && (
-                <div>
+              {/* Day Gallery — destination, accommodation & itinerary images */}
+              {(destImages.length > 0 || hotelImages.length > 0 || itineraryImgs.length > 0) && (
+                <div className="mb-8">
                   <div className="flex items-center justify-between mb-4">
-                    <p className="text-xs font-semibold text-gray-500 uppercase">📷 Gallery</p>
-                    <span className="text-xs text-gray-400">{`{(day as any).images.length} image{(day as any).images.length !== 1 ? 's' : ''}`}</span>
+                    <h4 className="text-sm font-semibold text-gray-700">
+                      Day {day.dayNumber} [{day.destination}{day.accommodation ? ' - ' + day.accommodation : ''}] gallery
+                    </h4>
+                    <span className="text-xs text-gray-400">
+                      {`${destImages.length + hotelImages.length + itineraryImgs.length} image${destImages.length + hotelImages.length + itineraryImgs.length !== 1 ? 's' : ''}`}
+                    </span>
                   </div>
-                  <div className={`grid gap-4 ${(day as any).images.length === 1 ? 'grid-cols-1' : (day as any).images.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                    {(day as any).images.map((img: any) => (
-                      <div key={img.id} className="rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-50">
-                        <img
-                          src={`data:${img.mimeType};base64,${img.data}`}
-                          alt={img.caption || img.filename}
-                          className="w-full object-cover"
-                          style={{ maxHeight: (day as any).images.length === 1 ? '420px' : '280px' }}
-                        />
-                        {img.caption && (
-                          <p className="text-xs text-gray-500 text-center px-2 py-1.5 bg-gray-50">{img.caption}</p>
-                        )}
+
+                  {destImages.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-2">🏞 Destination images</p>
+                      <div className={`grid gap-4 ${destImages.length === 1 ? 'grid-cols-1' : destImages.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                        {destImages.map((img) => (
+                          <div key={img.id} className="rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-50">
+                            <img
+                              src={`data:${img.mimeType};base64,${img.data}`}
+                              alt={img.caption || img.filename}
+                              className="w-full object-cover"
+                              style={{ maxHeight: '260px' }}
+                            />
+                            {img.caption && (
+                              <p className="text-xs text-gray-500 text-center px-2 py-1.5 bg-gray-50">{img.caption}</p>
+                            )}
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
+
+                  {hotelImages.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-2">🏨 Accommodation images</p>
+                      <div className={`grid gap-4 ${hotelImages.length === 1 ? 'grid-cols-1' : hotelImages.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                        {hotelImages.map((img) => (
+                          <div key={img.id} className="rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-50">
+                            <img
+                              src={`data:${img.mimeType};base64,${img.data}`}
+                              alt={img.caption || img.filename}
+                              className="w-full object-cover"
+                              style={{ maxHeight: '260px' }}
+                            />
+                            {img.caption && (
+                              <p className="text-xs text-gray-500 text-center px-2 py-1.5 bg-gray-50">{img.caption}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {itineraryImgs.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-2">📷 Day images</p>
+                      <div className={`grid gap-4 ${itineraryImgs.length === 1 ? 'grid-cols-1' : itineraryImgs.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                        {itineraryImgs.map((img: any) => (
+                          <div key={img.id} className="rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-50">
+                            <img
+                              src={`data:${img.mimeType};base64,${img.data}`}
+                              alt={img.caption || img.filename}
+                              className="w-full object-cover"
+                              style={{ maxHeight: '260px' }}
+                            />
+                            {img.caption && (
+                              <p className="text-xs text-gray-500 text-center px-2 py-1.5 bg-gray-50">{img.caption}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
