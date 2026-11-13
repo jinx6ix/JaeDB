@@ -29,9 +29,8 @@ export default function SendItineraryWhatsApp({
   // Use the public (unauthenticated) PDF route so WhatsApp recipients can download
   // the itinerary PDF by clicking the link in the message.
   const pdfUrl = `${baseUrl}/api/itineraries/${itineraryId}/pdf-public`;
-  const viewUrl = `${baseUrl}/dashboard/itineraries/${itineraryId}`;
 
-  const message = `*Jae Travel Expeditions*\n\nDear ${clientName || 'Guest'}, your itinerary *${itineraryTitle}*${bookingRef ? ` (Ref: #${bookingRef})` : ''} is ready.\n\n📄 Download PDF: ${pdfUrl}\n🔗 View online: ${viewUrl}\n\nThank you for choosing Jae Travel Expeditions!\n"Live life with no excuses, travel with no regret"`;
+  const message = `*Jae Travel Expeditions*\n\nDear ${clientName || 'Guest'}, your itinerary *${itineraryTitle}*${bookingRef ? ` (Ref: #${bookingRef})` : ''} is ready.\n\n📄 Download PDF: ${pdfUrl}\n\nThank you for choosing Jae Travel Expeditions!\n"Live life with no excuses, travel with no regret"`;
 
   const handleSend = () => {
     const trimmed = phone.trim();
