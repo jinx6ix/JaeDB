@@ -238,10 +238,12 @@ function estimateDayHeight(day: any, destImgs: any[], hotelImgs: any[], dayImgs:
 // ───────────────────────────────────────────────────────────────────────────
 // PDF Component
 // ───────────────────────────────────────────────────────────────────────────
-function ItineraryPDF({ itinerary, costSheet, imagesByDay }: {
+function ItineraryPDF({ itinerary, costSheet, imagesByDay, counties, hotels }: {
   itinerary: any;
   costSheet: any;
   imagesByDay: Record<string, any[]>;
+  counties: any[];
+  hotels: any[];
 }) {
   const b = itinerary.booking;
   const hasBooking = !!b;
@@ -259,18 +261,7 @@ function ItineraryPDF({ itinerary, costSheet, imagesByDay }: {
   const clientName = hasBooking && b.client ? b.client.name : 'Client';
   const startDestination = hasBooking ? b.startDestination : 'Nairobi';
 
-  // Fetch destination (county) and hotel images for galleries
-  const counties: any[] = [];
-  const hotels: any[] = [];
-  try {
-    const c = await prisma.sRCounty.findMany({ include: { images: { orderBy: { createdAt: 'asc' } } } });
-    counties.push(...c);
-  } catch { /* ignore */ }
-  try {
-    const h = await prisma.sRHotel.findMany({ include: { images: { orderBy: { createdAt: 'asc' } } } });
-    hotels.push(...h);
-  } catch { /* ignore */ }
-
+  // Build lookup maps by name (case-insensitive)
   const countyByName = new Map(counties.map((c: any) => [c.name.toLowerCase(), c]));
   const hotelByName = new Map(hotels.map((h: any) => [h.name.toLowerCase(), h]));
 
@@ -538,6 +529,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   if (!itinerary) return new NextResponse('Not found', { status: 404 });
 
+  // Fetch destination (county) and hotel images for galleries
+  let counties: any[] = [];
+  let hotels: any[] = [];
+  try {
+    counties = await prisma.sRCounty.findMany({ include: { images: { orderBy: { createdAt: 'asc' } } } });
+  } catch { /* ignore */ }
+  try {
+    hotels = await prisma.sRHotel.findMany({ include: { images: { orderBy: { createdAt: 'asc' } } } });
+  } catch { /* ignore */ }
+
   const imagesByDay: Record<string, any[]> = {};
 
   await Promise.all(
@@ -566,7 +567,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   try {
     const buffer = await renderToBuffer(
-      React.createElement(ItineraryPDF, { itinerary, costSheet, imagesByDay }) as any,
+      React.createElement(ItineraryPDF, { itinerary, costSheet, imagesByDay, counties, hotels }) as any,
     );
     const clientName = itinerary.booking?.client?.name || '';
     const propertyName = itinerary.title || itinerary.booking?.bookingRef || '';
