@@ -2,6 +2,7 @@
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import PdfDownload from '@/components/PdfDownload';
 import SendItineraryWhatsApp from '@/components/SendItineraryWhatsApp';
 
 export const dynamic = 'force-dynamic';
@@ -137,7 +138,7 @@ export default async function ItineraryDetailPage({ params }: { params: Promise<
         <div className="flex gap-2">
           <Link href={`/dashboard/itineraries/${itinerary.id}/embed`} className="btn-secondary text-sm">🔗 Embed</Link>
           <Link href={`/dashboard/itineraries/${itinerary.id}/edit`} className="btn-secondary">Edit</Link>
-          <Link href={`/api/itineraries/${itinerary.id}/pdf`} target="_blank" className="btn-primary">⬇ Download PDF</Link>
+          <PdfDownload itineraryId={itinerary.id} />
           <SendItineraryWhatsApp
             itineraryId={itinerary.id}
             itineraryTitle={itinerary.title}

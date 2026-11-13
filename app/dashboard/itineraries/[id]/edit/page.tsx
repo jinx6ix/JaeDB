@@ -51,6 +51,7 @@ export default function EditItineraryPage() {
   const { id } = useParams() as { id: string };
   const [itinerary, setItinerary] = useState<any>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [costSheets, setCostSheets] = useState<{ id: string; tourTitle: string; bookingRef?: string | null; createdAt?: Date | string | null }[]>([]);
   const [saving, setSaving] = useState(false);
   const [linkingBooking, setLinkingBooking] = useState(false);
   const [error, setError] = useState('');
@@ -70,6 +71,76 @@ export default function EditItineraryPage() {
   const [focusedField, setFocusedField] = useState<'dest' | 'acc' | null>(null);
   const dropdownMouseDownRef = useRef(false);
 
+  // Per-pax costing options: [{ pax, grandtotal }, ...]
+  const [costingOptions, setCostingOptions] = useState<{ pax: number; grandtotal: number }[]>([]);
+  const PAX_CHOICES = [1, 2, 3, 4, 5, 6, 7, 8];
+
+  // Parse day rows stored on a cost sheet (JSON string or array)
+  function parseDayRows(raw: any): any[] {
+    if (!raw) return [];
+    let parsed = raw;
+    if (typeof parsed === 'string') {
+      try { parsed = JSON.parse(parsed); } catch { return []; }
+    }
+    return Array.isArray(parsed) ? parsed : [];
+  }
+
+  // Parse extras stored on a cost sheet (JSON string or array)
+  function parseExtras(raw: any): any[] {
+    if (!raw) return [];
+    let parsed = raw;
+    if (typeof parsed === 'string') {
+      try { parsed = JSON.parse(parsed); } catch { return []; }
+    }
+    return Array.isArray(parsed) ? parsed : [];
+  }
+
+  // Calculate per-pax grand totals from a cost sheet using the same
+  // spreadsheet methodology as the cost sheet PDF/CSV/invoice:
+  // accommodation PPS (per person, never divided), park fees (group),
+  // transport (group expense divided by pax for that option),
+  // daily extras + fixed extras, SRS (single adult only), then markup.
+  function calculateCostingFromSheet(sheet: any): { pax: number; grandtotal: number }[] {
+    const dayRows = parseDayRows(sheet.dayRows);
+    const extras = parseExtras(sheet.extras);
+
+    const numAdults = Number(sheet.numAdults) || 1;
+    const markupPercent = Number(sheet.markupPercent) || 10;
+
+    const accommodationPpsTotal = dayRows.reduce((sum, row) => sum + (Number(row.adultAccomTotal) || 0), 0);
+    const dailyExtrasTotal = dayRows.reduce((sum, row) => sum + (Number(row.extrasTotal) || 0), 0);
+
+    // SRS only when a single adult travels with a single-room rate
+    const srsTotal = numAdults === 1
+      ? dayRows.reduce((sum, row) => sum + (Number(row.singleRoomRate) || 0), 0)
+      : 0;
+
+    let parkGroupTotal = 0;
+    let transportGroupTotal = 0;
+    dayRows.forEach((row: any) => {
+      parkGroupTotal += Number(row.parkFeeAdultTotal || 0) + Number(row.parkFeeChildTotal || 0);
+      transportGroupTotal += Number(row.transportTotal || 0);
+    });
+
+    let extrasTotal =
+      (sheet.fileHandlingFee || 0) +
+      (sheet.ecoBottle || 0) +
+      (sheet.evacInsurance || 0) +
+      (sheet.arrivalTransfer || 0) +
+      (sheet.departureTransfer || 0) +
+      (sheet.maasaiVillage ? (sheet.maasaiCost || 0) : 0);
+    extras.forEach((e: any) => { extrasTotal += Number(e.cost) || 0; });
+
+    return PAX_CHOICES.map((pax) => {
+      // Transport is a group expense: divide by this option's pax.
+      const transportPerPax = pax > 0 ? transportGroupTotal / pax : 0;
+      const subtotal = accommodationPpsTotal + parkGroupTotal + transportPerPax + dailyExtrasTotal + extrasTotal + srsTotal;
+      const markupAmount = subtotal * (markupPercent / 100);
+      const grandtotal = subtotal + markupAmount;
+      return { pax, grandtotal };
+    });
+  }
+
   useEffect(() => {
     fetch(`/api/itineraries/${id}`).then(r => r.json()).then(data => {
       setItinerary({
@@ -83,6 +154,13 @@ export default function EditItineraryPage() {
           date: d.date ? new Date(d.date).toISOString().split('T')[0] : '',
           images: d.images || [],
         })),
+        costingOptions: (() => {
+          if (Array.isArray(data.costingOptions)) return data.costingOptions;
+          if (typeof data.costingOptions === 'string' && data.costingOptions.trim().length > 0) {
+            try { return JSON.parse(data.costingOptions); } catch { return []; }
+          }
+          return [];
+        })(),
       });
     });
     fetch('/api/bookings?withTour=1').then(r => r.json()).then(data => {
@@ -95,6 +173,21 @@ export default function EditItineraryPage() {
       setHotels(Array.isArray(data) ? data : []);
     });
   }, [id]);
+
+  // Fetch all cost sheets for the cost sheet selector (not limited to the linked booking)
+  useEffect(() => {
+    fetch('/api/cost-sheets')
+      .then((r) => r.json())
+      .then((data: any) => {
+        const sheets = Array.isArray(data) ? data : data?.sheets || [];
+        setCostSheets(sheets);
+      })
+      .catch(() => setCostSheets([]));
+  }, []);
+
+  useEffect(() => {
+    initializeCostingOptions();
+  }, [itinerary]);
 
   // Compute previews for existing days on mount once destinations/hotels load
   useEffect(() => {
@@ -241,6 +334,27 @@ export default function EditItineraryPage() {
     if (editingDayIdx === i) setEditingDayIdx(null);
   }
 
+  function initializeCostingOptions() {
+    if (costingOptions.length > 0) return;
+    // Default to rows for pax 1..8, empty grandtotal to be filled by user
+    const defaults = PAX_CHOICES.map(pax => ({ pax, grandtotal: 0 }));
+    setCostingOptions(defaults);
+  }
+
+  function updateCosting(pax: number, grandtotal: number) {
+    setCostingOptions(prev => {
+      const existing = prev.find(o => o.pax === pax);
+      if (existing) {
+        return prev.map(o => o.pax === pax ? { pax, grandtotal } : o);
+      }
+      return [...prev, { pax, grandtotal }].sort((a, b) => a.pax - b.pax);
+    });
+  }
+
+  function removeCosting(pax: number) {
+    setCostingOptions(prev => prev.filter(o => o.pax !== pax));
+  }
+
   function pickRandomUnique<T extends { id: string }>(items: T[], count: number, excludeIds: string[]): T[] {
     const pool = items.filter(i => !excludeIds.includes(i.id));
     const shuffled = [...pool].sort(() => 0.5 - Math.random());
@@ -378,6 +492,8 @@ export default function EditItineraryPage() {
     try {
       const body = {
         title: itinerary.title,
+        costSheetId: itinerary.costSheetId || null,
+        costingOptions: JSON.stringify(costingOptions),
         days: itinerary.days.map((d: any) => ({
           dayNumber: d.dayNumber,
           date: d.date,
@@ -441,6 +557,78 @@ export default function EditItineraryPage() {
           <label className="label">Itinerary Title</label>
           <input className="input" value={itinerary.title}
             onChange={e => setItinerary((p: any) => ({ ...p, title: e.target.value }))} />
+        </div>
+
+        {/* Cost Sheet selector */}
+        <div className="card">
+          <label className="label">Costing Sheet</label>
+          <select
+            className="input w-full text-sm"
+            value={itinerary.costSheetId || ''}
+            onChange={e => {
+              const sheetId = e.target.value || null;
+              setItinerary((p: any) => ({ ...p, costSheetId: sheetId }));
+              // Auto-populate per-pax costing from the selected cost sheet
+              if (sheetId) {
+                const sheet = costSheets.find((s: any) => s.id === sheetId);
+                if (sheet) {
+                  const calculated = calculateCostingFromSheet(sheet);
+                  setCostingOptions(calculated);
+                }
+              }
+            }}
+          >
+            <option value="">— Use cost sheet on linked booking —</option>
+            {costSheets.map((sheet: any) => (
+              <option key={sheet.id} value={sheet.id}>
+                {sheet.tourTitle || 'Untitled'} · {sheet.days} day{sheet.days !== 1 ? 's' : ''} · {sheet.booking?.bookingRef || sheet.bookingRef || 'No ref'} · ${sheet.currency || 'USD'}
+              </option>
+            ))}
+          </select>
+          {costSheets.length === 0 && (
+            <p className="text-xs text-gray-400 mt-1">No cost sheets found. Create one first.</p>
+          )}
+        </div>
+
+        {/* Per-pax costing options */}
+        <div className="card">
+          <label className="label">Costing by Pax (Each Person)</label>
+          <p className="text-xs text-gray-500 mb-3">Enter the grand total price for each number of travelers. Select one when downloading the PDF.</p>
+          <div className="grid grid-cols-4 gap-3">
+            {costingOptions.map((opt, idx) => (
+              <div key={`opt-${opt.pax}`} className="flex flex-col items-center gap-1">
+                <label className="text-xs font-medium text-gray-600">{opt.pax} Person{opt.pax > 1 ? 's' : ''}</label>
+                <input
+                  type="number"
+                  value={opt.grandtotal}
+                  onChange={e => updateCosting(opt.pax, Number(e.target.value) || 0)}
+                  className="input text-center text-sm font-bold text-orange-700"
+                  placeholder="0.00"
+                />
+                {costingOptions.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeCosting(opt.pax)}
+                    className="text-xs text-red-500 hover:text-red-700 px-1"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            ))}
+            {costingOptions.length < PAX_CHOICES.length && (
+              <button
+                type="button"
+                onClick={() => {
+                  const next = PAX_CHOICES.find(p => !costingOptions.some(o => o.pax === p));
+                  if (next) initializeCostingOptions();
+                }}
+                className="btn-secondary text-xs text-gray-500"
+              >
+                Add pax row
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="card">

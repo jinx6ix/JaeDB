@@ -10,6 +10,9 @@ import { ItineraryPDF, processImageForPDF } from '@/lib/itinerary-pdf';
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
+  const { searchParams } = new URL(req.url);
+  const paxParam = searchParams.get('pax');
+
   const itinerary = await prisma.itinerary.findUnique({
     where: { id: id },
     include: {
@@ -52,13 +55,33 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     }),
   );
 
-  const costSheet = await prisma.costSheet.findFirst({
-    where: { bookingId: itinerary.booking?.id },
-  });
+  // Use the explicitly linked cost sheet if set, otherwise fall back to the first cost sheet on the booking.
+  let costSheet = null;
+  if (itinerary.costSheetId) {
+    costSheet = await prisma.costSheet.findUnique({ where: { id: itinerary.costSheetId } });
+  }
+  if (!costSheet && itinerary.booking?.id) {
+    costSheet = await prisma.costSheet.findFirst({
+      where: { bookingId: itinerary.booking.id },
+    });
+  }
+
+  // Determine selected pax costing
+  const rawOptions = itinerary.costingOptions;
+  const costingOptions = (() => {
+    if (Array.isArray(rawOptions)) return rawOptions;
+    if (typeof rawOptions === 'string' && rawOptions.trim().length > 0) {
+      try { return JSON.parse(rawOptions); } catch { return []; }
+    }
+    return [];
+  })();
+  const selectedPaxCosting = paxParam !== null
+    ? costingOptions.find((o: any) => o.pax === Number(paxParam))
+    : costingOptions.length > 0 ? costingOptions[0] : undefined;
 
   try {
     const buffer = await renderToBuffer(
-      React.createElement(ItineraryPDF, { itinerary, costSheet, imagesByDay, counties, hotels }) as any,
+      React.createElement(ItineraryPDF, { itinerary, costSheet, imagesByDay, counties, hotels, selectedPaxCosting }) as any,
     );
     const clientName = itinerary.booking?.client?.name || '';
     const propertyName = itinerary.title || itinerary.booking?.bookingRef || '';

@@ -27,7 +27,9 @@ export type AggregateItinerary = {
 export type ItineraryMinAggregateOutputType = {
   id: string | null
   bookingId: string | null
+  costSheetId: string | null
   title: string | null
+  costingOptions: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -35,7 +37,9 @@ export type ItineraryMinAggregateOutputType = {
 export type ItineraryMaxAggregateOutputType = {
   id: string | null
   bookingId: string | null
+  costSheetId: string | null
   title: string | null
+  costingOptions: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -43,7 +47,9 @@ export type ItineraryMaxAggregateOutputType = {
 export type ItineraryCountAggregateOutputType = {
   id: number
   bookingId: number
+  costSheetId: number
   title: number
+  costingOptions: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -53,7 +59,9 @@ export type ItineraryCountAggregateOutputType = {
 export type ItineraryMinAggregateInputType = {
   id?: true
   bookingId?: true
+  costSheetId?: true
   title?: true
+  costingOptions?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -61,7 +69,9 @@ export type ItineraryMinAggregateInputType = {
 export type ItineraryMaxAggregateInputType = {
   id?: true
   bookingId?: true
+  costSheetId?: true
   title?: true
+  costingOptions?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -69,7 +79,9 @@ export type ItineraryMaxAggregateInputType = {
 export type ItineraryCountAggregateInputType = {
   id?: true
   bookingId?: true
+  costSheetId?: true
   title?: true
+  costingOptions?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -150,7 +162,9 @@ export type ItineraryGroupByArgs<ExtArgs extends runtime.Types.Extensions.Intern
 export type ItineraryGroupByOutputType = {
   id: string
   bookingId: string | null
+  costSheetId: string | null
   title: string
+  costingOptions: string | null
   createdAt: Date
   updatedAt: Date
   _count: ItineraryCountAggregateOutputType | null
@@ -179,7 +193,9 @@ export type ItineraryWhereInput = {
   NOT?: Prisma.ItineraryWhereInput | Prisma.ItineraryWhereInput[]
   id?: Prisma.StringFilter<"Itinerary"> | string
   bookingId?: Prisma.StringNullableFilter<"Itinerary"> | string | null
+  costSheetId?: Prisma.StringNullableFilter<"Itinerary"> | string | null
   title?: Prisma.StringFilter<"Itinerary"> | string
+  costingOptions?: Prisma.StringNullableFilter<"Itinerary"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Itinerary"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Itinerary"> | Date | string
   booking?: Prisma.XOR<Prisma.BookingNullableScalarRelationFilter, Prisma.BookingWhereInput> | null
@@ -190,7 +206,9 @@ export type ItineraryWhereInput = {
 export type ItineraryOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   bookingId?: Prisma.SortOrderInput | Prisma.SortOrder
+  costSheetId?: Prisma.SortOrderInput | Prisma.SortOrder
   title?: Prisma.SortOrder
+  costingOptions?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   booking?: Prisma.BookingOrderByWithRelationInput
@@ -204,7 +222,9 @@ export type ItineraryWhereUniqueInput = Prisma.AtLeast<{
   AND?: Prisma.ItineraryWhereInput | Prisma.ItineraryWhereInput[]
   OR?: Prisma.ItineraryWhereInput[]
   NOT?: Prisma.ItineraryWhereInput | Prisma.ItineraryWhereInput[]
+  costSheetId?: Prisma.StringNullableFilter<"Itinerary"> | string | null
   title?: Prisma.StringFilter<"Itinerary"> | string
+  costingOptions?: Prisma.StringNullableFilter<"Itinerary"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Itinerary"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Itinerary"> | Date | string
   booking?: Prisma.XOR<Prisma.BookingNullableScalarRelationFilter, Prisma.BookingWhereInput> | null
@@ -215,7 +235,9 @@ export type ItineraryWhereUniqueInput = Prisma.AtLeast<{
 export type ItineraryOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   bookingId?: Prisma.SortOrderInput | Prisma.SortOrder
+  costSheetId?: Prisma.SortOrderInput | Prisma.SortOrder
   title?: Prisma.SortOrder
+  costingOptions?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.ItineraryCountOrderByAggregateInput
@@ -229,14 +251,18 @@ export type ItineraryScalarWhereWithAggregatesInput = {
   NOT?: Prisma.ItineraryScalarWhereWithAggregatesInput | Prisma.ItineraryScalarWhereWithAggregatesInput[]
   id?: Prisma.StringWithAggregatesFilter<"Itinerary"> | string
   bookingId?: Prisma.StringNullableWithAggregatesFilter<"Itinerary"> | string | null
+  costSheetId?: Prisma.StringNullableWithAggregatesFilter<"Itinerary"> | string | null
   title?: Prisma.StringWithAggregatesFilter<"Itinerary"> | string
+  costingOptions?: Prisma.StringNullableWithAggregatesFilter<"Itinerary"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Itinerary"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Itinerary"> | Date | string
 }
 
 export type ItineraryCreateInput = {
   id?: string
+  costSheetId?: string | null
   title: string
+  costingOptions?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   booking?: Prisma.BookingCreateNestedOneWithoutItineraryInput
@@ -247,7 +273,9 @@ export type ItineraryCreateInput = {
 export type ItineraryUncheckedCreateInput = {
   id?: string
   bookingId?: string | null
+  costSheetId?: string | null
   title: string
+  costingOptions?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   days?: Prisma.ItineraryDayUncheckedCreateNestedManyWithoutItineraryInput
@@ -256,7 +284,9 @@ export type ItineraryUncheckedCreateInput = {
 
 export type ItineraryUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  costSheetId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.StringFieldUpdateOperationsInput | string
+  costingOptions?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   booking?: Prisma.BookingUpdateOneWithoutItineraryNestedInput
@@ -267,7 +297,9 @@ export type ItineraryUpdateInput = {
 export type ItineraryUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   bookingId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  costSheetId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.StringFieldUpdateOperationsInput | string
+  costingOptions?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   days?: Prisma.ItineraryDayUncheckedUpdateManyWithoutItineraryNestedInput
@@ -277,14 +309,18 @@ export type ItineraryUncheckedUpdateInput = {
 export type ItineraryCreateManyInput = {
   id?: string
   bookingId?: string | null
+  costSheetId?: string | null
   title: string
+  costingOptions?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
 
 export type ItineraryUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  costSheetId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.StringFieldUpdateOperationsInput | string
+  costingOptions?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -292,7 +328,9 @@ export type ItineraryUpdateManyMutationInput = {
 export type ItineraryUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   bookingId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  costSheetId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.StringFieldUpdateOperationsInput | string
+  costingOptions?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -305,7 +343,9 @@ export type ItineraryNullableScalarRelationFilter = {
 export type ItineraryCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   bookingId?: Prisma.SortOrder
+  costSheetId?: Prisma.SortOrder
   title?: Prisma.SortOrder
+  costingOptions?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -313,7 +353,9 @@ export type ItineraryCountOrderByAggregateInput = {
 export type ItineraryMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   bookingId?: Prisma.SortOrder
+  costSheetId?: Prisma.SortOrder
   title?: Prisma.SortOrder
+  costingOptions?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -321,7 +363,9 @@ export type ItineraryMaxOrderByAggregateInput = {
 export type ItineraryMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   bookingId?: Prisma.SortOrder
+  costSheetId?: Prisma.SortOrder
   title?: Prisma.SortOrder
+  costingOptions?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -395,7 +439,9 @@ export type ItineraryUpdateOneWithoutEmbedsNestedInput = {
 
 export type ItineraryCreateWithoutBookingInput = {
   id?: string
+  costSheetId?: string | null
   title: string
+  costingOptions?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   days?: Prisma.ItineraryDayCreateNestedManyWithoutItineraryInput
@@ -404,7 +450,9 @@ export type ItineraryCreateWithoutBookingInput = {
 
 export type ItineraryUncheckedCreateWithoutBookingInput = {
   id?: string
+  costSheetId?: string | null
   title: string
+  costingOptions?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   days?: Prisma.ItineraryDayUncheckedCreateNestedManyWithoutItineraryInput
@@ -429,7 +477,9 @@ export type ItineraryUpdateToOneWithWhereWithoutBookingInput = {
 
 export type ItineraryUpdateWithoutBookingInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  costSheetId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.StringFieldUpdateOperationsInput | string
+  costingOptions?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   days?: Prisma.ItineraryDayUpdateManyWithoutItineraryNestedInput
@@ -438,7 +488,9 @@ export type ItineraryUpdateWithoutBookingInput = {
 
 export type ItineraryUncheckedUpdateWithoutBookingInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  costSheetId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.StringFieldUpdateOperationsInput | string
+  costingOptions?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   days?: Prisma.ItineraryDayUncheckedUpdateManyWithoutItineraryNestedInput
@@ -447,7 +499,9 @@ export type ItineraryUncheckedUpdateWithoutBookingInput = {
 
 export type ItineraryCreateWithoutDaysInput = {
   id?: string
+  costSheetId?: string | null
   title: string
+  costingOptions?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   booking?: Prisma.BookingCreateNestedOneWithoutItineraryInput
@@ -457,7 +511,9 @@ export type ItineraryCreateWithoutDaysInput = {
 export type ItineraryUncheckedCreateWithoutDaysInput = {
   id?: string
   bookingId?: string | null
+  costSheetId?: string | null
   title: string
+  costingOptions?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   embeds?: Prisma.ItineraryEmbedUncheckedCreateNestedManyWithoutItineraryInput
@@ -481,7 +537,9 @@ export type ItineraryUpdateToOneWithWhereWithoutDaysInput = {
 
 export type ItineraryUpdateWithoutDaysInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  costSheetId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.StringFieldUpdateOperationsInput | string
+  costingOptions?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   booking?: Prisma.BookingUpdateOneWithoutItineraryNestedInput
@@ -491,7 +549,9 @@ export type ItineraryUpdateWithoutDaysInput = {
 export type ItineraryUncheckedUpdateWithoutDaysInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   bookingId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  costSheetId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.StringFieldUpdateOperationsInput | string
+  costingOptions?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   embeds?: Prisma.ItineraryEmbedUncheckedUpdateManyWithoutItineraryNestedInput
@@ -499,7 +559,9 @@ export type ItineraryUncheckedUpdateWithoutDaysInput = {
 
 export type ItineraryCreateWithoutEmbedsInput = {
   id?: string
+  costSheetId?: string | null
   title: string
+  costingOptions?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   booking?: Prisma.BookingCreateNestedOneWithoutItineraryInput
@@ -509,7 +571,9 @@ export type ItineraryCreateWithoutEmbedsInput = {
 export type ItineraryUncheckedCreateWithoutEmbedsInput = {
   id?: string
   bookingId?: string | null
+  costSheetId?: string | null
   title: string
+  costingOptions?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   days?: Prisma.ItineraryDayUncheckedCreateNestedManyWithoutItineraryInput
@@ -533,7 +597,9 @@ export type ItineraryUpdateToOneWithWhereWithoutEmbedsInput = {
 
 export type ItineraryUpdateWithoutEmbedsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  costSheetId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.StringFieldUpdateOperationsInput | string
+  costingOptions?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   booking?: Prisma.BookingUpdateOneWithoutItineraryNestedInput
@@ -543,7 +609,9 @@ export type ItineraryUpdateWithoutEmbedsInput = {
 export type ItineraryUncheckedUpdateWithoutEmbedsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   bookingId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  costSheetId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.StringFieldUpdateOperationsInput | string
+  costingOptions?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   days?: Prisma.ItineraryDayUncheckedUpdateManyWithoutItineraryNestedInput
@@ -592,7 +660,9 @@ export type ItineraryCountOutputTypeCountEmbedsArgs<ExtArgs extends runtime.Type
 export type ItinerarySelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   bookingId?: boolean
+  costSheetId?: boolean
   title?: boolean
+  costingOptions?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   booking?: boolean | Prisma.Itinerary$bookingArgs<ExtArgs>
@@ -604,7 +674,9 @@ export type ItinerarySelect<ExtArgs extends runtime.Types.Extensions.InternalArg
 export type ItinerarySelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   bookingId?: boolean
+  costSheetId?: boolean
   title?: boolean
+  costingOptions?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   booking?: boolean | Prisma.Itinerary$bookingArgs<ExtArgs>
@@ -613,7 +685,9 @@ export type ItinerarySelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ext
 export type ItinerarySelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   bookingId?: boolean
+  costSheetId?: boolean
   title?: boolean
+  costingOptions?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   booking?: boolean | Prisma.Itinerary$bookingArgs<ExtArgs>
@@ -622,12 +696,14 @@ export type ItinerarySelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ext
 export type ItinerarySelectScalar = {
   id?: boolean
   bookingId?: boolean
+  costSheetId?: boolean
   title?: boolean
+  costingOptions?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type ItineraryOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "bookingId" | "title" | "createdAt" | "updatedAt", ExtArgs["result"]["itinerary"]>
+export type ItineraryOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "bookingId" | "costSheetId" | "title" | "costingOptions" | "createdAt" | "updatedAt", ExtArgs["result"]["itinerary"]>
 export type ItineraryInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   booking?: boolean | Prisma.Itinerary$bookingArgs<ExtArgs>
   days?: boolean | Prisma.Itinerary$daysArgs<ExtArgs>
@@ -651,7 +727,9 @@ export type $ItineraryPayload<ExtArgs extends runtime.Types.Extensions.InternalA
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     bookingId: string | null
+    costSheetId: string | null
     title: string
+    costingOptions: string | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["itinerary"]>
@@ -1082,7 +1160,9 @@ export interface Prisma__ItineraryClient<T, Null = never, ExtArgs extends runtim
 export interface ItineraryFieldRefs {
   readonly id: Prisma.FieldRef<"Itinerary", 'String'>
   readonly bookingId: Prisma.FieldRef<"Itinerary", 'String'>
+  readonly costSheetId: Prisma.FieldRef<"Itinerary", 'String'>
   readonly title: Prisma.FieldRef<"Itinerary", 'String'>
+  readonly costingOptions: Prisma.FieldRef<"Itinerary", 'String'>
   readonly createdAt: Prisma.FieldRef<"Itinerary", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Itinerary", 'DateTime'>
 }

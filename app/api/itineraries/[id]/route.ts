@@ -57,6 +57,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       const updateData: any = {};
       if (body.bookingId !== undefined) updateData.bookingId = body.bookingId || null;
       if (body.title) updateData.title = body.title;
+      if (body.costingOptions !== undefined) updateData.costingOptions = body.costingOptions;
+      if (body.costSheetId !== undefined) updateData.costSheetId = body.costSheetId || null;
 
       const itinerary = await prisma.itinerary.update({
         where: { id: id },
@@ -72,13 +74,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json(itinerary);
     }
 
-    // Full update with days recreation
-    // Before deleting, collect existing image IDs per dayNumber so we can re-link them
+    // Full update with days recreation — wrapped in a transaction so days are
+    // only deleted if the entire update (title, costSheetId, costingOptions, days)
+    // succeeds together. Previously the days were deleted first and the itinerary
+    // update could fail afterwards, leaving an empty itinerary.
     const existingDays = await prisma.itineraryDay.findMany({
       where: { itineraryId: id },
       include: { images: true },
     });
-    // Map dayNumber -> image IDs
     const imagesByDayNumber: Record<number, string[]> = {};
     for (const d of existingDays) {
       if (d.images.length > 0) {
@@ -86,40 +89,40 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     }
 
-    // Detach images (set dayId null) before deleting days to avoid cascade-delete
-    const allImageIds = existingDays.flatMap(d => d.images.map(img => img.id));
-    if (allImageIds.length > 0) {
-      await prisma.itineraryImage.updateMany({
-        where: { id: { in: allImageIds } },
+    const [, , itinerary] = await prisma.$transaction([
+      // Detach images before deleting days (done inside the transaction)
+      prisma.itineraryImage.updateMany({
+        where: { day: { itineraryId: id } },
         data: { dayId: null },
-      });
-    }
-
-    // Delete existing days and recreate
-    await prisma.itineraryDay.deleteMany({ where: { itineraryId: id } });
-
-    const itinerary = await prisma.itinerary.update({
-      where: { id: id },
-      data: {
-        title: body.title,
-        bookingId: body.bookingId !== undefined ? body.bookingId || null : undefined,
-        days: {
-          create: body.days.map((d: any) => ({
-            dayNumber: d.dayNumber,
-            date: d.date ? new Date(d.date) : null,
-            destination: d.destination,
-            accommodation: d.accommodation || null,
-            mealPlan: d.mealPlan || null,
-            activities: d.activities || null,
-            notes: d.notes || null,
-          })),
+      }),
+      // Delete existing days
+      prisma.itineraryDay.deleteMany({ where: { itineraryId: id } }),
+      // Update itinerary + recreate days atomically
+      prisma.itinerary.update({
+        where: { id: id },
+        data: {
+          title: body.title,
+          costingOptions: body.costingOptions !== undefined ? body.costingOptions : undefined,
+          costSheetId: body.costSheetId !== undefined ? body.costSheetId || null : undefined,
+          bookingId: body.bookingId !== undefined ? body.bookingId || null : undefined,
+          days: {
+            create: body.days.map((d: any) => ({
+              dayNumber: d.dayNumber,
+              date: d.date ? new Date(d.date) : null,
+              destination: d.destination,
+              accommodation: d.accommodation || null,
+              mealPlan: d.mealPlan || null,
+              activities: d.activities || null,
+              notes: d.notes || null,
+            })),
+          },
         },
-      },
-      include: {
-        booking: { include: { client: true } },
-        days: { orderBy: { dayNumber: 'asc' } },
-      },
-    });
+        include: {
+          booking: { include: { client: true } },
+          days: { orderBy: { dayNumber: 'asc' } },
+        },
+      }),
+    ]);
 
     // Re-link images to new day IDs by matching dayNumber
     const relinkPromises: Promise<any>[] = [];

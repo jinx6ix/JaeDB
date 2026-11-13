@@ -194,11 +194,13 @@ model Booking {
 }
 
 model Itinerary {
-  id        String         @id @default(cuid())
-  bookingId String?  @unique           // 👈 add this
-  title     String
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  id             String         @id @default(cuid())
+  bookingId      String?        @unique
+  costSheetId    String?        // explicit link to the costing sheet used for this itinerary
+  title          String
+  costingOptions String?        // JSON: [{ pax: number, grandtotal: number }, ...]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
   booking   Booking?       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   days      ItineraryDay[]
   embeds    ItineraryEmbed[]

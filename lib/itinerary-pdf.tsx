@@ -231,12 +231,13 @@ export function estimateDayHeight(day: any, destImgs: any[], hotelImgs: any[], d
 // ───────────────────────────────────────────────────────────────────────────
 // PDF Component
 // ───────────────────────────────────────────────────────────────────────────
-export function ItineraryPDF({ itinerary, costSheet, imagesByDay, counties, hotels }: {
+export function ItineraryPDF({ itinerary, costSheet, imagesByDay, counties, hotels, selectedPaxCosting }: {
   itinerary: any;
   costSheet: any;
   imagesByDay: Record<string, any[]>;
   counties: any[];
   hotels: any[];
+  selectedPaxCosting?: { pax: number; grandtotal: number };
 }) {
   const b = itinerary.booking;
   const hasBooking = !!b;
@@ -392,6 +393,26 @@ export function ItineraryPDF({ itinerary, costSheet, imagesByDay, counties, hote
           React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '✗ Excluded'),
           React.createElement(Text, { style: S.sideTxt }, costSheet.excluded),
         ),
+      ),
+    ),
+    // Costing by Pax table (Each Person)
+    React.createElement(View, { style: S.section },
+      React.createElement(Text, { style: S.sectionTitle }, 'Costing by Pax (Each Person)'),
+      React.createElement(Text, { style: [S.body, { marginBottom: 6 }] }, 'Select the number of travelers when downloading to see the total price for your group.'),
+      React.createElement(View, { style: S.costTable },
+        React.createElement(View, { style: S.tHead },
+          React.createElement(Text, { style: [S.tCellHd, { flex: 1 }] }, 'Travelers'),
+          React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Grand Total'),
+        ),
+        ...itinerary.days.length > 0
+          ? (selectedPaxCosting ? [{ pax: selectedPaxCosting.pax, grandtotal: selectedPaxCosting.grandtotal }] : [])
+            .map((opt: any) =>
+              React.createElement(View, { style: S.tRow, key: `cost-opt-${opt.pax}` },
+                React.createElement(Text, { style: [S.tCell, { flex: 1 }] }, `${opt.pax} Person${opt.pax > 1 ? 's' : ''}`),
+                React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right', fontFamily: 'Helvetica-Bold' }] }, `$${(opt.grandtotal || 0).toFixed(2)}`),
+              ),
+            )
+          : [],
       ),
     ),
     React.createElement(Text, { style: S.pageNum, render: ({ pageNumber, totalPages }: any) => `${pageNumber} / ${totalPages}` }),
