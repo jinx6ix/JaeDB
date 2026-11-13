@@ -75,14 +75,36 @@ export default async function ItineraryDetailPage({ params }: { params: Promise<
     hotels.map(h => [h.name.toLowerCase(), h])
   );
 
+  // Track which images have already been shown per destination / accommodation,
+  // so when the same destination or hotel appears on multiple days the images do not repeat.
+  const usedDestImgIds = new Set<string>();
+  const usedHotelImgIds = new Set<string>();
+
   const getDestinationImages = (destinationName: string): DestinationImage[] => {
     const county = countyByName.get(destinationName.toLowerCase());
-    return county?.images || [];
+    const imgs = county?.images || [];
+    return imgs
+      .filter(img => !usedDestImgIds.has(img.id))
+      .map(img => ({ ...img, source: 'destination' as const }));
   };
 
   const getHotelImages = (accommodationName: string): HotelImage[] => {
     const hotel = hotelByName.get(accommodationName.toLowerCase());
-    return hotel?.images || [];
+    const imgs = hotel?.images || [];
+    return imgs
+      .filter(img => !usedHotelImgIds.has(img.id))
+      .map(img => ({ ...img, source: 'hotel' as const }));
+  };
+
+  // Mark images as used after rendering a day's gallery so later days with the same
+  // destination or accommodation skip them.
+  const markUsed = (imgs: any[]) => {
+    for (const img of imgs) {
+      if (img && img.id) {
+        if (img.source === 'destination') usedDestImgIds.add(img.id);
+        if (img.source === 'hotel') usedHotelImgIds.add(img.id);
+      }
+    }
   };
 
   return (
@@ -223,9 +245,13 @@ export default async function ItineraryDetailPage({ params }: { params: Promise<
             meals.note && `→ ${meals.note}`,
           ].filter(Boolean);
 
-          const destImages = getDestinationImages(day.destination);
-          const hotelImages = day.accommodation ? getHotelImages(day.accommodation) : [];
+          // Compute this day's images and mark them as used so later days with the
+          // same destination or accommodation don't repeat them.
+          const destImages = getDestinationImages(day.destination).slice(0, 3);
+          const hotelImages = day.accommodation ? getHotelImages(day.accommodation).slice(0, 3) : [];
           const itineraryImgs = (day as any).images || [];
+          markUsed(destImages);
+          markUsed(hotelImages);
 
           return (
             <div key={day.id} className="day-page p-8 border-b border-gray-100 last:border-0 bg-white">
