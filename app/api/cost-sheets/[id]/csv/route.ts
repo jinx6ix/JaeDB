@@ -13,6 +13,8 @@ interface DayRow {
   parkFeeAdultTotal?: number;
   parkFeeChildTotal?: number;
   transportTotal?: number;
+  extrasTotal?: number;
+  singleRoomRate?: number;
   hasFlight?: boolean;
   flightAdultPP?: number;
   flightChildPP?: number;
@@ -50,6 +52,8 @@ function parseDayRows(raw: unknown): DayRow[] {
     parkFeeAdultTotal: row.parkFeeAdultPP ?? row.parkFeeAdultTotal ?? 0,
     parkFeeChildTotal: row.parkFeeChildPP ?? row.parkFeeChildTotal ?? 0,
     transportTotal: row.transportPP ?? row.transportTotal ?? 0,
+    extrasTotal: row.extrasTotal ?? row.dailyExtras ?? 0,
+    singleRoomRate: row.singleRoomRate ?? row.srs ?? 0,
     hasFlight: row.hasFlight ?? false,
     flightAdultPP: row.flightAdultPP ?? 0,
     flightChildPP: row.flightChildPP ?? 0,
@@ -95,15 +99,43 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const dayRows = parseDayRows(sheet.dayRows);
   const extras = parseExtras(sheet.extras);
 
-  // Calculate totals
-  const totalPPS = dayRows.reduce((sum, row) => sum + (row.adultAccomTotal || 0), 0);
-  const totalParkFees = dayRows.reduce((sum, row) => sum + (row.parkFeeAdultTotal || 0), 0);
-  const totalTransport = dayRows.reduce((sum, row) => sum + (row.transportTotal || 0), 0);
-  const totalExtras = extras.reduce((sum, item) => sum + (item.cost || 0), 0);
-  const totalFileHandling = sheet.fileHandlingFee || 0;
-  const totalEcoBottle = sheet.ecoBottle || 0;
-  const totalEvacInsurance = sheet.evacInsurance || 0;
-  const totalMaasai = sheet.maasaiVillage ? (sheet.maasaiCost || 0) : 0;
+  const numAdults = Number(sheet.numAdults) || 1;
+  const numChildren = Number(sheet.numChildren) || 0;
+  const numPax = numAdults + numChildren;
+
+  // ── New spreadsheet methodology ──
+  // Accommodation PPS is already per-person — sum directly, never divide by pax.
+  const accommodationPpsTotal = dayRows.reduce((sum, row) => sum + (row.adultAccomTotal || 0), 0);
+  const dailyExtrasTotal = dayRows.reduce((sum, row) => sum + (row.extrasTotal || 0), 0);
+
+  // SRS handled separately: only when a single adult travels with a single-room rate.
+  const srsTotal = numAdults === 1
+    ? dayRows.reduce((sum, row) => sum + (row.singleRoomRate || 0), 0)
+    : 0;
+
+  let parkGroupTotal = 0;
+  let transportGroupTotal = 0;
+  let extrasTotal =
+    (sheet.fileHandlingFee || 0) +
+    (sheet.ecoBottle || 0) +
+    (sheet.evacInsurance || 0) +
+    (sheet.arrivalTransfer || 0) +
+    (sheet.departureTransfer || 0) +
+    (sheet.maasaiVillage ? (sheet.maasaiCost || 0) : 0);
+  extras.forEach((e: any) => { extrasTotal += Number(e.cost) || 0; });
+
+  dayRows.forEach((row: any) => {
+    parkGroupTotal += Number(row.parkFeeAdultTotal || 0) + Number(row.parkFeeChildTotal || 0);
+    transportGroupTotal += Number(row.transportTotal || 0);
+  });
+
+  // Transport is a group expense: divide by pax for per-person allocation.
+  const transportPerPax = numPax > 0 ? transportGroupTotal / numPax : 0;
+
+  const perPersonSubtotal = accommodationPpsTotal + parkGroupTotal + transportPerPax + dailyExtrasTotal + extrasTotal + srsTotal;
+  const markupPercent = Number(sheet.markupPercent) || 10;
+  const markupAmount = perPersonSubtotal * (markupPercent / 100);
+  const perPersonTotal = perPersonSubtotal + markupAmount;
 
   // Build CSV
   const rows: string[][] = [];
@@ -118,7 +150,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   // Day rows
   dayRows.forEach((row, i) => {
     const propertyName = row.hotelName || row.destinationName || '';
-    rows.push([`Day${i + 1}`, propertyName, String(row.adultAccomTotal || ''), '', String(row.parkFeeAdultTotal || ''), String(row.transportTotal || ''), "", "", "", "", "", ""]);
+    const dailyExtras = Number(row.extrasTotal || 0);
+    rows.push([
+      `Day${i + 1}`,
+      propertyName,
+      String(row.adultAccomTotal || ''),
+      Number(row.singleRoomRate || 0) > 0 ? String(row.singleRoomRate || '') : '',
+      String(row.parkFeeAdultTotal || ''),
+      String(row.transportTotal || ''),
+      dailyExtras > 0 ? String(dailyExtras) : '',
+      "", "", "", "", "",
+    ]);
   });
 
   // Empty rows (to match format)
@@ -145,25 +187,23 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   // Totals section
   rows.push(["", "", "", "", "", "", "", "", "", "", "", ""]);
-  const perPersonSubtotal = totalPPS + totalParkFees + totalTransport + totalExtras + totalFileHandling + totalEcoBottle + totalEvacInsurance + totalMaasai;
-  const markupAmount = perPersonSubtotal * (sheet.markupPercent || 10) / 100;
-  const perPersonTotal = perPersonSubtotal + markupAmount;
-
-  rows.push(["", "Totals", String(totalPPS), "", String(totalParkFees), String(totalTransport), "", "", "", "", "", ""]);
+  rows.push(["", "Totals", String(accommodationPpsTotal.toFixed(2)), "", String(parkGroupTotal.toFixed(2)), String(transportGroupTotal.toFixed(2)), "", "", "", "", "", ""]);
 
   // Empty row
   rows.push(["", "", "", "", "", "", "", "", "", "", "", ""]);
 
-  // Options based on different group sizes
+  // Options based on different group sizes — each option calculates independently
+  // (transport group expense divided by that option's pax).
   const groupSizes = [2, 4, 6, 8];
   groupSizes.forEach(size => {
-    const groupSubtotal = perPersonSubtotal;
-    const groupMarkup = groupSubtotal * (sheet.markupPercent || 10) / 100;
+    const transportPerPaxForSize = size > 0 ? transportGroupTotal / size : 0;
+    const groupSubtotal = accommodationPpsTotal + parkGroupTotal + transportPerPaxForSize + dailyExtrasTotal + extrasTotal + srsTotal;
+    const groupMarkup = groupSubtotal * (markupPercent / 100);
     const groupRate = groupSubtotal + groupMarkup;
 
     rows.push(["Option 01", `Based on ${size} people`, "PPS", "", "", "", "", "", "", "", "", ""]);
     rows.push(["", "Per person sharing", String(groupSubtotal.toFixed(2)), "", "", "", "", "", "", "", "", ""]);
-    rows.push(["", `Mark up ${sheet.markupPercent || 10}%`, String(groupMarkup.toFixed(2)), "", "", "", "", "", "", "", "", ""]);
+    rows.push(["", `Mark up ${markupPercent}%`, String(groupMarkup.toFixed(2)), "", "", "", "", "", "", "", "", ""]);
     rows.push(["", "Rate Charged", String(groupRate.toFixed(2)), "", "", "", "", "", "", "", "", ""]);
     rows.push(["", "", "", "", "", "", "", "", "", "", "", ""]);
   });

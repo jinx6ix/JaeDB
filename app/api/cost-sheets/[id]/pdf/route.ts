@@ -103,7 +103,16 @@ function CostSheetPDF({ cs }: { cs: any }) {
   const numPax = numAdults + numChildren;
   const markupPercent = Number(cs.markupPercent) || 10;
 
-  let accomPerPersonSum = 0;
+  // ── New spreadsheet methodology ──
+  // Accommodation PPS is already per-person — sum directly, never divide by pax.
+  const accommodationPpsTotal = dayRows.reduce((sum, row) => sum + (Number(row.adultAccomTotal) || 0), 0);
+  const dailyExtrasTotal = dayRows.reduce((sum, row) => sum + (Number(row.extrasTotal) || 0), 0);
+
+  // SRS handled separately: only when a single adult travels with a single-room rate.
+  const srsTotal = numAdults === 1
+    ? dayRows.reduce((sum, row) => sum + (Number(row.singleRoomRate) || 0), 0)
+    : 0;
+
   let parkGroupTotal = 0;
   let transportGroupTotal = 0;
   let flightGroupTotal = 0;
@@ -117,18 +126,6 @@ function CostSheetPDF({ cs }: { cs: any }) {
   extras.forEach((e: any) => { extrasTotal += Number(e.cost) || 0; });
 
   dayRows.forEach((row: any) => {
-    const adultPP = Number(row.adultAccomTotal) || 0;
-    const childPP = Number(row.childAccomTotal) || 0;
-    const singleRate = Number(row.singleRoomRate) || 0;
-    let accomGroup = 0;
-    if (numAdults === 1 && singleRate > 0) {
-      accomGroup = singleRate;
-    } else if (numAdults > 1 && singleRate > 0) {
-      accomGroup = adultPP * (numAdults - 1) + singleRate;
-    } else {
-      accomGroup = adultPP * numAdults + childPP * numChildren;
-    }
-    accomPerPersonSum += accomGroup / numPax;
     parkGroupTotal += Number(row.parkFeeAdultTotal || 0) + Number(row.parkFeeChildTotal || 0);
     transportGroupTotal += Number(row.transportTotal || 0);
     if (row.hasFlight) {
@@ -136,8 +133,10 @@ function CostSheetPDF({ cs }: { cs: any }) {
     }
   });
 
+  // Transport is a group expense: divide by pax for per-person allocation.
   const transportPerPax = numPax > 0 ? transportGroupTotal / numPax : 0;
-  const subtotal = accomPerPersonSum + parkGroupTotal + transportPerPax + extrasTotal + flightGroupTotal;
+
+  const subtotal = accommodationPpsTotal + parkGroupTotal + transportPerPax + dailyExtrasTotal + extrasTotal + srsTotal;
   const markupAmount = subtotal * (markupPercent / 100);
   const grandTotal = subtotal + markupAmount;
   const perAdultCost = grandTotal;
@@ -145,7 +144,7 @@ function CostSheetPDF({ cs }: { cs: any }) {
 
   const monthName = new Date(cs.createdAt).toLocaleDateString('en-KE', { month: 'long' });
 
-  const totalPPS = accomPerPersonSum;
+  const totalPPS = accommodationPpsTotal;
   const totalParkFees = parkGroupTotal;
   const totalTransport = transportGroupTotal;
   const totalExtras = extrasTotal;
@@ -183,29 +182,33 @@ function CostSheetPDF({ cs }: { cs: any }) {
     const adultPP = Number(row.adultAccomTotal) || 0;
     const childPP = Number(row.childAccomTotal) || 0;
     const singleRate = Number(row.singleRoomRate) || 0;
+    // Accommodation PPS is per-person — show the raw PPS rate, not multiplied by pax.
     let accomGroup = 0;
     if (numAdults === 1 && singleRate > 0) {
       accomGroup = singleRate;
     } else if (numAdults > 1 && singleRate > 0) {
       accomGroup = adultPP * (numAdults - 1) + singleRate;
     } else {
-      accomGroup = adultPP * numAdults + childPP * numChildren;
+      accomGroup = adultPP;
     }
     const parkA = Number(row.parkFeeAdultTotal) || 0;
+    const parkC = Number(row.parkFeeChildTotal) || 0;
     const transport = Number(row.transportTotal) || 0;
     const transportPP = numPax > 0 ? transport / numPax : 0;
     const flightA = row.hasFlight ? (Number(row.flightAdultPP) || 0) * numAdults : 0;
     const flightC = row.hasFlight ? (Number(row.flightChildPP) || 0) * numChildren : 0;
-    const dayTotal = (adultPP) + parkA + transportPP + flightA + flightC;
+    const dailyExtras = Number(row.extrasTotal || 0);
+    const dayTotal = adultPP + parkA + parkC + transportPP + dailyExtras + flightA + flightC;
 
     return React.createElement(View, { key: `dr${i}`, style: S.tRow },
       React.createElement(Text, { style: col(1.5) }, `Day${i + 1}`),
       React.createElement(Text, { style: col(3) }, row.hotelName || row.destinationName || ''),
       React.createElement(Text, { style: col(1, 'right') }, `${currency} ${fmt2(adultPP)}`),
-      React.createElement(Text, { style: col(1, 'right') }, ''),
-      React.createElement(Text, { style: col(1.5, 'right') }, `${currency} ${fmt2(parkA)}`),
+      React.createElement(Text, { style: col(1, 'right') }, singleRate > 0 ? `${currency} ${fmt2(singleRate)}` : ''),
+      React.createElement(Text, { style: col(1.5, 'right') }, `${currency} ${fmt2(parkA + parkC)}`),
       React.createElement(Text, { style: col(1.5, 'right') }, `${currency} ${fmt2(transport)}`),
-      ...[0, 1, 2, 3, 4, 5].map(j => React.createElement(Text, { style: col(1, 'right'), key: `ex${j}` }, '')),
+      React.createElement(Text, { style: col(1, 'right') }, dailyExtras > 0 ? `${currency} ${fmt2(dailyExtras)}` : ''),
+      ...[0, 1, 2, 3, 4].map(j => React.createElement(Text, { style: col(1, 'right'), key: `ex${j}` }, '')),
     );
   });
 
@@ -251,11 +254,11 @@ function CostSheetPDF({ cs }: { cs: any }) {
   const buildOptionsSection = () => {
     const groupSizes = [2, 4, 6, 8];
     const rows: any[] = [];
-    const optsPerRow = 4;
-    const optWidth = 13 / optsPerRow;
 
     groupSizes.forEach((size, gi) => {
-      const groupSubtotal = subtotal;
+      // Each option calculates independently: transport group expense divided by that option's pax.
+      const transportPerPax = size > 0 ? transportGroupTotal / size : 0;
+      const groupSubtotal = accommodationPpsTotal + parkGroupTotal + transportPerPax + dailyExtrasTotal + extrasTotal + srsTotal;
       const groupMarkup = groupSubtotal * (markupPercent / 100);
       const groupRate = groupSubtotal + groupMarkup;
 

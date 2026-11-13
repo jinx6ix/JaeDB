@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { calculateSafariRates } from '@/lib/safari-rate-calculation';
 
 // =============================================================================
 // INTERFACES
@@ -31,6 +32,8 @@ interface DayRow {
   thirdPersonRate: number;
   parkFeeAdultTotal: number;
   parkFeeChildTotal: number;
+  /** Per-day daily extras (spreadsheet "Extras" column) — added directly to base PPS. */
+  extrasTotal: number;
   transportTotal: number;
   hasFlight: boolean;
   flightAdultPP: number;
@@ -62,6 +65,7 @@ function emptyRow(): DayRow {
     thirdPersonRate: 0,
     parkFeeAdultTotal: 0,
     parkFeeChildTotal: 0,
+    extrasTotal: 0,
     transportTotal: 0,
     hasFlight: false,
     flightAdultPP: 0,
@@ -300,6 +304,7 @@ export default function RateCalculator({
         parkFeeAdultTotal: row.parkFeeAdultTotal ?? 0,
         parkFeeChildTotal: row.parkFeeChildTotal ?? 0,
         transportTotal: row.transportTotal ?? 0,
+        extrasTotal: row.extrasTotal ?? 0,
         hasFlight: !!row.hasFlight,
         flightAdultPP: row.flightAdultPP ?? 0,
         flightChildPP: row.flightChildPP ?? 0,
@@ -481,24 +486,43 @@ export default function RateCalculator({
     return (row.adultAccomTotal || 0) * numAdults;
   }
 
+  // ── Group-level totals (for the day table / cost-sheet payload) ──
   const accomGroupTotal = dayRows.reduce((s, r) => s + getAccommodationGroupTotal(r), 0);
   const parkGroupTotal = dayRows.reduce((s, r) => s + r.parkFeeAdultTotal + r.parkFeeChildTotal, 0);
   const transportGroupTotal = dayRows.reduce((s, r) => s + r.transportTotal, 0);
+  const dailyExtrasTotal = dayRows.reduce((s, r) => s + (r.extrasTotal || 0), 0);
   const flightGroupTotal = dayRows.reduce((s, r) => s + (r.hasFlight ? r.flightAdultPP * numAdults + r.flightChildPP * numChildren : 0), 0);
   const extrasGroupTotal = extraItems.reduce((s, e) => s + e.cost, 0) + fileHandling + ecoBottle + evacInsurance + (maasaiVillage ? maasaiCostTotal : 0) + (arrivalTransfer ? arrivalTotal : 0) + (departureTransfer ? departureTotal : 0);
   const flightAndExtrasGroupTotal = flightGroupTotal + extrasGroupTotal;
 
-  const accomPerPersonSum = dayRows.reduce((s, r) => s + r.adultAccomTotal + r.childAccomTotal, 0);
+  // ── Pure per-person PPS calculation (spreadsheet methodology) ──
+  // Accommodation PPS is already per-person — do NOT multiply or divide by passenger count.
+  const accommodationPpsTotal = dayRows.reduce((s, r) => s + (r.adultAccomTotal || 0), 0);
 
-  const optionResults = options.map((opt) => {
-    const pax = opt.pax;
-    const accomTotal = dayRows.reduce((s, r) => s + getAccommodationGroupTotal(r), 0);
-    const transportTotal = dayRows.reduce((s, r) => s + r.transportTotal, 0);
-    const basePerPerson = (accomTotal / pax) + parkGroupTotal + (transportTotal / pax) + flightAndExtrasGroupTotal;
-    const markedUp = basePerPerson * (1 + globalMarkup / 100);
-    const profit = markedUp - basePerPerson;
-    return { ...opt, perPersonBase: basePerPerson, markedUp, profit };
-  });
+  // SRS handled separately — only applies when a single adult travels and books a single room.
+  const srsTotal = numAdults === 1
+    ? dayRows.reduce((s, r) => s + (r.singleRoomRate > 0 ? r.singleRoomRate : 0), 0)
+    : 0;
+
+  const pdfComponents = {
+    accommodationPpsTotal,
+    parkFeesTotal: parkGroupTotal,
+    transportGroupTotal,
+    dailyExtrasTotal,
+    additionalExtrasTotal: extrasGroupTotal,
+    srsTotal,
+  };
+
+  // Each option calculates independently with its own pax and markup percentage.
+  const optionResults = calculateSafariRates(pdfComponents, options.map((opt) => ({
+    pax: opt.pax,
+    markupPercent: opt.markup,
+  }))).map((r) => ({
+    ...r,
+    perPersonBase: r.basePps,
+    markedUp: r.finalRate,
+    profit: r.markupAmount,
+  }));
 
   const selectedTour = tours.find((t) => t.id === tourId);
   const selectedClientObj = localClients.find((c) => c.id === clientId);
@@ -518,6 +542,7 @@ export default function RateCalculator({
       parkFeeAdultTotal: r.parkFeeAdultTotal,
       parkFeeChildTotal: r.parkFeeChildTotal,
       transportTotal: r.transportTotal,
+      extrasTotal: r.extrasTotal,
       hasFlight: r.hasFlight,
       flightAdultPP: r.flightAdultPP,
       flightChildPP: r.flightChildPP,
@@ -526,7 +551,11 @@ export default function RateCalculator({
       selectedRateId: r.selectedRateId,
     })));
     const extrasJson = JSON.stringify(extraItems.filter(e => e.cost > 0));
-    const subtotal = accomGroupTotal + parkGroupTotal + transportGroupTotal + flightGroupTotal + extrasGroupTotal;
+    // New spreadsheet methodology:
+    // Base PPS = Accommodation PPS + Park Fees + (Group Transport / Pax) + Daily Extras + Additional Extras + SRS
+    // Accommodation PPS is already per-person — never multiplied/divided by passenger count.
+    const transportPerPax = numPax > 0 ? transportGroupTotal / numPax : 0;
+    const subtotal = accommodationPpsTotal + parkGroupTotal + transportPerPax + dailyExtrasTotal + extrasGroupTotal + srsTotal;
     const markupAmount = subtotal * (globalMarkup / 100);
     const grandTotal = subtotal + markupAmount;
     const adultUnits = numAdults + numChildren * 0.5;
@@ -777,6 +806,7 @@ export default function RateCalculator({
                   )}
                   <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Park Fees (group total)</th>
                   <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Transport (group total)</th>
+                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Daily Extras</th>
                   <th className="px-2 py-2 text-center font-semibold text-gray-600 w-20">✈️</th>
                   {dayRows.some(r => r.hasFlight) && (
                     <>
@@ -793,7 +823,7 @@ export default function RateCalculator({
                   const flightAdultDayTotal = row.hasFlight ? row.flightAdultPP * numAdults : 0;
                   const flightChildDayTotal = row.hasFlight ? row.flightChildPP * numChildren : 0;
                   const accomGroup = getAccommodationGroupTotal(row);
-                  const dayTotalBase = (getAccommodationGroupTotal(row) / numAdults) + row.parkFeeAdultTotal + row.parkFeeChildTotal + (row.transportTotal / numAdults) + flightAdultDayTotal + flightChildDayTotal;
+                  const dayTotalBase = (getAccommodationGroupTotal(row) / numAdults) + row.parkFeeAdultTotal + row.parkFeeChildTotal + (row.transportTotal / numAdults) + (row.extrasTotal || 0) + flightAdultDayTotal + flightChildDayTotal;
                   const selectedRate = getSelectedRate(row);
                   const tripleRateDefault = (selectedRate?.thirdAdultRate && selectedRate?.ratePerPersonSharing)
                     ? (selectedRate.ratePerPersonSharing * 2 + selectedRate.thirdAdultRate)
@@ -918,6 +948,7 @@ export default function RateCalculator({
                       )}
                       <td className="px-2 py-2"><input type="number" min={0} step="0.01" value={row.parkFeeAdultTotal || ''} onChange={e => updateRow(i, { parkFeeAdultTotal: Number(e.target.value) })} className="input py-1 text-xs font-mono text-center w-full" placeholder="0"/></td>
                       <td className="px-2 py-2"><input type="number" min={0} step="0.01" value={row.transportTotal || ''} onChange={e => updateRow(i, { transportTotal: Number(e.target.value) })} className="input py-1 text-xs font-mono text-center w-full" placeholder="0"/></td>
+                      <td className="px-2 py-2"><input type="number" min={0} step="0.01" value={row.extrasTotal || ''} onChange={e => updateRow(i, { extrasTotal: Number(e.target.value) })} className="input py-1 text-xs font-mono text-center w-full" placeholder="0"/></td>
                       <td className="px-2 py-2 text-center"><input type="checkbox" checked={row.hasFlight} onChange={e => updateRow(i, { hasFlight: e.target.checked })} className="w-4 h-4"/></td>
                       {row.hasFlight && (
                         <>
@@ -971,12 +1002,14 @@ export default function RateCalculator({
 
         {/* Totals section */}
         <div className="bg-white rounded-xl border border-orange-100 overflow-hidden mb-5">
-          <div className="px-4 py-2 bg-orange-50 border-b border-orange-100 font-semibold text-gray-700">📊 Totals for the calculation (no markup)</div>
+          <div className="px-4 py-2 bg-orange-50 border-b border-orange-100 font-semibold text-gray-700">📊 Group totals (no markup)</div>
           <div className="p-4 flex flex-wrap gap-4 text-sm">
-            <div><span className="text-gray-500">Accommodation (group total):</span> {currency} {fmt2(accomGroupTotal)}</div>
-            <div><span className="text-gray-500">Park Fees (group total):</span> {currency} {fmt2(parkGroupTotal)}</div>
+            <div><span className="text-gray-500">Accommodation PPS total:</span> {currency} {fmt2(accommodationPpsTotal)}</div>
+            <div><span className="text-gray-500">Park fees (group total):</span> {currency} {fmt2(parkGroupTotal)}</div>
             <div><span className="text-gray-500">Transport (group total):</span> {currency} {fmt2(transportGroupTotal)}</div>
-            <div><span className="text-gray-500">Flights & Extras (group total):</span> {currency} {fmt2(flightAndExtrasGroupTotal)}</div>
+            <div><span className="text-gray-500">Daily extras total:</span> {currency} {fmt2(dailyExtrasTotal)}</div>
+            <div><span className="text-gray-500">Additional extras total:</span> {currency} {fmt2(extrasGroupTotal)}</div>
+            <div><span className="text-gray-500">SRS total:</span> {currency} {fmt2(srsTotal)}</div>
           </div>
           <div className="px-4 py-2 bg-orange-50 border-t border-orange-100 font-semibold text-gray-700">Option Tables – Per Person Sharing (P.P.S)</div>
           <div className="overflow-x-auto">
@@ -984,15 +1017,33 @@ export default function RateCalculator({
               <div className="p-4 text-center text-gray-400 text-sm">Enter at least 1 adult or child to see pricing options.</div>
             ) : (
               <table className="w-full text-sm">
-                <thead className="bg-gray-50"><tr><th className="p-2 text-left">Pax</th><th className="p-2 text-left">Per Person Sharing (base)</th><th className="p-2 text-left">Markup %</th><th className="p-2 text-left">Marked Up</th><th className="p-2 text-left">Profit</th></tr></thead>
+                <thead className="bg-gray-50"><tr><th className="p-2 text-left">Pax</th><th className="p-2 text-left">Markup %</th><th className="p-2 text-left">Accommodation PPS</th><th className="p-2 text-left">Park Fees</th><th className="p-2 text-left">Transport / pax</th><th className="p-2 text-left">Daily + Addl Extras</th><th className="p-2 text-left">SRS</th><th className="p-2 text-left">Base PPS</th><th className="p-2 text-left">Markup Amt</th><th className="p-2 text-left">Final Rate</th></tr></thead>
                 <tbody>
                   {optionResults.map((opt, idx) => (
                     <tr key={opt.pax} className="border-b">
                       <td className="p-2 font-medium">{opt.pax} people</td>
+                      <td className="p-2">
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step="0.5"
+                          value={opt.markupPercent}
+                          onChange={e => {
+                            const val = Number(e.target.value);
+                            setOptions(prev => prev.map((o, j) => j === idx ? { ...o, markup: val } : o));
+                          }}
+                          className="input py-1 text-xs font-mono text-center w-16"
+                        />
+                      </td>
+                      <td className="p-2 font-mono">{currency} {fmt2(opt.accommodationPpsTotal)}</td>
+                      <td className="p-2 font-mono">{currency} {fmt2(opt.parkFeesTotal)}</td>
+                      <td className="p-2 font-mono">{currency} {fmt2(opt.transportPerPerson)}</td>
+                      <td className="p-2 font-mono">{currency} {fmt2(opt.dailyExtrasTotal + opt.additionalExtrasTotal)}</td>
+                      <td className="p-2 font-mono">{currency} {fmt2(opt.srsTotal)}</td>
                       <td className="p-2 font-mono">{currency} {fmt2(opt.perPersonBase)}</td>
-                      <td className="p-2 font-mono text-gray-500">{globalMarkup}%</td>
-                      <td className="p-2 font-mono">{currency} {fmt2(opt.markedUp)}</td>
-                      <td className={`p-2 font-mono ${opt.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{currency} {fmt2(opt.profit)}</td>
+                      <td className="p-2 font-mono">{currency} {fmt2(opt.markupAmount)}</td>
+                      <td className={`p-2 font-mono font-bold`}>{currency} {fmt2(opt.finalRate)}</td>
                     </tr>
                   ))}
                 </tbody>

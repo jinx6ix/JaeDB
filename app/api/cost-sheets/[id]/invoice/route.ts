@@ -62,26 +62,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const numAdults = Number(costSheet.numAdults) || 1;
     const numChildren = Number(costSheet.numChildren) || 0;
     const numPax = numAdults + numChildren;
-    const mf = 1 + (Number(costSheet.markupPercent) || 10) / 100;
+    const markupPercent = Number(costSheet.markupPercent) || 10;
 
-    // Recalculate from dayRows using same formula as handleSave
-    let accomPerPersonSum = 0;
+    // ── New spreadsheet methodology (per person) ──
+    // Accommodation PPS is already per-person — sum directly, never divide by pax.
+    const accommodationPpsTotal = dayRows.reduce((sum, row) => sum + (Number(row.adultAccomTotal) || 0), 0);
+    const dailyExtrasTotal = dayRows.reduce((sum, row) => sum + (Number(row.extrasTotal) || 0), 0);
+
+    // SRS handled separately: only when a single adult travels with a single-room rate.
+    const srsTotal = numAdults === 1
+      ? dayRows.reduce((sum, row) => sum + (Number(row.singleRoomRate) || 0), 0)
+      : 0;
+
     let parkGroupTotal = 0;
     let transportGroupTotal = 0;
     let flightGroupTotal = 0;
     dayRows.forEach((row: any) => {
-      const adultPP = Number(row.adultAccomTotal) || 0;
-      const childPP = Number(row.childAccomTotal) || 0;
-      const singleRate = Number(row.singleRoomRate) || 0;
-      let accomGroup = 0;
-      if (numAdults === 1 && singleRate > 0) {
-        accomGroup = singleRate;
-      } else if (numAdults > 1 && singleRate > 0) {
-        accomGroup = adultPP * (numAdults - 1) + singleRate;
-      } else {
-        accomGroup = adultPP * numAdults + childPP * numChildren;
-      }
-      accomPerPersonSum += accomGroup / numPax;
       parkGroupTotal += Number(row.parkFeeAdultTotal || 0) + Number(row.parkFeeChildTotal || 0);
       transportGroupTotal += Number(row.transportTotal || 0);
       if (row.hasFlight) {
@@ -98,17 +94,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       (costSheet.maasaiVillage ? Number(costSheet.maasaiCost || 0) : 0);
     extras.forEach((e: any) => { extrasTotal += Number(e.cost) || 0; });
 
-    const transportGroupPerPax = numPax > 0 ? transportGroupTotal / numPax : 0;
-    const subtotal = accomPerPersonSum + parkGroupTotal + transportGroupPerPax + extrasTotal + flightGroupTotal;
-    const totalCost = subtotal * mf;
-    const perAdultCost = subtotal;
-    const perChildCost = subtotal * 0.5;
+    // Transport is a group expense: divide by pax for per-person allocation.
+    const transportPerPax = numPax > 0 ? transportGroupTotal / numPax : 0;
 
-    // Build line items using the correct per-person totals (matching stored calculation)
+    // Per-person base (spreadsheet methodology)
+    const basePps = accommodationPpsTotal + parkGroupTotal + transportPerPax + dailyExtrasTotal + extrasTotal + srsTotal;
+    const perPersonMarkup = basePps * (markupPercent / 100);
+    const perPersonFinal = basePps + perPersonMarkup;
+
+    // Invoice totals are group totals (per-person final × pax).
+    const subtotal = basePps * numPax;
+    const totalMarkup = perPersonMarkup * numPax;
+    const totalAmount = perPersonFinal * numPax;
+    const perAdultCost = perPersonFinal;
+    const perChildCost = perPersonFinal * 0.5;
+
+    // Build line items using group totals consistent with the new calculation
     const items: any[] = [];
 
-    const accomLineTotal = accomPerPersonSum * numPax;
-    const transportLinePerPax = transportGroupPerPax;
+    const accomLineTotal = (numAdults === 1 && srsTotal > 0 ? srsTotal : accommodationPpsTotal * numAdults);
+    const transportLinePerPax = transportPerPax;
     const transportLineTotal = transportGroupTotal;
 
     if (accomLineTotal > 0) {
@@ -174,21 +179,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }
     });
 
-    // If no items from day rows, use totalCost as single line item
+    // If no items from day rows, use totalAmount as single line item
     if (items.length === 0) {
       items.push({
         description: `${costSheet.tourTitle || 'Safari Package'} - Total Cost`,
         quantity: 1,
-        unitPrice: totalCost,
-        total: totalCost,
+        unitPrice: totalAmount,
+        total: totalAmount,
       });
     }
 
-    const markupPercent = Number(costSheet.markupPercent) || 10;
-    const markupAmount = totalCost - subtotal;
-    const totalAmount = totalCost;
-
-    console.log('[Create Invoice] Items:', JSON.stringify(items));
+    const markupAmount = totalMarkup;
     console.log('[Create Invoice] Subtotal:', subtotal, 'Markup:', markupAmount, 'Total:', totalAmount);
     console.log('[Create Invoice] Markup%:', markupPercent);
 
