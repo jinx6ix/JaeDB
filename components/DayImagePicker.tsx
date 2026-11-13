@@ -22,6 +22,8 @@ export default function DayImagePicker({ attachedImages, onImagesChange, dayId }
   const [showLibrary, setShowLibrary] = useState(false);
   const [library, setLibrary] = useState<ItineraryImage[]>([]);
   const [loadingLib, setLoadingLib] = useState(false);
+  const [urlInput, setUrlInput] = useState('');
+  const [urlUploading, setUrlUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadLibrary = useCallback(async () => {
@@ -47,11 +49,11 @@ export default function DayImagePicker({ attachedImages, onImagesChange, dayId }
     for (const file of fileArr) {
       try {
         const data = await convertToJpegBase64(file);
-        const body = { 
-          dayId: dayId || null, 
+        const body = {
+          dayId: dayId || null,
           filename: file.name.replace(/\.[^.]+$/, '.jpg'),
-          mimeType: 'image/jpeg', 
-          data 
+          mimeType: 'image/jpeg',
+          data
         };
         const res = await fetch('/api/itinerary-images', {
           method: 'POST',
@@ -73,6 +75,58 @@ export default function DayImagePicker({ attachedImages, onImagesChange, dayId }
       onImagesChange([...attachedImages, ...newImages]);
     }
     setUploading(false);
+  }
+
+  async function processUrl(url: string) {
+    if (!url.trim()) return;
+    setUrlUploading(true);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Failed to fetch image');
+      const blob = await res.blob();
+      if (!blob.type.startsWith('image/')) throw new Error('URL does not point to an image');
+
+      // Convert blob to data URL
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      // Extract base64 and mimeType from data URL
+      const matches = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (!matches) throw new Error('Could not process image');
+      const mimeType = matches[1];
+      const base64Data = matches[2];
+
+      const filename = url.split('/').pop() || 'image';
+      const cleanFilename = filename.replace(/\.[^.]+$/, '.jpg') || 'image.jpg';
+
+      const body = {
+        dayId: dayId || null,
+        filename: cleanFilename,
+        mimeType: 'image/jpeg',
+        data: `data:image/jpeg;base64,${base64Data}`,
+      };
+      const uploadRes = await fetch('/api/itinerary-images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (uploadRes.ok) {
+        const img = await uploadRes.json();
+        onImagesChange([...attachedImages, img]);
+        setUrlInput('');
+      } else {
+        console.error('Failed to upload image from URL:', await uploadRes.text());
+      }
+    } catch (err) {
+      console.error('Error uploading image from URL:', err);
+      alert(err instanceof Error ? err.message : 'Failed to upload image from URL');
+    } finally {
+      setUrlUploading(false);
+    }
   }
 
   function convertToJpegBase64(file: File): Promise<string> {
@@ -228,6 +282,25 @@ export default function DayImagePicker({ attachedImages, onImagesChange, dayId }
             <p className="text-xs text-gray-400 mt-0.5">All image formats supported (JPG, PNG, WEBP, GIF, etc.)</p>
           </>
         )}
+      </div>
+
+      {/* Image by URL */}
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={urlInput}
+          onChange={e => setUrlInput(e.target.value)}
+          placeholder="Paste image URL…"
+          className="input text-sm flex-1"
+        />
+        <button
+          type="button"
+          onClick={() => processUrl(urlInput)}
+          disabled={urlUploading || !urlInput.trim()}
+          className="btn-secondary text-sm px-4"
+        >
+          {urlUploading ? 'Uploading…' : 'Add from URL'}
+        </button>
       </div>
 
       {attachedImages.length > 0 && (

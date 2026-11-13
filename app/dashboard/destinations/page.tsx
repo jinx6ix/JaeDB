@@ -28,6 +28,8 @@ export default function DestinationsPage() {
   const [imageEditing, setImageEditing] = useState<Record<string, boolean>>({});
   const [imageCaption, setImageCaption] = useState<Record<string, string>>({});
   const [deletingImage, setDeletingImage] = useState<Record<string, boolean>>({});
+  const [urlInput, setUrlInput] = useState('');
+  const [urlUploading, setUrlUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Gallery modal state
@@ -144,6 +146,53 @@ export default function DestinationsPage() {
       }
     }
     setImageUploading(p => ({ ...p, [destId]: false }));
+  }
+
+  async function processUrl(destId: number) {
+    if (!urlInput.trim()) return;
+    setUrlUploading(true);
+    try {
+      const res = await fetch(urlInput);
+      if (!res.ok) throw new Error('Failed to fetch image');
+      const blob = await res.blob();
+      if (!blob.type.startsWith('image/')) throw new Error('URL does not point to an image');
+
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      const matches = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (!matches) throw new Error('Could not process image');
+      const base64Data = matches[2];
+
+      const filename = urlInput.split('/').pop() || 'image';
+      const cleanFilename = filename.replace(/\.[^.]+$/, '.jpg') || 'image.jpg';
+
+      const body = {
+        destinationId: destId,
+        filename: cleanFilename,
+        mimeType: 'image/jpeg',
+        data: `data:image/jpeg;base64,${base64Data}`,
+      };
+      const uploadRes = await fetch(`/api/destinations/${destId}/images`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!uploadRes.ok) throw new Error('Upload failed');
+      const img = await uploadRes.json();
+      setDestImages(p => ({ ...p, [destId]: [...(p[destId] || []), img] }));
+      setGalleryImages(prev => [...prev, img]);
+      setUrlInput('');
+    } catch (err) {
+      console.error('Error uploading image from URL:', err);
+      alert(err instanceof Error ? err.message : 'Failed to upload image from URL');
+    } finally {
+      setUrlUploading(false);
+    }
   }
 
   async function removeImage(destId: number, imageId: string) {
@@ -525,6 +574,25 @@ export default function DestinationsPage() {
                   Uploading…
                 </p>
               )}
+
+              {/* Image by URL */}
+              <div className="flex gap-2 mt-2">
+                <input
+                  type="text"
+                  value={urlInput}
+                  onChange={e => setUrlInput(e.target.value)}
+                  placeholder="Paste image URL…"
+                  className="input text-sm flex-1"
+                />
+                <button
+                  type="button"
+                  onClick={() => galleryDest && processUrl(galleryDest.id)}
+                  disabled={urlUploading || !urlInput.trim() || !galleryDest}
+                  className="btn-secondary text-sm px-4"
+                >
+                  {urlUploading ? 'Uploading…' : 'Add from URL'}
+                </button>
+              </div>
             </div>
           </div>
 

@@ -28,8 +28,27 @@ export default async function ItineraryDetailPage({ params }: { params: Promise<
   const b = itinerary.booking;
 
   return (
-    <div className="max-w-4xl space-y-5">
-      <div className="flex items-center justify-between no-print">
+    <div className="min-h-screen bg-gray-50">
+      <style>{`
+        @page {
+          size: A4;
+          margin: 16mm 14mm;
+        }
+        .day-page {
+          break-inside: avoid;
+          break-after: page;
+        }
+        .day-page:last-child {
+          break-after: auto;
+        }
+        @media print {
+          .no-print { display: none !important; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+      `}</style>
+
+      {/* Header actions (screen only) */}
+      <div className="flex items-center justify-between no-print px-6 py-4 bg-white border-b border-gray-200">
         <div className="flex items-center gap-3">
           <Link href="/dashboard/itineraries" className="text-gray-400 hover:text-gray-600 text-sm">← Itineraries</Link>
           <h1 className="text-2xl font-bold text-gray-900">{itinerary.title}</h1>
@@ -42,7 +61,7 @@ export default async function ItineraryDetailPage({ params }: { params: Promise<
       </div>
 
       {/* Itinerary document preview */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-white border border-gray-200 shadow-sm overflow-hidden">
         {/* Header */}
         <div className="bg-[#1a1a2e] text-white px-8 py-6">
           <div className="flex items-center justify-between">
@@ -122,7 +141,7 @@ export default async function ItineraryDetailPage({ params }: { params: Promise<
                   return (
                     <tr key={day.id}>
                       <td className="px-4 py-3">
-                        <span className="bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded">Day {day.dayNumber}</span>
+                        <span className="bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded">{day.dayNumber}</span>
                       </td>
                       <td className="px-4 py-3 font-medium text-gray-800">{day.destination}</td>
                       <td className="px-4 py-3 text-gray-600">{day.accommodation || 'No accommodation'}</td>
@@ -147,13 +166,13 @@ export default async function ItineraryDetailPage({ params }: { params: Promise<
           ].filter(Boolean);
 
           return (
-            <div key={day.id} className="px-8 py-6 border-b border-gray-100">
+            <div key={day.id} className="day-page p-8 border-b border-gray-100 last:border-0 bg-white">
               <div className="flex items-start gap-2 mb-4">
-                <span className="bg-orange-500 text-white text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap">Day {day.dayNumber}</span>
+                <span className="bg-orange-500 text-white text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap">{day.dayNumber}</span>
                 <h3 className="text-xl font-bold text-gray-800">{day.destination}</h3>
               </div>
 
-              <div className="grid grid-cols-3 gap-6">
+              <div className="grid grid-cols-3 gap-6 mb-8">
                 <div className="col-span-2">
                   {day.notes && <p className="text-gray-600 text-sm mb-4 leading-relaxed">{day.notes}</p>}
                   {activities.length > 0 && (
@@ -164,26 +183,6 @@ export default async function ItineraryDetailPage({ params }: { params: Promise<
                           <div key={idx} className="text-sm">
                             {a.time && <span className="font-semibold text-orange-700">{a.time}: </span>}
                             <span className="text-gray-700">→ {a.description}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {(day as any).images?.length > 0 && (
-                    <div className="mt-4">
-                      <p className="text-xs font-semibold text-gray-500 uppercase mb-2">📷 Gallery</p>
-                      <div className={`grid gap-2 ${(day as any).images.length === 1 ? 'grid-cols-1' : (day as any).images.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                        {(day as any).images.map((img: any) => (
-                          <div key={img.id} className="rounded-lg overflow-hidden border border-gray-100 shadow-sm">
-                            <img
-                              src={`data:${img.mimeType};base64,${img.data}`}
-                              alt={img.caption || img.filename}
-                              className="w-full object-cover"
-                              style={{ maxHeight: (day as any).images.length === 1 ? '300px' : '180px' }}
-                            />
-                            {img.caption && (
-                              <p className="text-xs text-gray-500 text-center px-2 py-1 bg-gray-50">{img.caption}</p>
-                            )}
                           </div>
                         ))}
                       </div>
@@ -207,12 +206,36 @@ export default async function ItineraryDetailPage({ params }: { params: Promise<
                   )}
                 </div>
               </div>
+
+              {(day as any).images?.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-xs font-semibold text-gray-500 uppercase">📷 Gallery</p>
+                    <span className="text-xs text-gray-400">{`{(day as any).images.length} image{(day as any).images.length !== 1 ? 's' : ''}`}</span>
+                  </div>
+                  <div className={`grid gap-4 ${(day as any).images.length === 1 ? 'grid-cols-1' : (day as any).images.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                    {(day as any).images.map((img: any) => (
+                      <div key={img.id} className="rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-50">
+                        <img
+                          src={`data:${img.mimeType};base64,${img.data}`}
+                          alt={img.caption || img.filename}
+                          className="w-full object-cover"
+                          style={{ maxHeight: (day as any).images.length === 1 ? '420px' : '280px' }}
+                        />
+                        {img.caption && (
+                          <p className="text-xs text-gray-500 text-center px-2 py-1.5 bg-gray-50">{img.caption}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
 
         {/* Footer */}
-        <div className="px-8 py-6 bg-gray-50">
+        <div className="px-8 py-6 bg-gray-50 border-t">
           <div className="flex items-center justify-between text-sm text-gray-500">
             <div>
               <p className="font-semibold text-gray-700">Jae Travel Expeditions</p>

@@ -64,8 +64,11 @@ export default function EditItineraryPage() {
   const destImagesRef = useRef<Record<number, DestinationImage[]>>({});
   const hotelImagesRef = useRef<Record<number, DestinationImage[]>>({});
   const usedImgIds = useRef<Record<string, string[]>>({});
+  const previewsComputedRef = useRef<Set<number>>(new Set());
 
   const [editingDayIdx, setEditingDayIdx] = useState<number | null>(null);
+  const [focusedField, setFocusedField] = useState<'dest' | 'acc' | null>(null);
+  const dropdownMouseDownRef = useRef(false);
 
   useEffect(() => {
     fetch(`/api/itineraries/${id}`).then(r => r.json()).then(data => {
@@ -99,6 +102,8 @@ export default function EditItineraryPage() {
     const pending: Promise<void>[] = [];
 
     itinerary.days.forEach((day: any, i: number) => {
+      if (previewsComputedRef.current.has(i)) return;
+
       if (day.destinationId && !destImagesRef.current[day.destinationId]) {
         pending.push(
           fetch(`/api/destinations/${day.destinationId}/images`)
@@ -144,8 +149,10 @@ export default function EditItineraryPage() {
 
     Promise.all(pending).then(() => {
       itinerary.days.forEach((day: any, i: number) => {
+        if (previewsComputedRef.current.has(i)) return;
         if (day.destinationId || day.accommodationId) {
           computePreviews(i);
+          previewsComputedRef.current.add(i);
         }
       });
     });
@@ -365,41 +372,52 @@ export default function EditItineraryPage() {
     setSaving(true);
     setError('');
 
-    const body = {
-      title: itinerary.title,
-      days: itinerary.days.map((d: any) => ({
-        dayNumber: d.dayNumber,
-        date: d.date,
-        destination: d.destination,
-        accommodation: d.accommodation,
-        mealPlan: JSON.stringify(d.mealPlan),
-        activities: JSON.stringify(d.activities.split('\n').filter(Boolean).map((a: string) => {
-          const idx = a.indexOf(':');
-          return idx > 0 && idx < 20
-            ? { time: a.slice(0, idx).trim(), description: a.slice(idx + 1).trim() }
-            : { description: a.trim() };
-        })),
-        notes: d.notes,
-      })),
-    };
-
-    const res = await fetch(`/api/itineraries/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     try {
+      const body = {
+        title: itinerary.title,
+        days: itinerary.days.map((d: any) => ({
+          dayNumber: d.dayNumber,
+          date: d.date,
+          destination: d.destination,
+          accommodation: d.accommodation,
+          mealPlan: JSON.stringify(d.mealPlan),
+          activities: JSON.stringify(
+            (d.activities || '').split('\n').filter(Boolean).map((a: string) => {
+              const idx = a.indexOf(':');
+              return idx > 0 && idx < 20
+                ? { time: a.slice(0, idx).trim(), description: a.slice(idx + 1).trim() }
+                : { description: a.trim() };
+            })
+          ),
+          notes: d.notes,
+        })),
+      };
+
+      const res = await fetch(`/api/itineraries/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+
       if (res.ok) {
-        router.push(`/dashboard/itineraries/${id}`);
+        await router.push(`/dashboard/itineraries/${id}`);
       } else {
         const d = await res.json();
-        setError(d.error || 'Failed');
+        setError(d.error || 'Failed to save itinerary');
       }
-    } catch (err) {
-      console.error('Save error:', err);
-      setError('Failed to save itinerary');
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        setError('Save request timed out. Please try again.');
+      } else {
+        console.error('Save error:', err);
+        setError('Failed to save itinerary');
+      }
     } finally {
+      clearTimeout(timeoutId);
       setSaving(false);
     }
   }
@@ -562,26 +580,38 @@ export default function EditItineraryPage() {
                             updateDay(editingDayIdx, 'destinationId', null);
                             updateDay(editingDayIdx, 'accommodation', '');
                             updateDay(editingDayIdx, 'accommodationId', null);
+                            setFocusedField('dest');
+                          }}
+                          onFocus={() => setFocusedField('dest')}
+                          onBlur={() => {
+                            if (!dropdownMouseDownRef.current) setFocusedField(null);
                           }}
                           className="input text-sm"
                           placeholder="Type destination…"
                         />
                         <div className="absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
-                          {destinations
-                            .filter(d => d.name.toLowerCase().includes((getDay(editingDayIdx)?.destination || '').toLowerCase()))
-                            .slice(0, 8)
-                            .map(d => (
-                              <div
-                                key={d.id}
-                                onClick={() => onDestinationChange(editingDayIdx, d.name)}
-                                className="px-3 py-2 text-sm cursor-pointer hover:bg-orange-50 border-b border-gray-50 last:border-0"
-                              >
-                                {d.name}
-                              </div>
-                            ))}
-                          {destinations.length === 0 || !destinations.some(d => d.name.toLowerCase().includes((getDay(editingDayIdx)?.destination || '').toLowerCase())) ? (
-                            <div className="px-3 py-2 text-sm text-gray-400">No matching destinations</div>
-                          ) : null}
+                          {focusedField === 'dest' &&
+                            destinations
+                              .filter(d => d.name.toLowerCase().includes((getDay(editingDayIdx)?.destination || '').toLowerCase()))
+                              .slice(0, 8)
+                              .map(d => (
+                                <div
+                                  key={d.id}
+                                  onMouseDown={() => { dropdownMouseDownRef.current = true; }}
+                                  onClick={() => {
+                                    onDestinationChange(editingDayIdx, d.name);
+                                    setFocusedField(null);
+                                    dropdownMouseDownRef.current = false;
+                                  }}
+                                  className="px-3 py-2 text-sm cursor-pointer hover:bg-orange-50 border-b border-gray-50 last:border-0"
+                                >
+                                  {d.name}
+                                </div>
+                              ))}
+                          {focusedField === 'dest' &&
+                            (destinations.length === 0 || !destinations.some(d => d.name.toLowerCase().includes((getDay(editingDayIdx)?.destination || '').toLowerCase()))) ? (
+                              <div className="px-3 py-2 text-sm text-gray-400">No matching destinations</div>
+                            ) : null}
                         </div>
                       </div>
                     </div>
@@ -594,34 +624,53 @@ export default function EditItineraryPage() {
                           onChange={e => {
                             const val = e.target.value;
                             updateDay(editingDayIdx, 'accommodation', val);
+                            setFocusedField('acc');
                             // If user typed a known hotel id as text, resolve it
                             const num = Number(val);
                             if (!isNaN(num) && hotels.some(h => h.id === num)) {
                               onAccommodationChange(editingDayIdx, num);
+                              setFocusedField(null);
                             } else {
                               updateDay(editingDayIdx, 'accommodationId', null);
                             }
+                          }}
+                          onFocus={() => setFocusedField('acc')}
+                          onBlur={() => {
+                            if (!dropdownMouseDownRef.current) setFocusedField(null);
                           }}
                           className="input text-sm"
                           placeholder="Type accommodation…"
                         />
                         <div className="absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
-                          {hotels
-                            .filter(h => h.county?.id === getDay(editingDayIdx)!.destinationId)
-                            .filter(h => h.name.toLowerCase().includes((getDay(editingDayIdx)?.accommodation || '').toLowerCase()))
-                            .slice(0, 8)
-                            .map((h: Hotel) => (
-                              <div
-                                key={h.id}
-                                onClick={() => onAccommodationChange(editingDayIdx, h.id)}
-                                className="px-3 py-2 text-sm cursor-pointer hover:bg-orange-50 border-b border-gray-50 last:border-0"
-                              >
-                                {h.name}
-                              </div>
-                            ))}
-                          {(!getDay(editingDayIdx)?.destinationId || !hotels.some(h => h.county?.id === getDay(editingDayIdx)!.destinationId && h.name.toLowerCase().includes((getDay(editingDayIdx)?.accommodation || '').toLowerCase()))) ? (
-                            <div className="px-3 py-2 text-sm text-gray-400">No matching hotels</div>
-                          ) : null}
+                          {focusedField === 'acc' && (() => {
+                            const day = getDay(editingDayIdx);
+                            if (!day?.destinationId) return null;
+                            const destHotels = hotelsByDest[day.destinationId] ?? [];
+                            const matches = destHotels.filter((h: Hotel) =>
+                              h.name.toLowerCase().includes((day.accommodation || '').toLowerCase())
+                            );
+                            return (
+                              <>
+                                {matches.slice(0, 8).map((h: Hotel) => (
+                                  <div
+                                    key={h.id}
+                                    onMouseDown={() => { dropdownMouseDownRef.current = true; }}
+                                    onClick={() => {
+                                      onAccommodationChange(editingDayIdx, h.id);
+                                      setFocusedField(null);
+                                      dropdownMouseDownRef.current = false;
+                                    }}
+                                    className="px-3 py-2 text-sm cursor-pointer hover:bg-orange-50 border-b border-gray-50 last:border-0"
+                                  >
+                                    {h.name}
+                                  </div>
+                                ))}
+                                {(matches.length === 0) && (
+                                  <div className="px-3 py-2 text-sm text-gray-400">No matching hotels</div>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>
