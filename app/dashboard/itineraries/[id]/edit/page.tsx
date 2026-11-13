@@ -111,6 +111,24 @@ export default function EditItineraryPage() {
             })
         );
       }
+      if (day.destinationId && !hotelsByDest[day.destinationId]) {
+        pending.push(
+          fetch(`/api/safari-rates/hotels?destinationId=${day.destinationId}`)
+            .then(r => r.json())
+            .then((data: any) => {
+              if (Array.isArray(data)) {
+                setHotelsByDest(p => ({ ...p, [day.destinationId]: data }));
+                const imgMap: Record<number, DestinationImage[]> = {};
+                data.forEach((h: Hotel) => {
+                  if (h.images && h.images.length) imgMap[h.id] = h.images as DestinationImage[];
+                });
+                if (Object.keys(imgMap).length) {
+                  hotelImagesRef.current = { ...hotelImagesRef.current, ...imgMap };
+                }
+              }
+            })
+        );
+      }
       if (day.accommodationId && !hotelImagesRef.current[day.accommodationId]) {
         pending.push(
           fetch(`/api/safari-rates/hotels/${day.accommodationId}`)
