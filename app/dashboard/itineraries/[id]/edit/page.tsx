@@ -57,10 +57,8 @@ export default function EditItineraryPage() {
 
   // Destination / accommodation lookups
   const [destinations, setDestinations] = useState<Destination[]>([]);
-  const [destSearch, setDestSearch] = useState('');
   const [destImagesById, setDestImagesById] = useState<Record<number, DestinationImage[]>>({});
   const [hotels, setHotels] = useState<Hotel[]>([]);
-  const [hotelSearch, setHotelSearch] = useState('');
   const [hotelsByDest, setHotelsByDest] = useState<Record<number, Hotel[]>>({});
   const [loadingHotels, setLoadingHotels] = useState<Record<number, boolean>>({});
   const destImagesRef = useRef<Record<number, DestinationImage[]>>({});
@@ -445,10 +443,7 @@ export default function EditItineraryPage() {
 
         {/* Days table — click a day row to open its details popup */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-gray-800">Day by Day ({itinerary.days.length} day{itinerary.days.length !== 1 ? 's' : ''})</h2>
-            <button type="button" onClick={addDay} className="btn-secondary text-sm">+ Add Day</button>
-          </div>
+          <h2 className="font-semibold text-gray-800">Day by Day ({itinerary.days.length} day{itinerary.days.length !== 1 ? 's' : ''})</h2>
 
           <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
             <table className="w-full text-sm divide-y divide-gray-100">
@@ -469,7 +464,7 @@ export default function EditItineraryPage() {
                     onClick={() => setEditingDayIdx(i)}
                   >
                     <td className="px-4 py-3 font-medium text-gray-800">
-                      <span className="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded">Day {day.dayNumber}</span>
+                      <span className="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded">{day.dayNumber}</span>
                     </td>
                     <td className="px-4 py-3 text-gray-600 truncate max-w-xs">
                       {day.destination || '—'}
@@ -494,6 +489,13 @@ export default function EditItineraryPage() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Add Day button at bottom left, outside the day card */}
+          <div className="flex justify-start pt-2">
+            <button type="button" onClick={addDay} className="btn-secondary text-sm">
+              + Add Day
+            </button>
           </div>
 
           {/* Day details popup card */}
@@ -533,69 +535,76 @@ export default function EditItineraryPage() {
                     </div>
                     <div>
                       <label className="label text-xs block mb-1">Destination *</label>
-                      <div className="space-y-1">
+                      <div className="relative space-y-1">
                         <input
                           type="text"
-                          value={destSearch}
-                          onChange={e => setDestSearch(e.target.value)}
+                          value={getDay(editingDayIdx)?.destination || ''}
+                          onChange={e => {
+                            updateDay(editingDayIdx, 'destination', e.target.value);
+                            updateDay(editingDayIdx, 'destinationId', null);
+                            updateDay(editingDayIdx, 'accommodation', '');
+                            updateDay(editingDayIdx, 'accommodationId', null);
+                          }}
                           className="input text-sm"
-                          placeholder="Search destinations…"
+                          placeholder="Type destination…"
                         />
-                        <select
-                          value={getDay(editingDayIdx)?.destinationId ? destinations.find(d => d.id === getDay(editingDayIdx)!.destinationId)?.name || getDay(editingDayIdx)?.destination : getDay(editingDayIdx)?.destination}
-                          onChange={e => onDestinationChange(editingDayIdx, e.target.value)}
-                          className="input"
-                        >
-                          <option value="">— Select destination —</option>
+                        <div className="absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
                           {destinations
-                            .filter(d => !destSearch || d.name.toLowerCase().includes(destSearch.toLowerCase()))
-                            .map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-                        </select>
+                            .filter(d => d.name.toLowerCase().includes((getDay(editingDayIdx)?.destination || '').toLowerCase()))
+                            .slice(0, 8)
+                            .map(d => (
+                              <div
+                                key={d.id}
+                                onClick={() => onDestinationChange(editingDayIdx, d.name)}
+                                className="px-3 py-2 text-sm cursor-pointer hover:bg-orange-50 border-b border-gray-50 last:border-0"
+                              >
+                                {d.name}
+                              </div>
+                            ))}
+                          {destinations.length === 0 || !destinations.some(d => d.name.toLowerCase().includes((getDay(editingDayIdx)?.destination || '').toLowerCase())) ? (
+                            <div className="px-3 py-2 text-sm text-gray-400">No matching destinations</div>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
                     <div>
                       <label className="label text-xs block mb-1">Accommodation</label>
-                      <div className="space-y-1">
+                      <div className="relative space-y-1">
                         <input
                           type="text"
-                          value={hotelSearch}
-                          onChange={e => setHotelSearch(e.target.value)}
-                          className="input text-sm"
-                          placeholder="Search hotels…"
-                        />
-                        <select
-                          value={getDay(editingDayIdx)?.accommodationId || getDay(editingDayIdx)?.accommodation}
+                          value={getDay(editingDayIdx)?.accommodation || ''}
                           onChange={e => {
                             const val = e.target.value;
+                            updateDay(editingDayIdx, 'accommodation', val);
+                            // If user typed a known hotel id as text, resolve it
                             const num = Number(val);
-                            // Check the global hotels list (dropdown options come from there), not just hotelsByDest
                             if (!isNaN(num) && hotels.some(h => h.id === num)) {
                               onAccommodationChange(editingDayIdx, num);
                             } else {
-                              updateDay(editingDayIdx, 'accommodation', val);
                               updateDay(editingDayIdx, 'accommodationId', null);
                             }
                           }}
-                          className="input"
-                        >
-                          <option value="">— No accommodation —</option>
+                          className="input text-sm"
+                          placeholder="Type accommodation…"
+                        />
+                        <div className="absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
                           {hotels
                             .filter(h => h.county?.id === getDay(editingDayIdx)!.destinationId)
-                            .filter(h => !hotelSearch || h.name.toLowerCase().includes(hotelSearch.toLowerCase()))
+                            .filter(h => h.name.toLowerCase().includes((getDay(editingDayIdx)?.accommodation || '').toLowerCase()))
+                            .slice(0, 8)
                             .map((h: Hotel) => (
-                              <option key={h.id} value={h.id}>{h.name}</option>
+                              <div
+                                key={h.id}
+                                onClick={() => onAccommodationChange(editingDayIdx, h.id)}
+                                className="px-3 py-2 text-sm cursor-pointer hover:bg-orange-50 border-b border-gray-50 last:border-0"
+                              >
+                                {h.name}
+                              </div>
                             ))}
-                          <option value="custom">+ Custom / other…</option>
-                        </select>
-                        {getDay(editingDayIdx)?.accommodationId && !hotelsByDest[getDay(editingDayIdx)!.destinationId || 0]?.some(h => h.id === getDay(editingDayIdx)!.accommodationId) && (
-                          <input
-                            type="text"
-                            value={getDay(editingDayIdx)!.accommodation}
-                            onChange={e => updateDay(editingDayIdx, 'accommodation', e.target.value)}
-                            className="input mt-2 text-sm"
-                            placeholder="Custom accommodation name"
-                          />
-                        )}
+                          {(!getDay(editingDayIdx)?.destinationId || !hotels.some(h => h.county?.id === getDay(editingDayIdx)!.destinationId && h.name.toLowerCase().includes((getDay(editingDayIdx)?.accommodation || '').toLowerCase()))) ? (
+                            <div className="px-3 py-2 text-sm text-gray-400">No matching hotels</div>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
                   </div>

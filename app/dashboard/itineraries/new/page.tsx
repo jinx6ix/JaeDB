@@ -84,10 +84,8 @@ export default function NewItineraryPage() {
 
   // Destination / accommodation lookups
   const [destinations, setDestinations] = useState<Destination[]>([]);
-  const [destSearch, setDestSearch] = useState('');
   const [destImagesById, setDestImagesById] = useState<Record<number, DestinationImage[]>>({});
   const [hotels, setHotels] = useState<Hotel[]>([]);
-  const [hotelSearch, setHotelSearch] = useState('');
   const [hotelsByDest, setHotelsByDest] = useState<Record<number, Hotel[]>>({});
   const [loadingHotels, setLoadingHotels] = useState<Record<number, boolean>>({});
   // Refs hold the latest fetched images so computePreviews can read them
@@ -467,7 +465,7 @@ export default function NewItineraryPage() {
                     onClick={() => setEditingDayId(day.tempId)}
                   >
                     <td className="px-4 py-3 font-medium text-gray-800">
-                      <span className="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded">Day {day.dayNumber}</span>
+                      <span className="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded">{day.dayNumber}</span>
                     </td>
                     <td className="px-4 py-3 text-gray-600 truncate max-w-xs">
                       {day.destination || '—'}
@@ -539,68 +537,75 @@ export default function NewItineraryPage() {
                   </div>
                   <div>
                     <label className="label text-xs block mb-1">Destination *</label>
-                    <div className="space-y-1">
+                    <div className="relative space-y-1">
                       <input
                         type="text"
-                        value={destSearch}
-                        onChange={e => setDestSearch(e.target.value)}
+                        value={getDay(editingDayId)?.destination || ''}
+                        onChange={e => {
+                          updateDay(editingDayId!, 'destination', e.target.value);
+                          updateDay(editingDayId!, 'destinationId', null);
+                          updateDay(editingDayId!, 'accommodation', '');
+                          updateDay(editingDayId!, 'accommodationId', null);
+                        }}
                         className="input text-sm"
-                        placeholder="Search destinations…"
+                        placeholder="Type destination…"
                       />
-                      <select
-                        value={getDay(editingDayId)?.destinationId ? destinations.find(d => d.id === getDay(editingDayId)!.destinationId)?.name || getDay(editingDayId)?.destination : getDay(editingDayId)?.destination}
-                        onChange={e => onDestinationChange(editingDayId!, e.target.value)}
-                        className="input"
-                      >
-                        <option value="">— Select destination —</option>
+                      <div className="absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
                         {destinations
-                          .filter(d => !destSearch || d.name.toLowerCase().includes(destSearch.toLowerCase()))
-                          .map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-                      </select>
+                          .filter(d => d.name.toLowerCase().includes((getDay(editingDayId)?.destination || '').toLowerCase()))
+                          .slice(0, 8)
+                          .map(d => (
+                            <div
+                              key={d.id}
+                              onClick={() => onDestinationChange(editingDayId!, d.name)}
+                              className="px-3 py-2 text-sm cursor-pointer hover:bg-orange-50 border-b border-gray-50 last:border-0"
+                            >
+                              {d.name}
+                            </div>
+                          ))}
+                        {destinations.length === 0 || !destinations.some(d => d.name.toLowerCase().includes((getDay(editingDayId)?.destination || '').toLowerCase())) ? (
+                          <div className="px-3 py-2 text-sm text-gray-400">No matching destinations</div>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                   <div>
                     <label className="label text-xs block mb-1">Accommodation</label>
-                    <div className="space-y-1">
+                    <div className="relative space-y-1">
                       <input
                         type="text"
-                        value={hotelSearch}
-                        onChange={e => setHotelSearch(e.target.value)}
-                        className="input text-sm"
-                        placeholder="Search hotels…"
-                      />
-                      <select
-                        value={getDay(editingDayId)?.accommodationId || getDay(editingDayId)?.accommodation}
+                        value={getDay(editingDayId)?.accommodation || ''}
                         onChange={e => {
                           const val = e.target.value;
+                          updateDay(editingDayId!, 'accommodation', val);
                           const num = Number(val);
-                          if (!isNaN(num) && hotelsByDest[getDay(editingDayId)!.destinationId || 0]?.some(h => h.id === num)) {
+                          if (!isNaN(num) && hotels.some(h => h.id === num)) {
                             onAccommodationChange(editingDayId!, num);
                           } else {
-                            updateDay(editingDayId!, 'accommodation', val);
                             updateDay(editingDayId!, 'accommodationId', null);
                           }
                         }}
-                        className="input"
-                      >
-                        <option value="">— No accommodation —</option>
+                        className="input text-sm"
+                        placeholder="Type accommodation…"
+                      />
+                      <div className="absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
                         {hotels
                           .filter(h => h.county?.id === getDay(editingDayId)!.destinationId)
-                          .filter(h => !hotelSearch || h.name.toLowerCase().includes(hotelSearch.toLowerCase()))
+                          .filter(h => h.name.toLowerCase().includes((getDay(editingDayId)?.accommodation || '').toLowerCase()))
+                          .slice(0, 8)
                           .map((h: Hotel) => (
-                            <option key={h.id} value={h.id}>{h.name}</option>
+                            <div
+                              key={h.id}
+                              onClick={() => onAccommodationChange(editingDayId!, h.id)}
+                              className="px-3 py-2 text-sm cursor-pointer hover:bg-orange-50 border-b border-gray-50 last:border-0"
+                            >
+                              {h.name}
+                            </div>
                           ))}
-                        <option value="custom">+ Custom / other…</option>
-                      </select>
-                      {getDay(editingDayId)?.accommodationId && !hotelsByDest[getDay(editingDayId)!.destinationId || 0]?.some(h => h.id === getDay(editingDayId)!.accommodationId) && (
-                        <input
-                          type="text"
-                          value={getDay(editingDayId)!.accommodation}
-                          onChange={e => updateDay(editingDayId!, 'accommodation', e.target.value)}
-                          className="input mt-2 text-sm"
-                          placeholder="Custom accommodation name"
-                        />
-                      )}
+                        {(!getDay(editingDayId)?.destinationId || !hotels.some(h => h.county?.id === getDay(editingDayId)!.destinationId && h.name.toLowerCase().includes((getDay(editingDayId)?.accommodation || '').toLowerCase()))) ? (
+                          <div className="px-3 py-2 text-sm text-gray-400">No matching hotels</div>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                 </div>
