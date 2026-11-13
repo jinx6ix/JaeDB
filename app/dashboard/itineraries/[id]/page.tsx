@@ -272,20 +272,13 @@ export default async function ItineraryDetailPage({ params }: { params: Promise<
               {/* Day Gallery — destination, accommodation & itinerary images */}
               {(destImages.length > 0 || hotelImages.length > 0 || itineraryImgs.length > 0) && (
                 <div className="mb-8">
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-sm font-semibold text-gray-700">
-                      Day {day.dayNumber} [{day.destination}{day.accommodation ? ' - ' + day.accommodation : ''}] gallery
-                    </h4>
-                    <span className="text-xs text-gray-400">
-                      {`${destImages.length + hotelImages.length + itineraryImgs.length} image${destImages.length + hotelImages.length + itineraryImgs.length !== 1 ? 's' : ''}`}
-                    </span>
-                  </div>
-
                   {destImages.length > 0 && (
-                    <div className="mb-4">
-                      <p className="text-xs font-semibold text-gray-500 uppercase mb-2">🏞 Destination images</p>
-                      <div className={`grid gap-4 ${destImages.length === 1 ? 'grid-cols-1' : destImages.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                        {destImages.map((img) => (
+                    <div className="mb-6">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3">
+                        {day.destination} gallery
+                      </h4>
+                      <div className="grid gap-4 grid-cols-3">
+                        {destImages.slice(0, 3).map((img) => (
                           <div key={img.id} className="rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-50">
                             <img
                               src={`data:${img.mimeType};base64,${img.data}`}
@@ -303,10 +296,12 @@ export default async function ItineraryDetailPage({ params }: { params: Promise<
                   )}
 
                   {hotelImages.length > 0 && (
-                    <div className="mb-4">
-                      <p className="text-xs font-semibold text-gray-500 uppercase mb-2">🏨 Accommodation images</p>
-                      <div className={`grid gap-4 ${hotelImages.length === 1 ? 'grid-cols-1' : hotelImages.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                        {hotelImages.map((img) => (
+                    <div className="mb-6">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3">
+                        {day.accommodation} gallery
+                      </h4>
+                      <div className="grid gap-4 grid-cols-3">
+                        {hotelImages.slice(0, 3).map((img) => (
                           <div key={img.id} className="rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-50">
                             <img
                               src={`data:${img.mimeType};base64,${img.data}`}
@@ -324,8 +319,10 @@ export default async function ItineraryDetailPage({ params }: { params: Promise<
                   )}
 
                   {itineraryImgs.length > 0 && (
-                    <div className="mb-4">
-                      <p className="text-xs font-semibold text-gray-500 uppercase mb-2">📷 Day images</p>
+                    <div className="mb-6">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3">
+                        Day {day.dayNumber} images
+                      </h4>
                       <div className={`grid gap-4 ${itineraryImgs.length === 1 ? 'grid-cols-1' : itineraryImgs.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
                         {itineraryImgs.map((img: any) => (
                           <div key={img.id} className="rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-50">
