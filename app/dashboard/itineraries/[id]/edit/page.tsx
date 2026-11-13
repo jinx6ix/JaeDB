@@ -98,10 +98,40 @@ export default function EditItineraryPage() {
   // Compute previews for existing days on mount once destinations/hotels load
   useEffect(() => {
     if (!itinerary) return;
+    const pending: Promise<void>[] = [];
+
     itinerary.days.forEach((day: any, i: number) => {
-      if (day.destinationId || day.accommodationId) {
-        computePreviews(i);
+      if (day.destinationId && !destImagesRef.current[day.destinationId]) {
+        pending.push(
+          fetch(`/api/destinations/${day.destinationId}/images`)
+            .then(r => r.json())
+            .then((data: any) => {
+              if (Array.isArray(data)) {
+                destImagesRef.current = { ...destImagesRef.current, [day.destinationId]: data };
+                setDestImagesById(p => ({ ...p, [day.destinationId]: data }));
+              }
+            })
+        );
       }
+      if (day.accommodationId && !hotelImagesRef.current[day.accommodationId]) {
+        pending.push(
+          fetch(`/api/safari-rates/hotels/${day.accommodationId}`)
+            .then(r => r.json())
+            .then((data: any) => {
+              if (data && data.images) {
+                hotelImagesRef.current = { ...hotelImagesRef.current, [day.accommodationId]: data.images };
+              }
+            })
+        );
+      }
+    });
+
+    Promise.all(pending).then(() => {
+      itinerary.days.forEach((day: any, i: number) => {
+        if (day.destinationId || day.accommodationId) {
+          computePreviews(i);
+        }
+      });
     });
   }, [itinerary, destinations, hotelsByDest, destImagesById, hotelImagesRef]);
 
@@ -538,7 +568,8 @@ export default function EditItineraryPage() {
                           onChange={e => {
                             const val = e.target.value;
                             const num = Number(val);
-                            if (!isNaN(num) && hotelsByDest[getDay(editingDayIdx)!.destinationId || 0]?.some(h => h.id === num)) {
+                            // Check the global hotels list (dropdown options come from there), not just hotelsByDest
+                            if (!isNaN(num) && hotels.some(h => h.id === num)) {
                               onAccommodationChange(editingDayIdx, num);
                             } else {
                               updateDay(editingDayIdx, 'accommodation', val);
