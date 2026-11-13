@@ -48,14 +48,24 @@ export default async function ItineraryDetailPage({ params }: { params: Promise<
   const b = itinerary.booking;
 
   // Fetch all counties (destinations) with their images for matching by name
-  const counties = await prisma.sRCounty.findMany({
-    include: { images: { orderBy: { createdAt: 'asc' } } },
-  });
+  let counties: any[] = [];
+  try {
+    counties = await prisma.sRCounty.findMany({
+      include: { images: { orderBy: { createdAt: 'asc' } } },
+    });
+  } catch {
+    counties = [];
+  }
 
   // Fetch all hotels with their images for matching by name
-  const hotels = await prisma.sRHotel.findMany({
-    include: { images: { orderBy: { createdAt: 'asc' } } },
-  });
+  let hotels: any[] = [];
+  try {
+    hotels = await prisma.sRHotel.findMany({
+      include: { images: { orderBy: { createdAt: 'asc' } } },
+    });
+  } catch {
+    hotels = [];
+  }
 
   // Build lookup maps by name (case-insensitive)
   const countyByName = new Map(
