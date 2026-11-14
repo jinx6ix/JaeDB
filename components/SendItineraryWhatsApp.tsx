@@ -19,6 +19,7 @@ export default function SendItineraryWhatsApp({
   const [open, setOpen] = useState(false);
   const [phone, setPhone] = useState(clientPhone || '');
   const [selectedPax, setSelectedPax] = useState<number[]>([]);
+  const [paxDropdownOpen, setPaxDropdownOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
 
@@ -26,6 +27,13 @@ export default function SendItineraryWhatsApp({
     typeof process !== 'undefined' && process.env.NEXT_PUBLIC_URL
       ? process.env.NEXT_PUBLIC_URL
       : window.location.origin;
+
+  const togglePax = (p: number) =>
+    setSelectedPax(prev =>
+      prev.includes(p) ? prev.filter(n => n !== p) : [...prev, p].sort((a, b) => a - b)
+    );
+
+  const isSelected = (p: number) => selectedPax.includes(p);
 
   // Build the public PDF URL with selected pax params so WhatsApp recipients can download
   // the itinerary PDF with the chosen traveler-count costing tables.
@@ -96,22 +104,46 @@ export default function SendItineraryWhatsApp({
               <div>
                 <label className="label text-xs block mb-1">Traveler counts (pax)</label>
                 <p className="text-xs text-gray-500 mb-2">Select one or more. Each gets its own costing table in the PDF.</p>
-                <div className="flex flex-wrap gap-2">
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map((p) => (
-                    <label key={p} className="flex items-center gap-1 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={selectedPax.includes(p)}
-                        onChange={() => {
-                          setSelectedPax(prev =>
-                            prev.includes(p) ? prev.filter(n => n !== p) : [...prev, p].sort((a, b) => a - b)
-                          );
-                        }}
-                        className="form-checkbox h-4 w-4 text-orange-600 rounded border-gray-300"
-                      />
-                      {p} Person{p > 1 ? 's' : ''}
-                    </label>
-                  ))}
+                <div className="relative w-full">
+                  <button
+                    onClick={() => setPaxDropdownOpen(!paxDropdownOpen)}
+                    className={`w-full input text-sm border rounded px-3 py-2 flex items-center justify-between ${
+                      paxDropdownOpen ? 'border-orange-500' : 'border-gray-300'
+                    }`}
+                  >
+                    <span>
+                      {selectedPax.length === 0
+                        ? 'Select pax'
+                        : selectedPax.length === 1
+                          ? `${selectedPax[0]} Person`
+                          : `${selectedPax.length} pax selected`}
+                    </span>
+                    <span className="text-gray-400">{paxDropdownOpen ? '▲' : '▼'}</span>
+                  </button>
+                  {paxDropdownOpen && (
+                    <div className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                      <div className="p-2 border-b border-gray-100">
+                        <div className="grid grid-cols-4 gap-1">
+                          {[1, 2, 3, 4, 5, 6, 7, 8].map((p) => (
+                            <label
+                              key={p}
+                              onClick={() => togglePax(p)}
+                              className="flex flex-col items-center gap-1 cursor-pointer select-none py-1.5 rounded hover:bg-orange-50 transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected(p)}
+                                readOnly
+                                className="h-4 w-4 text-orange-600 rounded border-gray-300"
+                              />
+                              <span className="text-xs">{p}</span>
+                              <span className="text-[10px] text-gray-400">{p > 1 ? 'pax' : 'pax'}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               <div>
