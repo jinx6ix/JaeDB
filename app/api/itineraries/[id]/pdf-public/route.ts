@@ -12,6 +12,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { searchParams } = new URL(req.url);
   const paxParam = searchParams.get('pax');
+  const paxParams = searchParams.getAll('pax');
+
+  const selectedPaxNumbers = paxParams
+    .map(p => Number(p))
+    .filter(n => !isNaN(n));
 
   const itinerary = await prisma.itinerary.findUnique({
     where: { id: id },
@@ -66,7 +71,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     });
   }
 
-  // Determine selected pax costing
+  // Determine selected pax costing(s)
   const rawOptions = itinerary.costingOptions;
   const costingOptions = (() => {
     if (Array.isArray(rawOptions)) return rawOptions;
@@ -75,13 +80,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     }
     return [];
   })();
-  const selectedPaxCosting = paxParam !== null
-    ? costingOptions.find((o: any) => o.pax === Number(paxParam))
-    : costingOptions.length > 0 ? costingOptions[0] : undefined;
+  const selectedPaxCostings = selectedPaxNumbers.length > 0
+    ? selectedPaxNumbers.map(pax => costingOptions.find((o: any) => o.pax === pax)).filter(Boolean)
+    : costingOptions.length > 0 ? [costingOptions[0]] : [];
+  const selectedPaxCosting = selectedPaxCostings[0];
 
   try {
     const buffer = await renderToBuffer(
-      React.createElement(ItineraryPDF, { itinerary, costSheet, imagesByDay, counties, hotels, selectedPaxCosting }) as any,
+      React.createElement(ItineraryPDF, { itinerary, costSheet, imagesByDay, counties, hotels, selectedPaxCosting, selectedPaxCostings }) as any,
     );
     const clientName = itinerary.booking?.client?.name || '';
     const propertyName = itinerary.title || itinerary.booking?.bookingRef || '';

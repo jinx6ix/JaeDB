@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
 interface SendItineraryWhatsAppProps {
   itineraryId: string;
@@ -18,6 +18,7 @@ export default function SendItineraryWhatsApp({
 }: SendItineraryWhatsAppProps) {
   const [open, setOpen] = useState(false);
   const [phone, setPhone] = useState(clientPhone || '');
+  const [selectedPax, setSelectedPax] = useState<number[]>([]);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
 
@@ -26,13 +27,18 @@ export default function SendItineraryWhatsApp({
       ? process.env.NEXT_PUBLIC_URL
       : window.location.origin;
 
-  // Use the public (unauthenticated) PDF route so WhatsApp recipients can download
-  // the itinerary PDF by clicking the link in the message.
-  const pdfUrl = `${baseUrl}/api/itineraries/${itineraryId}/pdf-public`;
+  // Build the public PDF URL with selected pax params so WhatsApp recipients can download
+  // the itinerary PDF with the chosen traveler-count costing tables.
+  const pdfParams = selectedPax.length > 0 ? `?${selectedPax.map(p => `pax=${p}`).join('&')}` : '';
+  const pdfUrl = `${baseUrl}/api/itineraries/${itineraryId}/pdf-public${pdfParams}`;
 
-  const message = `*Jae Travel Expeditions*\n\nDear ${clientName || 'Guest'}, your itinerary *${itineraryTitle}*${bookingRef ? ` (Ref: #${bookingRef})` : ''} is ready.\n\n📄 Download PDF: ${pdfUrl}\n\nThank you for choosing Jae Travel Expeditions!\n"Live life with no excuses, travel with no regret"`;
+  const paxLabel = selectedPax.length > 0
+    ? ` (pax: ${selectedPax.join(', ')})`
+    : '';
 
-  const handleSend = () => {
+  const message = `*Jae Travel Expeditions*\n\nDear ${clientName || 'Guest'}, your itinerary *${itineraryTitle}*${bookingRef ? ` (Ref: #${bookingRef})` : ''}${paxLabel} is ready.\n\n📄 Download PDF: ${pdfUrl}\n\nThank you for choosing Jae Travel Expeditions!\n"Live life with no excuses, travel with no regret"`;
+
+  const handleSend = useCallback(() => {
     const trimmed = phone.trim();
     if (!trimmed) {
       setError('Please enter a WhatsApp number');
@@ -50,7 +56,7 @@ export default function SendItineraryWhatsApp({
     window.open(whatsappUrl, '_blank');
     setSending(false);
     setOpen(false);
-  };
+  }, [phone, message]);
 
   return (
     <>
@@ -87,6 +93,27 @@ export default function SendItineraryWhatsApp({
             )}
 
             <div className="space-y-4">
+              <div>
+                <label className="label text-xs block mb-1">Traveler counts (pax)</label>
+                <p className="text-xs text-gray-500 mb-2">Select one or more. Each gets its own costing table in the PDF.</p>
+                <div className="flex flex-wrap gap-2">
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((p) => (
+                    <label key={p} className="flex items-center gap-1 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={selectedPax.includes(p)}
+                        onChange={() => {
+                          setSelectedPax(prev =>
+                            prev.includes(p) ? prev.filter(n => n !== p) : [...prev, p].sort((a, b) => a - b)
+                          );
+                        }}
+                        className="form-checkbox h-4 w-4 text-orange-600 rounded border-gray-300"
+                      />
+                      {p} Person{p > 1 ? 's' : ''}
+                    </label>
+                  ))}
+                </div>
+              </div>
               <div>
                 <label className="label text-xs block mb-1">WhatsApp Number *</label>
                 <input

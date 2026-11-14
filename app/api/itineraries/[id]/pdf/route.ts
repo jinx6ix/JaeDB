@@ -18,11 +18,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { searchParams } = new URL(req.url);
   const paxParam = searchParams.get('pax');
+  const paxParams = searchParams.getAll('pax');
 
-  return generatePdfResponse(id, paxParam ? Number(paxParam) : undefined);
+  const selectedPaxNumbers = paxParams
+    .map(p => Number(p))
+    .filter(n => !isNaN(n));
+
+  return generatePdfResponse(id, selectedPaxNumbers.length > 0 ? selectedPaxNumbers : (paxParam ? [Number(paxParam)] : []));
 }
 
-async function generatePdfResponse(id: string, selectedPax?: number) {
+async function generatePdfResponse(id: string, selectedPaxNumbers: number[] = []) {
   const itinerary = await prisma.itinerary.findUnique({
     where: { id: id },
     include: {
@@ -76,7 +81,7 @@ async function generatePdfResponse(id: string, selectedPax?: number) {
     });
   }
 
-  // Determine selected pax costing
+  // Determine selected pax costing(s)
   const rawOptions = itinerary.costingOptions;
   const costingOptions = (() => {
     if (Array.isArray(rawOptions)) return rawOptions;
@@ -85,13 +90,14 @@ async function generatePdfResponse(id: string, selectedPax?: number) {
     }
     return [];
   })();
-  const selectedPaxCosting = selectedPax !== undefined
-    ? costingOptions.find((o: any) => o.pax === selectedPax)
-    : costingOptions.length > 0 ? costingOptions[0] : undefined;
+  const selectedPaxCostings = selectedPaxNumbers.length > 0
+    ? selectedPaxNumbers.map(pax => costingOptions.find((o: any) => o.pax === pax)).filter(Boolean)
+    : costingOptions.length > 0 ? [costingOptions[0]] : [];
+  const selectedPaxCosting = selectedPaxCostings[0];
 
   try {
     const buffer = await renderToBuffer(
-      React.createElement(ItineraryPDF, { itinerary, costSheet, imagesByDay, counties, hotels, selectedPaxCosting }) as any,
+      React.createElement(ItineraryPDF, { itinerary, costSheet, imagesByDay, counties, hotels, selectedPaxCosting, selectedPaxCostings }) as any,
     );
     const clientName = itinerary.booking?.client?.name || '';
     const propertyName = itinerary.title || itinerary.booking?.bookingRef || '';
