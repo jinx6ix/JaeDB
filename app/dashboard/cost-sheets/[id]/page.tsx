@@ -89,6 +89,7 @@ export default function CostSheetDetailPage() {
   const [agentName, setAgentName] = useState('');
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [hotels, setHotels] = useState<Hotel[]>([]);
+  const [agents, setAgents] = useState<{ id: string; name: string; company?: string | null }[]>([]);
 
   const [editable, setEditable] = useState<{
     clientId: string; agentId: string; bookingId: string; tourTitle: string;
@@ -109,9 +110,11 @@ export default function CostSheetDetailPage() {
     Promise.all([
       fetch('/api/safari-rates/destinations').then(r => r.json()),
       fetch('/api/safari-rates/hotels').then(r => r.json()),
-    ]).then(([dests, h]) => {
-      setDestinations(dests);
-      setHotels(h);
+      fetch('/api/agents').then(r => r.json()),
+    ]).then(([dests, h, ags]) => {
+      setDestinations(Array.isArray(dests) ? dests : []);
+      setHotels(Array.isArray(h) ? h : []);
+      setAgents(Array.isArray(ags) ? ags : []);
     }).catch(console.error);
   }, []);
 
@@ -322,8 +325,19 @@ export default function CostSheetDetailPage() {
         </div>
 
         <div className="grid grid-cols-2 gap-6">
-          <div><p className="text-xs font-bold text-gray-500 uppercase mb-2">Client</p>{isEditing ? <input className="input w-full" value={editable.clientId} onChange={e => setEditable({...editable, clientId: e.target.value})} placeholder="Client ID" /> : <p className="font-bold text-gray-800">{clientName || sheet.client?.name || '—'}</p>}</div>
-          <div><p className="text-xs font-bold text-gray-500 uppercase mb-2">Agent</p>{isEditing ? <input className="input w-full" value={editable.agentId} onChange={e => setEditable({...editable, agentId: e.target.value})} placeholder="Agent ID" /> : <p className="text-gray-800">{agentName || sheet.agent?.name || '—'}</p>}</div>
+          <div><p className="text-xs font-bold text-gray-500 uppercase mb-2">Client</p>{isEditing ? (
+            <select className="input w-full" value={editable.clientId} onChange={e => setEditable({...editable, clientId: e.target.value})}>
+              <option value="">— Select client —</option>
+            </select>
+          ) : <p className="font-bold text-gray-800">{clientName || sheet.client?.name || '—'}</p>}</div>
+          <div><p className="text-xs font-bold text-gray-500 uppercase mb-2">Agent</p>{isEditing ? (
+            <select className="input w-full" value={editable.agentId} onChange={e => setEditable({...editable, agentId: e.target.value})}>
+              <option value="">— No agent —</option>
+              {agents.map(a => (
+                <option key={a.id} value={a.id}>{a.name}{a.company ? ` (${a.company})` : ''}</option>
+              ))}
+            </select>
+          ) : <p className="text-gray-800">{agentName || sheet.agent?.name || '—'}</p>}</div>
         </div>
 
         <div className="border-t pt-4"><p className="text-xs font-bold text-gray-500 uppercase mb-3">Tour Details</p>
