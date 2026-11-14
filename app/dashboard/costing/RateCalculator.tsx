@@ -96,6 +96,7 @@ export default function RateCalculator({
   const [localHotels, setLocalHotels] = useState<Hotel[]>(initHotels);
   const [localDests, setLocalDests] = useState<Destination[]>(initDests);
   const [localClients, setLocalClients] = useState<Client[]>(clients);
+  const [localAgents, setLocalAgents] = useState<Agent[]>(agents);
   // Bookings come from server props as a one-time snapshot. We mirror them in
   // state and re-fetch on mount / focus so newly-created bookings appear
   // without forcing the user to reload the page.
@@ -114,6 +115,12 @@ export default function RateCalculator({
   const [isCreatingClient, setIsCreatingClient] = useState(false);
   const [clientId, setClientId] = useState('');
   const [agentId, setAgentId] = useState('');
+  const [showAgentCreate, setShowAgentCreate] = useState(false);
+  const [agentName, setAgentName] = useState('');
+  const [agentCompany, setAgentCompany] = useState('');
+  const [agentEmail, setAgentEmail] = useState('');
+  const [agentPhone, setAgentPhone] = useState('');
+  const [creatingAgent, setCreatingAgent] = useState(false);
   const [bookingId, setBookingId] = useState('');
   const [tourId, setTourId] = useState('');
 
@@ -412,9 +419,6 @@ export default function RateCalculator({
     setLocalClients(Array.isArray(c) ? c : []);
     setLocalBookings(Array.isArray(b) ? b : []);
   };
-
-  // Refresh on mount and whenever the tab regains focus — so that clients or
-  // bookings created in another tab/page show up here without a manual reload.
   useEffect(() => {
     refreshData();
     const onFocus = () => refreshData();
@@ -465,6 +469,42 @@ export default function RateCalculator({
         setClientSearch(newClient.name);
         setShowClientDropdown(false);
       }
+    }
+  };
+
+  const createAgent = async () => {
+    if (!agentName.trim()) {
+      alert('Please enter an agent name');
+      return;
+    }
+    setCreatingAgent(true);
+    try {
+      const res = await fetch('/api/agents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: agentName.trim(),
+          company: agentCompany.trim() || null,
+          email: agentEmail.trim() || null,
+          phone: agentPhone.trim() || null,
+        }),
+      });
+      if (res.ok) {
+        const newAgent = await res.json();
+        setLocalAgents(prev => [...prev, newAgent]);
+        setAgentId(newAgent.id);
+        setShowAgentCreate(false);
+        setAgentName(''); setAgentCompany(''); setAgentEmail(''); setAgentPhone('');
+        return newAgent;
+      } else {
+        throw new Error('Failed to create agent');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Could not create agent. Please try again.');
+      return null;
+    } finally {
+      setCreatingAgent(false);
     }
   };
 
@@ -526,7 +566,7 @@ export default function RateCalculator({
 
   const selectedTour = tours.find((t) => t.id === tourId);
   const selectedClientObj = localClients.find((c) => c.id === clientId);
-  const selectedAgent = agents.find((a) => a.id === agentId);
+  const selectedAgent = localAgents.find((a) => a.id === agentId);
   const selectedBooking = localBookings.find((b) => b.id === bookingId);
 
   function buildPayload() {
@@ -658,8 +698,95 @@ export default function RateCalculator({
   const goPrev = () => { if (currentIndex > 0) loadCostSheet(costSheetsList[currentIndex - 1].id); };
   const goNext = () => { if (currentIndex < costSheetsList.length - 1) loadCostSheet(costSheetsList[currentIndex + 1].id); };
 
+  // Agent creation popup (used in both creation & editing flows)
+  const AgentCreatePopup = () => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={() => setShowAgentCreate(false)}
+      />
+      <div className="relative z-10 bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-gray-800">Create New Agent</h3>
+          <button
+            type="button"
+            onClick={() => setShowAgentCreate(false)}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="label text-xs block mb-1">Agent Name *</label>
+            <input
+              type="text"
+              value={agentName}
+              onChange={e => setAgentName(e.target.value)}
+              placeholder="e.g. Safaris Kenya Ltd"
+              className="input w-full"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="label text-xs block mb-1">Company</label>
+            <input
+              type="text"
+              value={agentCompany}
+              onChange={e => setAgentCompany(e.target.value)}
+              placeholder="Company name"
+              className="input w-full"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label text-xs block mb-1">Email</label>
+              <input
+                type="email"
+                value={agentEmail}
+                onChange={e => setAgentEmail(e.target.value)}
+                placeholder="email@example.com"
+                className="input w-full"
+              />
+            </div>
+            <div>
+              <label className="label text-xs block mb-1">Phone</label>
+              <input
+                type="tel"
+                value={agentPhone}
+                onChange={e => setAgentPhone(e.target.value)}
+                placeholder="+254 700 000000"
+                className="input w-full"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3 justify-end pt-4">
+          <button
+            type="button"
+            onClick={() => setShowAgentCreate(false)}
+            className="btn-secondary text-sm px-4"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={createAgent}
+            disabled={creatingAgent}
+            className="btn-primary text-sm px-4"
+          >
+            {creatingAgent ? 'Creating…' : 'Create Agent'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-5">
+      {showAgentCreate && AgentCreatePopup()}
       <div className="card bg-gradient-to-br from-orange-50 to-amber-50 border-orange-200">
         <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
           <h2 className="font-bold text-gray-800 text-lg">💰 Cost Calculator (Excel‑style)</h2>
@@ -741,12 +868,21 @@ export default function RateCalculator({
             </div>
             <div>
               <label className="label text-xs">Agent</label>
-              <select className="input text-sm" value={agentId} onChange={e => setAgentId(e.target.value)}>
-                <option value="">— No agent —</option>
-                {agents.map(a => <option key={a.id} value={a.id}>{a.name}{a.company ? ` (${a.company})` : ''}</option>)}
-              </select>
-            </div>
-            <div>
+              <div className="flex items-end gap-2">
+                <select className="input text-sm flex-1" value={agentId} onChange={e => setAgentId(e.target.value)}>
+                  <option value="">— No agent —</option>
+                  {agents.map(a => <option key={a.id} value={a.id}>{a.name}{a.company ? ` (${a.company})` : ''}</option>)}
+                  <option value="__create__">+ Create new agent…</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => { setShowAgentCreate(true); setAgentId(''); }}
+                  className="text-xs text-orange-500 hover:underline px-2"
+                  title="Create new agent"
+                >
+                  +
+                </button>
+              </div>            <div>
               <label className="label text-xs">Booking (optional)</label>
               <select className="input text-sm" value={bookingId} onChange={e => setBookingId(e.target.value)}>
                 <option value="">— Standalone —</option>
@@ -965,7 +1101,7 @@ export default function RateCalculator({
           </div>
         </div>
 
-        {/* Extras sections (unchanged) */}
+        {/* Extras sections */}
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
           <div><label className="label">File Handling Fees ({currency}) – total</label><input type="number" min={0} value={fileHandling||''} onChange={e => setFileHandling(Number(e.target.value))} className="input font-mono" placeholder="0" /></div>
           <div><label className="label">Eco Bottle + Water ({currency}) – total</label><input type="number" min={0} value={ecoBottle||''} onChange={e => setEcoBottle(Number(e.target.value))} className="input font-mono" placeholder="0" /></div>
