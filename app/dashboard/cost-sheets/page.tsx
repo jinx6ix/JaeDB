@@ -196,7 +196,7 @@ export default function CostSheetsPage() {
                   {s.client ? (
                     <Link href={`/dashboard/clients/${s.client.id}`} className="text-orange-500 hover:underline">{s.client.name}</Link>
                   ) : <span className="text-gray-400">—</span>}
-                  {s.agent && <p className="text-gray-400 text-xs">{s.agent.name}</p>}
+                  {s.agent && <Link href={`/dashboard/agents/${s.agent.id}/edit`} className="text-orange-500 hover:underline text-xs">{s.agent.name}</Link>}
                 </td>
                 <td className="px-4 py-3 text-xs">
                   {s.booking ? (

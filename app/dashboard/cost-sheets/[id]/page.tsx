@@ -337,7 +337,11 @@ export default function CostSheetDetailPage() {
                 <option key={a.id} value={a.id}>{a.name}{a.company ? ` (${a.company})` : ''}</option>
               ))}
             </select>
-          ) : <p className="text-gray-800">{agentName || sheet.agent?.name || '—'}</p>}</div>
+          ) : sheet.agentId ? (
+            <Link href={`/dashboard/agents/${sheet.agentId}/edit`} className="text-orange-500 hover:underline">{agentName || sheet.agent?.name || 'Agent'}</Link>
+          ) : (
+            <p className="text-gray-800">—</p>
+          )}</div>
         </div>
 
         <div className="border-t pt-4"><p className="text-xs font-bold text-gray-500 uppercase mb-3">Tour Details</p>
