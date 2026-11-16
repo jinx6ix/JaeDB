@@ -650,8 +650,8 @@ export default function NewItineraryPage() {
                 className="input w-full text-sm"
                 value={included}
                 onChange={e => setIncluded(e.target.value)}
-                rows={3}
-                placeholder="e.g. Accommodation, park fees, transport, meals…"
+                rows={4}
+                placeholder="One item per line:\nAccommodation\nPark fees\nTransport\nMeals"
               />
             </div>
             <div>
@@ -660,8 +660,8 @@ export default function NewItineraryPage() {
                 className="input w-full text-sm"
                 value={excluded}
                 onChange={e => setExcluded(e.target.value)}
-                rows={3}
-                placeholder="e.g. International flights, visas, tips…"
+                rows={4}
+                placeholder="One item per line:\nInternational flights\nVisas\nTips"
               />
             </div>
           </div>

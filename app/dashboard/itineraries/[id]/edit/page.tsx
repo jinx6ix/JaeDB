@@ -666,8 +666,8 @@ export default function EditItineraryPage() {
                 className="input w-full text-sm"
                 value={itinerary.included || ''}
                 onChange={e => setItinerary((p: any) => ({ ...p, included: e.target.value }))}
-                rows={3}
-                placeholder="e.g. Accommodation, park fees, transport, meals…"
+                rows={4}
+                placeholder="One item per line:\nAccommodation\nPark fees\nTransport\nMeals"
               />
             </div>
             <div>
@@ -676,8 +676,8 @@ export default function EditItineraryPage() {
                 className="input w-full text-sm"
                 value={itinerary.excluded || ''}
                 onChange={e => setItinerary((p: any) => ({ ...p, excluded: e.target.value }))}
-                rows={3}
-                placeholder="e.g. International flights, visas, tips…"
+                rows={4}
+                placeholder="One item per line:\nInternational flights\nVisas\nTips"
               />
             </div>
           </div>

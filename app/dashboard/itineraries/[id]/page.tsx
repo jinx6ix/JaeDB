@@ -389,13 +389,21 @@ export default async function ItineraryDetailPage({ params }: { params: Promise<
               {itinerary.included && (
                 <div className="bg-green-50 border border-green-100 rounded-lg p-4">
                   <p className="font-bold text-green-800 text-sm mb-3">✓ Included</p>
-                  <p className="text-gray-700 text-sm">{itinerary.included}</p>
+                  <ul className="list-disc list-inside text-gray-700 text-sm space-y-1">
+                    {String(itinerary.included).split('\n').filter(Boolean).map((item, idx) => (
+                      <li key={`inc-${idx}`}>{item.trim()}</li>
+                    ))}
+                  </ul>
                 </div>
               )}
               {itinerary.excluded && (
                 <div className="bg-red-50 border border-red-100 rounded-lg p-4">
                   <p className="font-bold text-red-800 text-sm mb-3">✗ Excluded</p>
-                  <p className="text-gray-700 text-sm">{itinerary.excluded}</p>
+                  <ul className="list-disc list-inside text-gray-700 text-sm space-y-1">
+                    {String(itinerary.excluded).split('\n').filter(Boolean).map((item, idx) => (
+                      <li key={`exc-${idx}`}>{item.trim()}</li>
+                    ))}
+                  </ul>
                 </div>
               )}
             </div>
