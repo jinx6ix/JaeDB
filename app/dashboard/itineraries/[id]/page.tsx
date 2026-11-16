@@ -402,16 +402,17 @@ export default async function ItineraryDetailPage({ params }: { params: Promise<
           </div>
         )}
 
-        {/* Costing by Pax */}
+        {/* Costing by Pax */ }
         {(function() {
-          const opts: any[] = [];
-          if (!itinerary.costingOptions) return false;
-          if (typeof itinerary.costingOptions === 'string') {
-            try { opts.push(...JSON.parse(itinerary.costingOptions)); } catch { return false; }
-          } else if (Array.isArray(itinerary.costingOptions)) {
-            opts.push(...itinerary.costingOptions);
+          const raw = itinerary.costingOptions;
+          if (!raw) return false;
+          let arr: any[] = [];
+          if (typeof raw === 'string') {
+            try { arr = JSON.parse(raw); } catch { return false; }
+          } else if (Array.isArray(raw)) {
+            arr = raw;
           }
-          return opts.length > 0;
+          return arr.length > 0;
         })() && (
           <div className="px-8 py-6 border-b border-gray-100">
             <h3 className="font-bold text-gray-800 text-lg mb-4">Costing by Pax</h3>
