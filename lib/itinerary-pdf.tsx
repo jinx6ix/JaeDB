@@ -203,13 +203,14 @@ export function estimateCoverHeight(itinerary: any, costSheet: any): number {
   return h + COVER.pageNum + COVER.buffer;
 }
 
-export function estimateCostPageHeight(costSheet: any): number {
+export function estimateCostPageHeight(costSheet: any, itinerary: any): number {
   const costItems = safeParseJson(costSheet?.items || costSheet?.lineItems);
   const optionalExtras = safeParseJson(costSheet?.optionalExtras || costSheet?.options);
   let h = COVER.costSectionBase;
   if (costItems.length > 0) h += COVER.costTableHeaderH + costItems.length * COVER.costRowH + COVER.costTotalH;
   if (costSheet.paymentInstructions) h += COVER.paymentBoxH;
   if (optionalExtras.length > 0) h += COVER.optionalSectionH + optionalExtras.length * COVER.optionalRowH;
+  if ((itinerary?.included || itinerary?.excluded || costSheet?.included || costSheet?.excluded)) h += COVER.includedExcludedH;
   h += COVER.pageNum + COVER.buffer;
   return h;
 }
@@ -253,7 +254,7 @@ export function ItineraryPDF({ itinerary, costSheet, imagesByDay, counties, hote
   const optionalExtras = safeParseJson(costSheet?.optionalExtras || costSheet?.options);
   const totalAmount = costSheet?.total || 0;
   const coverHeight = estimateCoverHeight(itinerary, costSheet);
-  const costPageHeight = costSheet ? estimateCostPageHeight(costSheet) : 0;
+  const costPageHeight = costSheet ? estimateCostPageHeight(costSheet, itinerary) : 0;
 
   const bookingRef = hasBooking ? b.bookingRef || '-' : '-';
   const numAdults = hasBooking ? b.numAdults : 0;
@@ -348,24 +349,6 @@ export function ItineraryPDF({ itinerary, costSheet, imagesByDay, counties, hote
             React.createElement(Text, { style: [S.tCell, { flex: 2 }] }, mealList || '—'),
           );
         }),
-      ),
-    ),
-    costSheet && React.createElement(View, { style: { marginTop: 12 } },
-      itinerary.included && React.createElement(View, null,
-        React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '✓ Included'),
-        React.createElement(Text, { style: S.sideTxt }, itinerary.included),
-      ),
-      costSheet.included && React.createElement(View, null,
-        React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '✓ Included'),
-        React.createElement(Text, { style: S.sideTxt }, costSheet.included),
-      ),
-      itinerary.excluded && React.createElement(View, { style: { marginTop: 8 } },
-        React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '✗ Excluded'),
-        React.createElement(Text, { style: S.sideTxt }, itinerary.excluded),
-      ),
-      costSheet.excluded && React.createElement(View, { style: { marginTop: 8 } },
-        React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '✗ Excluded'),
-        React.createElement(Text, { style: S.sideTxt }, costSheet.excluded),
       ),
     ),
     React.createElement(Text, { style: S.pageNum, render: ({ pageNumber, totalPages }: any) => `${pageNumber} / ${totalPages}` }),
@@ -496,6 +479,24 @@ export function ItineraryPDF({ itinerary, costSheet, imagesByDay, counties, hote
         React.createElement(View, { style: [S.tRow, { backgroundColor: '#fef3c7' }] },
           React.createElement(Text, { style: [S.tCell, { flex: 5, textAlign: 'right', fontFamily: 'Helvetica-Bold' }] }, 'Total in USD'),
           React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right', fontFamily: 'Helvetica-Bold' }] }, `$${totalAmount.toFixed(2)}`),
+        ),
+      ),
+      React.createElement(View, { style: { marginTop: 12 } },
+        itinerary.included && React.createElement(View, null,
+          React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '✓ Included'),
+          React.createElement(Text, { style: S.sideTxt }, itinerary.included),
+        ),
+        costSheet.included && React.createElement(View, null,
+          React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '✓ Included'),
+          React.createElement(Text, { style: S.sideTxt }, costSheet.included),
+        ),
+        itinerary.excluded && React.createElement(View, { style: { marginTop: 8 } },
+          React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '✗ Excluded'),
+          React.createElement(Text, { style: S.sideTxt }, itinerary.excluded),
+        ),
+        costSheet.excluded && React.createElement(View, { style: { marginTop: 8 } },
+          React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '✗ Excluded'),
+          React.createElement(Text, { style: S.sideTxt }, costSheet.excluded),
         ),
       ),
       costSheet.paymentInstructions && React.createElement(View, { style: S.paymentBox },
