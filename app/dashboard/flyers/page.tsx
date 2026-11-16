@@ -310,13 +310,17 @@ const imageSrc = (img: SavedImage | null | undefined) => {
           logoUrl: state.logoUrl || null,
         }),
       });
-      if (!res.ok) throw new Error('Save failed');
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || `Save failed (${res.status})`);
+      }
       const created = await res.json();
       setSavedFlyers(prev => [created, ...prev]);
       setSaving(false);
       setError('');
     } catch (err: any) {
-      setError(err.message || 'Save failed');
+      const msg = err.message || 'Save failed';
+      setError(msg);
       setSaving(false);
     }
   }, [state]);

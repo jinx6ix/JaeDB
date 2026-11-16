@@ -373,12 +373,12 @@ export type SavedFlyerCreateInput = {
   price?: string | null
   contact?: string | null
   buttonText?: string | null
-  formatId: string
-  templateId: string
-  bgColor: string
-  textColor: string
-  accentColor: string
-  imagePosition: string
+  formatId?: string
+  templateId?: string
+  bgColor?: string
+  textColor?: string
+  accentColor?: string
+  imagePosition?: string
   selectedImage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   logoUrl?: string | null
   createdAt?: Date | string
@@ -393,12 +393,12 @@ export type SavedFlyerUncheckedCreateInput = {
   price?: string | null
   contact?: string | null
   buttonText?: string | null
-  formatId: string
-  templateId: string
-  bgColor: string
-  textColor: string
-  accentColor: string
-  imagePosition: string
+  formatId?: string
+  templateId?: string
+  bgColor?: string
+  textColor?: string
+  accentColor?: string
+  imagePosition?: string
   selectedImage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   logoUrl?: string | null
   createdAt?: Date | string
@@ -453,12 +453,12 @@ export type SavedFlyerCreateManyInput = {
   price?: string | null
   contact?: string | null
   buttonText?: string | null
-  formatId: string
-  templateId: string
-  bgColor: string
-  textColor: string
-  accentColor: string
-  imagePosition: string
+  formatId?: string
+  templateId?: string
+  bgColor?: string
+  textColor?: string
+  accentColor?: string
+  imagePosition?: string
   selectedImage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   logoUrl?: string | null
   createdAt?: Date | string

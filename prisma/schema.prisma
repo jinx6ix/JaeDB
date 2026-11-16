@@ -495,21 +495,21 @@ model ItineraryEmbed {
 }
 
 model SavedFlyer {
-  id          String   @id @default(cuid())
-  title       String?
-  subtitle    String?
-  body        String?
-  price       String?
-  contact     String?
-  buttonText  String?
-  formatId    String
-  templateId  String
-  bgColor     String
-  textColor   String
-  accentColor String
-  imagePosition String
-  selectedImage Json?  // { id, filename, mimeType, data, caption }
-  logoUrl     String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id          String   @id @default(cuid()) @map("id")
+  title       String?  @map("title")
+  subtitle    String?  @map("subtitle")
+  body        String?  @map("body")
+  price       String?  @map("price")
+  contact     String?  @map("contact")
+  buttonText  String?  @map("buttontext")
+  formatId    String   @default("a4") @map("formatid")
+  templateId  String   @default("classic") @map("templateid")
+  bgColor     String   @default("#ffffff") @map("bgcolor")
+  textColor   String   @default("#111827") @map("textcolor")
+  accentColor String   @default("#f97316") @map("accentcolor")
+  imagePosition String @default("top") @map("imageposition")
+  selectedImage Json?  @map("selectedimage")
+  logoUrl     String?  @map("logourl")
+  createdAt   DateTime @default(now()) @map("createdat")
+  updatedAt   DateTime @updatedAt @map("updatedat")
 }
