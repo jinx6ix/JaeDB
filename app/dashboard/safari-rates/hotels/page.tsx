@@ -24,6 +24,10 @@ export default function HotelsPage() {
   const [showRoomForm, setShowRoomForm] = useState<number|null>(null);
   const [roomForm, setRoomForm] = useState({ name: '', maxOccupancy: '2' });
   const [savingRoom, setSavingRoom] = useState(false);
+  // Room type edit state
+  const [editingRoomId, setEditingRoomId] = useState<number|null>(null);
+  const [editingRoomHotelId, setEditingRoomHotelId] = useState<number|null>(null);
+  const [editRoomForm, setEditRoomForm] = useState<{ name: string; maxOccupancy: string } | null>(null);
 
   async function load() {
     try {
@@ -140,6 +144,45 @@ export default function HotelsPage() {
     } finally {
       setSavingRoom(false);
     }
+  }
+
+  function startEditRoom(roomId: number, hotelId: number, name: string, maxOccupancy: number) {
+    setEditingRoomId(roomId);
+    setEditingRoomHotelId(hotelId);
+    setEditRoomForm({ name, maxOccupancy: String(maxOccupancy) });
+  }
+
+  function cancelEditRoom() {
+    setEditingRoomId(null);
+    setEditingRoomHotelId(null);
+    setEditRoomForm(null);
+  }
+
+  async function saveEditRoom(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editRoomForm || editingRoomId === null) return;
+    if (!editRoomForm.name.trim()) { alert('Room type name is required'); return; }
+    setSavingRoom(true);
+    try {
+      const res = await fetch('/api/safari-rates/room-types', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editingRoomId, name: editRoomForm.name.trim(), maxOccupancy: Number(editRoomForm.maxOccupancy) || 2 }),
+      });
+      if (!res.ok) throw new Error('Failed to update room type');
+      cancelEditRoom();
+      if (editingRoomHotelId !== null) await loadRooms(editingRoomHotelId);
+    } catch (err: any) { alert(err.message); }
+    finally { setSavingRoom(false); }
+  }
+
+  async function deleteRoom(roomId: number, hotelId: number) {
+    if (!confirm('Delete this room type?')) return;
+    try {
+      const res = await fetch(`/api/safari-rates/room-types?id=${roomId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete room type');
+      if (hotelId !== undefined) await loadRooms(hotelId);
+    } catch (err: any) { alert(err.message); }
   }
 
   async function toggleHotel(hotelId: number) {
@@ -282,11 +325,26 @@ export default function HotelsPage() {
                       )}
                       {hotelRooms[h.id]?.length > 0 ? (
                         <div className="flex flex-wrap gap-2">
-                          {hotelRooms[h.id].map(r => (
-                            <span key={r.id} className="bg-white border border-orange-200 text-xs text-gray-700 px-3 py-1 rounded-full">
-                              {r.name} <span className="text-gray-400">· max {r.maxOccupancy}</span>
-                            </span>
-                          ))}
+                          {hotelRooms[h.id].map(r => {
+                            const isEditing = editingRoomId === r.id;
+                            if (isEditing) {
+                              return (
+                                <form key={r.id} onSubmit={saveEditRoom} className="flex items-center gap-1">
+                                  <input required className="input text-xs py-1 border-orange-300 focus:border-orange-500" value={editRoomForm?.name || r.name} onChange={e => setEditRoomForm(f => f ? { ...f, name: e.target.value } : null)} />
+                                  <input type="number" min={1} required className="input text-xs py-1 w-16 border-orange-300 focus:border-orange-500" value={editRoomForm?.maxOccupancy || String(r.maxOccupancy)} onChange={e => setEditRoomForm(f => f ? { ...f, maxOccupancy: e.target.value } : null)} />
+                                  <button type="submit" className="text-xs text-green-600 hover:text-green-800 underline px-1">Save</button>
+                                  <button type="button" onClick={cancelEditRoom} className="text-xs text-gray-500 hover:text-gray-800 underline px-1">Cancel</button>
+                                </form>
+                              );
+                            }
+                            return (
+                              <span key={r.id} className="bg-white border border-orange-200 text-xs text-gray-700 px-3 py-1 rounded-full flex items-center gap-1">
+                                {r.name} <span className="text-gray-400">· max {r.maxOccupancy}</span>
+                                <button onClick={() => startEditRoom(r.id, h.id, r.name, r.maxOccupancy)} className="text-orange-500 hover:text-orange-700 p-0.5" title="Edit">✏️</button>
+                                <button onClick={() => deleteRoom(r.id, h.id)} className="text-red-500 hover:text-red-700 p-0.5" title="Delete">🗑️</button>
+                              </span>
+                            );
+                          })}
                         </div>
                       ) : (
                         <p className="text-xs text-gray-400">No room types yet. Add one above.</p>

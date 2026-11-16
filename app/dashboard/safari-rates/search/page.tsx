@@ -74,6 +74,11 @@ export default function SafariRatesSearchPage() {
   const [hotelEditForm, setHotelEditForm] = useState<{ name: string; countyId: string } | null>(null);
   const [savingHotel, setSavingHotel] = useState(false);
 
+  // Room type management (edit/delete) on search page
+  const [editingRoomTypesHotelId, setEditingRoomTypesHotelId] = useState<number|null>(null);
+  const [searchEditRoomId, setSearchEditRoomId] = useState<number|null>(null);
+  const [searchEditRoomForm, setSearchEditRoomForm] = useState<{ name: string; maxOccupancy: string } | null>(null);
+
   // Load counties, hotels, room types, seasons once
   useEffect(() => {
     fetch('/api/safari-rates/counties').then(r => r.json()).then(setCounties).catch(()=>{});
@@ -466,6 +471,51 @@ export default function SafariRatesSearchPage() {
     } catch (err: any) { alert(err.message); }
   }
 
+  function startEditRoomTypes(hotelId: number) {
+    setEditingRoomTypesHotelId(hotelId);
+  }
+
+  function cancelEditRoomTypes() {
+    setEditingRoomTypesHotelId(null);
+    cancelSearchEditRoom();
+  }
+
+  function startSearchEditRoom(roomId: number, name: string, maxOccupancy: number) {
+    setSearchEditRoomId(roomId);
+    setSearchEditRoomForm({ name, maxOccupancy: String(maxOccupancy) });
+  }
+
+  function cancelSearchEditRoom() {
+    setSearchEditRoomId(null);
+    setSearchEditRoomForm(null);
+  }
+
+  async function saveSearchEditRoom(e: React.FormEvent) {
+    e.preventDefault();
+    if (!searchEditRoomForm || searchEditRoomId === null) return;
+    if (!searchEditRoomForm.name.trim()) { alert('Room type name is required'); return; }
+    try {
+      const res = await fetch('/api/safari-rates/room-types', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: searchEditRoomId, name: searchEditRoomForm.name.trim(), maxOccupancy: Number(searchEditRoomForm.maxOccupancy) || 2 }),
+      });
+      if (!res.ok) throw new Error('Failed to update room type');
+      cancelSearchEditRoom();
+      search();
+    } catch (err: any) { alert(err.message); }
+  }
+
+  async function deleteSearchRoom(roomId: number) {
+    if (!confirm('Delete this room type?')) return;
+    try {
+      const res = await fetch(`/api/safari-rates/room-types?id=${roomId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete room type');
+      cancelSearchEditRoom();
+      search();
+    } catch (err: any) { alert(err.message); }
+  }
+
   function cancelHotelEdit() {
     setEditingHotelId(null);
     setHotelEditForm(null);
@@ -603,11 +653,42 @@ export default function SafariRatesSearchPage() {
                       {editingHotelId !== hotel.id && (
                         <>
                           <button onClick={() => startEditHotel(hotel.id, hotel.name, hotel.county.id)} className="text-blue-500 hover:underline text-xs">✏️ Edit Hotel</button>
+                          <button onClick={() => startEditRoomTypes(hotel.id)} className="text-purple-500 hover:text-purple-700 text-xs">🛏️ Room Types</button>
                           <button onClick={() => deleteHotel(hotel.id)} className="text-red-500 hover:text-red-700 text-xs">🗑️</button>
                         </>
                       )}
                     </div>
                   </div>
+                  {editingRoomTypesHotelId === hotel.id && (
+                    <div className="px-5 py-4 border-b border-gray-200 bg-orange-50">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-sm font-semibold text-gray-700">Room Types</p>
+                        <button onClick={cancelEditRoomTypes} className="text-xs text-gray-500 hover:text-gray-800 underline">Done</button>
+                      </div>
+                      {searchEditRoomId !== null && searchEditRoomForm && (
+                        <form onSubmit={saveSearchEditRoom} className="flex gap-2 mb-3 items-end">
+                          <input required className="input text-xs py-1 border-orange-300 focus:border-orange-500" value={searchEditRoomForm.name} onChange={e => setSearchEditRoomForm(f => f ? { ...f, name: e.target.value } : null)} />
+                          <input type="number" min={1} required className="input text-xs py-1 w-20 border-orange-300 focus:border-orange-500" value={searchEditRoomForm.maxOccupancy} onChange={e => setSearchEditRoomForm(f => f ? { ...f, maxOccupancy: e.target.value } : null)} />
+                          <button type="submit" className="text-xs text-green-600 hover:text-green-800 underline px-2">Save</button>
+                          <button type="button" onClick={cancelSearchEditRoom} className="text-xs text-gray-500 hover:text-gray-800 underline px-2">Cancel</button>
+                        </form>
+                      )}
+                      <div className="flex flex-wrap gap-2">
+                        {roomTypes.filter(r => r.hotelId === hotel.id).map(r => {
+                          const isEditing = searchEditRoomId === r.id;
+                          if (isEditing) return null; // handled by the form above
+                          return (
+                            <span key={r.id} className="bg-white border border-orange-200 text-xs text-gray-700 px-3 py-1 rounded-full flex items-center gap-1">
+                              {r.name} <span className="text-gray-400">· max {r.maxOccupancy}</span>
+                              <button onClick={() => startSearchEditRoom(r.id, r.name, r.maxOccupancy)} className="text-orange-500 hover:text-orange-700 p-0.5" title="Edit">✏️</button>
+                              <button onClick={() => deleteSearchRoom(r.id)} className="text-red-500 hover:text-red-700 p-0.5" title="Delete">🗑️</button>
+                            </span>
+                          );
+                        })}
+                        {roomTypes.filter(r => r.hotelId === hotel.id).length === 0 && <p className="text-xs text-gray-400">No room types yet.</p>}
+                      </div>
+                    </div>
+                  )}
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 border-b border-gray-100">
                       <tr>
