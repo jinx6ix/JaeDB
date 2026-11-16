@@ -187,7 +187,15 @@ export default function EditItineraryPage() {
 
   useEffect(() => {
     initializeCostingOptions();
-  }, [itinerary]);
+    // Recalculate per-pax costing when a different cost sheet is linked
+    if (itinerary?.costSheetId) {
+      const sheet = costSheets.find((s: any) => s.id === itinerary.costSheetId);
+      if (sheet) {
+        const calculated = calculateCostingFromSheet(sheet);
+        setCostingOptions(calculated);
+      }
+    }
+  }, [itinerary, costSheets]);
 
   // Compute previews for existing days on mount once destinations/hotels load
   useEffect(() => {
@@ -349,17 +357,6 @@ export default function EditItineraryPage() {
     const defaults = PAX_CHOICES.map(pax => ({ pax, grandtotal: 0 }));
     setCostingOptions(defaults);
   }
-
-  // Recalculate per-pax costing when a different cost sheet is linked
-  useEffect(() => {
-    if (itinerary?.costSheetId) {
-      const sheet = costSheets.find((s: any) => s.id === itinerary.costSheetId);
-      if (sheet) {
-        const calculated = calculateCostingFromSheet(sheet);
-        setCostingOptions(calculated);
-      }
-    }
-  }, [itinerary?.costSheetId, costSheets]);
 
   function updateCosting(pax: number, grandtotal: number) {
     setCostingOptions(prev => {
