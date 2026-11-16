@@ -184,7 +184,8 @@ const COVER = {
   header: 92, hero: 60, letterSection: 160, tableSection: 56, tableRowH: 24,
   costSectionBase: 60, costTableHeaderH: 28, costRowH: 20, costTotalH: 20,
   paymentBoxH: 56, optionalSectionH: 56, optionalRowH: 20, includedExcludedH: 70,
-  pageNum: 28, buffer: 32,
+  costingSectionH: 100, costingRowH: 20,
+  pageNum: 28, buffer: 40,
 };
 
 const DAY = {
@@ -206,11 +207,17 @@ export function estimateCoverHeight(itinerary: any, costSheet: any): number {
 export function estimateCostPageHeight(costSheet: any, itinerary: any): number {
   const costItems = safeParseJson(costSheet?.items || costSheet?.lineItems);
   const optionalExtras = safeParseJson(costSheet?.optionalExtras || costSheet?.options);
+  const paxOptions = itinerary?.costingOptions
+    ? (typeof itinerary.costingOptions === 'string'
+      ? (() => { try { return JSON.parse(itinerary.costingOptions); } catch { return []; } })()
+      : itinerary.costingOptions)
+    : [];
   let h = COVER.costSectionBase;
   if (costItems.length > 0) h += COVER.costTableHeaderH + costItems.length * COVER.costRowH + COVER.costTotalH;
   if (costSheet.paymentInstructions) h += COVER.paymentBoxH;
   if (optionalExtras.length > 0) h += COVER.optionalSectionH + optionalExtras.length * COVER.optionalRowH;
   if ((itinerary?.included || itinerary?.excluded || costSheet?.included || costSheet?.excluded)) h += COVER.includedExcludedH;
+  if (Array.isArray(paxOptions) && paxOptions.length > 0) h += COVER.costingSectionH + paxOptions.length * COVER.costingRowH;
   h += COVER.pageNum + COVER.buffer;
   return h;
 }
