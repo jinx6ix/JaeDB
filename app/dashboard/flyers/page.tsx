@@ -40,6 +40,9 @@ interface SavedImage {
   data: string;
   caption?: string | null;
   createdAt: string;
+  source?: string;
+  hotelName?: string;
+  dayId?: string | null;
 }
 
 interface FlyerState {
@@ -159,15 +162,45 @@ export default function FlyersPage() {
   const [uploading, setUploading] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Fetch saved images from the image library
+  // Fetch saved images from all sources: itinerary-images, hotels, destinations
   useEffect(() => {
-    fetch('/api/itinerary-images')
-      .then(r => r.json())
-      .then((data: any) => {
-        if (Array.isArray(data)) setImages(data);
+    const fetchImages = async () => {
+      try {
+        // 1. Itinerary images (user uploads)
+        const [itineraryRes, hotelsRes] = await Promise.all([
+          fetch('/api/itinerary-images'),
+          fetch('/api/safari-rates/hotels'),
+        ]);
+        const itineraryImages = await itineraryRes.json();
+        const hotels = await hotelsRes.json();
+
+        // 2. Hotel images flattened from hotel list
+        const hotelImages = (Array.isArray(hotels) ? hotels : [])
+          .flatMap((h: any) => (h.images || []).map((img: any) => ({
+            ...img,
+            source: 'hotel',
+            hotelName: h.name || 'Hotel',
+          })));
+
+        // Normalize itinerary images
+        const normalizedItinerary = (Array.isArray(itineraryImages) ? itineraryImages : []).map((img: any) => ({
+          ...img,
+          source: 'itinerary',
+        }));
+
+        setImages([...normalizedItinerary, ...hotelImages]);
+      } catch (e) {
+        // Fallback: just itinerary images
+        fetch('/api/itinerary-images')
+          .then(r => r.json())
+          .then((data: any) => { if (Array.isArray(data)) setImages(data); })
+          .catch(() => {});
+      } finally {
         setLoading(false);
-      })
-      .catch(() => { setLoading(false); setError('Failed to load image library'); });
+        setError('');
+      }
+    };
+    fetchImages();
   }, []);
 
   // Fetch saved flyers from database
@@ -189,7 +222,12 @@ export default function FlyersPage() {
   const format = FORMATS.find(f => f.id === state.formatId)!;
   const mmToPx = (mm: number) => mm * 3.779528; // 96 DPI
 
-  // Convert uploaded file to JPEG base64
+  // Build a proper data URL from base64 data (handles both prefixed and non-prefixed)
+const imageSrc = (img: SavedImage | null | undefined) => {
+  if (!img || !img.data) return '';
+  const data = img.data.replace(/^data:image\/[^;]+;base64,/, '');
+  return `data:${img.mimeType};base64,${data}`;
+};
   const convertToJpegBase64 = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
       const img = new Image();
@@ -223,7 +261,6 @@ export default function FlyersPage() {
     try {
       const data = await convertToJpegBase64(file);
       const body = {
-        hotelId: null,
         filename: file.name.replace(/\.[^.]+$/, '.jpg'),
         mimeType: 'image/jpeg',
         data,
@@ -299,7 +336,7 @@ export default function FlyersPage() {
   const flyerHtml = useCallback(() => {
     const s = state;
     const imgHtml = s.selectedImage
-      ? `<img src="data:${s.selectedImage.mimeType};base64,${s.selectedImage.data}" style="width:100%;height:100%;object-fit:cover;" />`
+      ? `<img src="${imageSrc(s.selectedImage)}" style="width:100%;height:100%;object-fit:cover;" />`
       : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:14px;">No image selected</div>`;
 
     const detailsRows = [
@@ -389,7 +426,7 @@ export default function FlyersPage() {
                   {state.selectedImage && (
                     <View style={pdfStyles.imgBox}>
                       <PdfImage
-                        src={`data:${state.selectedImage.mimeType};base64,${state.selectedImage.data}`}
+                        src={imageSrc(state.selectedImage)}
                         style={{ width: '100%', height: '100%' }}
                       />
                     </View>
@@ -452,7 +489,7 @@ export default function FlyersPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Left: Controls */}
-        <div className="lg:col-span-4 space-y-4">
+        <div className="lg:col-span-4 space-y-4 overflow-y-auto max-h-[calc(100vh-4rem)] pr-2">
         {/* Direct image upload */}
           <div className="card space-y-3">
             <h2 className="font-semibold text-gray-800 text-sm">Add Image</h2>
@@ -499,7 +536,7 @@ export default function FlyersPage() {
                     className={`relative aspect-square rounded-lg border-2 overflow-hidden cursor-pointer ${state.selectedImage?.id === img.id ? 'border-orange-500 bg-orange-50' : 'border-transparent hover:border-gray-300'}`}
                   >
                     <img
-                      src={`data:${img.mimeType};base64,${img.data}`}
+                      src={imageSrc(img)}
                       alt={img.filename}
                       className="w-full h-full object-cover"
                     />
@@ -517,7 +554,7 @@ export default function FlyersPage() {
                   <button onClick={removeImage} className="text-xs text-orange-500 hover:text-orange-700 underline">Remove</button>
                 </div>
                 <div className="flex items-center gap-2">
-                  <img src={`data:${state.selectedImage.mimeType};base64,${state.selectedImage.data}`} alt={state.selectedImage.filename} className="w-8 h-8 rounded object-cover" />
+                  <img src={imageSrc(state.selectedImage)} alt={state.selectedImage.filename} className="w-8 h-8 rounded object-cover" />
                   <span className="text-xs text-gray-600 truncate max-w-[120px]">{state.selectedImage.filename}</span>
                 </div>
               </div>
@@ -714,7 +751,7 @@ export default function FlyersPage() {
                     <div key={f.id} className="border border-gray-200 rounded-lg p-3 bg-white">
                       <div className="relative h-32 mb-2 rounded overflow-hidden bg-gray-100 flex items-center justify-center">
                         {f.selectedImage ? (
-                          <img src={`data:${f.selectedImage.mimeType};base64,${f.selectedImage.data}`} alt="flyer" className="w-full h-full object-cover" />
+                          <img src={imageSrc(f.selectedImage)} alt="flyer" className="w-full h-full object-cover" />
                         ) : (
                           <div className="text-[10px] text-gray-400">No Image</div>
                         )}
@@ -731,7 +768,7 @@ export default function FlyersPage() {
                                 {f.selectedImage && (
                                   <View style={pdfStyles.imgBox}>
                                     <PdfImage
-                                      src={`data:${f.selectedImage.mimeType};base64,${f.selectedImage.data}`}
+                                      src={imageSrc(f.selectedImage)}
                                       style={{ width: '100%', height: '100%' }}
                                     />
                                   </View>
