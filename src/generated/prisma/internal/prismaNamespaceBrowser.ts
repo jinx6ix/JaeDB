@@ -291,6 +291,8 @@ export const ItineraryScalarFieldEnum = {
   costSheetId: 'costSheetId',
   title: 'title',
   costingOptions: 'costingOptions',
+  included: 'included',
+  excluded: 'excluded',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

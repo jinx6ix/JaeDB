@@ -199,6 +199,8 @@ model Itinerary {
   costSheetId    String?        // explicit link to the costing sheet used for this itinerary
   title          String
   costingOptions String?        // JSON: [{ pax: number, grandtotal: number }, ...]
+  included       String?        // inclusions shown on itinerary view / PDF
+  excluded       String?        // exclusions shown on itinerary view / PDF
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   booking   Booking?       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
