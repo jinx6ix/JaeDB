@@ -410,7 +410,8 @@ export const ModelName = {
   Log: 'Log',
   AgentRun: 'AgentRun',
   AgentMessage: 'AgentMessage',
-  ItineraryEmbed: 'ItineraryEmbed'
+  ItineraryEmbed: 'ItineraryEmbed',
+  SavedFlyer: 'SavedFlyer'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -426,7 +427,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "agent" | "client" | "destination" | "destinationImage" | "tourPackage" | "tourDay" | "rateCard" | "property" | "vehicle" | "booking" | "itinerary" | "itineraryDay" | "itineraryImage" | "voucher" | "invoice" | "costSheet" | "sRCounty" | "sRHotel" | "sRHotelImage" | "sRRoomType" | "sRSeason" | "sRRoomPrice" | "log" | "agentRun" | "agentMessage" | "itineraryEmbed"
+    modelProps: "user" | "agent" | "client" | "destination" | "destinationImage" | "tourPackage" | "tourDay" | "rateCard" | "property" | "vehicle" | "booking" | "itinerary" | "itineraryDay" | "itineraryImage" | "voucher" | "invoice" | "costSheet" | "sRCounty" | "sRHotel" | "sRHotelImage" | "sRRoomType" | "sRSeason" | "sRRoomPrice" | "log" | "agentRun" | "agentMessage" | "itineraryEmbed" | "savedFlyer"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2428,6 +2429,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    SavedFlyer: {
+      payload: Prisma.$SavedFlyerPayload<ExtArgs>
+      fields: Prisma.SavedFlyerFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.SavedFlyerFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SavedFlyerPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.SavedFlyerFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SavedFlyerPayload>
+        }
+        findFirst: {
+          args: Prisma.SavedFlyerFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SavedFlyerPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.SavedFlyerFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SavedFlyerPayload>
+        }
+        findMany: {
+          args: Prisma.SavedFlyerFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SavedFlyerPayload>[]
+        }
+        create: {
+          args: Prisma.SavedFlyerCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SavedFlyerPayload>
+        }
+        createMany: {
+          args: Prisma.SavedFlyerCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.SavedFlyerCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SavedFlyerPayload>[]
+        }
+        delete: {
+          args: Prisma.SavedFlyerDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SavedFlyerPayload>
+        }
+        update: {
+          args: Prisma.SavedFlyerUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SavedFlyerPayload>
+        }
+        deleteMany: {
+          args: Prisma.SavedFlyerDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.SavedFlyerUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.SavedFlyerUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SavedFlyerPayload>[]
+        }
+        upsert: {
+          args: Prisma.SavedFlyerUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SavedFlyerPayload>
+        }
+        aggregate: {
+          args: Prisma.SavedFlyerAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateSavedFlyer>
+        }
+        groupBy: {
+          args: Prisma.SavedFlyerGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SavedFlyerGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.SavedFlyerCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SavedFlyerCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -2948,6 +3023,29 @@ export const ItineraryEmbedScalarFieldEnum = {
 export type ItineraryEmbedScalarFieldEnum = (typeof ItineraryEmbedScalarFieldEnum)[keyof typeof ItineraryEmbedScalarFieldEnum]
 
 
+export const SavedFlyerScalarFieldEnum = {
+  id: 'id',
+  title: 'title',
+  subtitle: 'subtitle',
+  body: 'body',
+  price: 'price',
+  contact: 'contact',
+  buttonText: 'buttonText',
+  formatId: 'formatId',
+  templateId: 'templateId',
+  bgColor: 'bgColor',
+  textColor: 'textColor',
+  accentColor: 'accentColor',
+  imagePosition: 'imagePosition',
+  selectedImage: 'selectedImage',
+  logoUrl: 'logoUrl',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type SavedFlyerScalarFieldEnum = (typeof SavedFlyerScalarFieldEnum)[keyof typeof SavedFlyerScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -3208,6 +3306,7 @@ export type GlobalOmitConfig = {
   agentRun?: Prisma.AgentRunOmit
   agentMessage?: Prisma.AgentMessageOmit
   itineraryEmbed?: Prisma.ItineraryEmbedOmit
+  savedFlyer?: Prisma.SavedFlyerOmit
 }
 
 /* Types for Logging */

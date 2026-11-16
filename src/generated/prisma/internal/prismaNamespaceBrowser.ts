@@ -77,7 +77,8 @@ export const ModelName = {
   Log: 'Log',
   AgentRun: 'AgentRun',
   AgentMessage: 'AgentMessage',
-  ItineraryEmbed: 'ItineraryEmbed'
+  ItineraryEmbed: 'ItineraryEmbed',
+  SavedFlyer: 'SavedFlyer'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -575,6 +576,29 @@ export const ItineraryEmbedScalarFieldEnum = {
 } as const
 
 export type ItineraryEmbedScalarFieldEnum = (typeof ItineraryEmbedScalarFieldEnum)[keyof typeof ItineraryEmbedScalarFieldEnum]
+
+
+export const SavedFlyerScalarFieldEnum = {
+  id: 'id',
+  title: 'title',
+  subtitle: 'subtitle',
+  body: 'body',
+  price: 'price',
+  contact: 'contact',
+  buttonText: 'buttonText',
+  formatId: 'formatId',
+  templateId: 'templateId',
+  bgColor: 'bgColor',
+  textColor: 'textColor',
+  accentColor: 'accentColor',
+  imagePosition: 'imagePosition',
+  selectedImage: 'selectedImage',
+  logoUrl: 'logoUrl',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type SavedFlyerScalarFieldEnum = (typeof SavedFlyerScalarFieldEnum)[keyof typeof SavedFlyerScalarFieldEnum]
 
 
 export const SortOrder = {

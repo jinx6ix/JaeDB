@@ -493,3 +493,23 @@ model ItineraryEmbed {
 
   @@index([token])
 }
+
+model SavedFlyer {
+  id          String   @id @default(cuid())
+  title       String?
+  subtitle    String?
+  body        String?
+  price       String?
+  contact     String?
+  buttonText  String?
+  formatId    String
+  templateId  String
+  bgColor     String
+  textColor   String
+  accentColor String
+  imagePosition String
+  selectedImage Json?  // { id, filename, mimeType, data, caption }
+  logoUrl     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

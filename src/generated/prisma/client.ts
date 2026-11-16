@@ -176,3 +176,8 @@ export type AgentMessage = Prisma.AgentMessageModel
  * 
  */
 export type ItineraryEmbed = Prisma.ItineraryEmbedModel
+/**
+ * Model SavedFlyer
+ * 
+ */
+export type SavedFlyer = Prisma.SavedFlyerModel
