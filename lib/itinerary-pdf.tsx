@@ -195,18 +195,23 @@ const DAY = {
 };
 
 export function estimateCoverHeight(itinerary: any, costSheet: any): number {
-  const costItems = safeParseJson(costSheet?.items || costSheet?.lineItems);
-  const optionalExtras = safeParseJson(costSheet?.optionalExtras || costSheet?.options);
   let h = COVER.header + COVER.hero + COVER.letterSection;
   h += COVER.tableSection + itinerary.days.length * COVER.tableRowH;
   if (costSheet) {
-    h += COVER.costSectionBase;
-    if (costItems.length > 0) h += COVER.costTableHeaderH + costItems.length * COVER.costRowH + COVER.costTotalH;
-    if (costSheet.paymentInstructions) h += COVER.paymentBoxH;
-    if (optionalExtras.length > 0) h += COVER.optionalSectionH + optionalExtras.length * COVER.optionalRowH;
     if (costSheet.included || costSheet.excluded) h += COVER.includedExcludedH;
   }
   return h + COVER.pageNum + COVER.buffer;
+}
+
+export function estimateCostPageHeight(costSheet: any): number {
+  const costItems = safeParseJson(costSheet?.items || costSheet?.lineItems);
+  const optionalExtras = safeParseJson(costSheet?.optionalExtras || costSheet?.options);
+  let h = COVER.costSectionBase;
+  if (costItems.length > 0) h += COVER.costTableHeaderH + costItems.length * COVER.costRowH + COVER.costTotalH;
+  if (costSheet.paymentInstructions) h += COVER.paymentBoxH;
+  if (optionalExtras.length > 0) h += COVER.optionalSectionH + optionalExtras.length * COVER.optionalRowH;
+  h += COVER.pageNum + COVER.buffer;
+  return h;
 }
 
 export function estimateDayHeight(day: any, destImgs: any[], hotelImgs: any[], dayImgs: any[]): number {
@@ -248,6 +253,7 @@ export function ItineraryPDF({ itinerary, costSheet, imagesByDay, counties, hote
   const optionalExtras = safeParseJson(costSheet?.optionalExtras || costSheet?.options);
   const totalAmount = costSheet?.total || 0;
   const coverHeight = estimateCoverHeight(itinerary, costSheet);
+  const costPageHeight = costSheet ? estimateCostPageHeight(costSheet) : 0;
 
   const bookingRef = hasBooking ? b.bookingRef || '-' : '-';
   const numAdults = hasBooking ? b.numAdults : 0;
@@ -344,78 +350,22 @@ export function ItineraryPDF({ itinerary, costSheet, imagesByDay, counties, hote
         }),
       ),
     ),
-    costSheet && React.createElement(View, { style: S.section },
-      React.createElement(Text, { style: S.sectionTitle }, 'Breakdown of Costs'),
-      costItems.length > 0 && React.createElement(View, { style: S.costTable },
-        React.createElement(View, { style: S.tHead },
-          React.createElement(Text, { style: [S.tCellHd, { flex: 2 }] }, 'Item'),
-          React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Qty'),
-          React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Unit Price'),
-          React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Total'),
-        ),
-        ...costItems.map((item: any, idx: number) =>
-          React.createElement(View, { style: S.tRow, key: idx },
-            React.createElement(Text, { style: [S.tCell, { flex: 2 }] }, item.description || item.name),
-            React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right' }] }, item.quantity || ''),
-            React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right' }] }, `$${(item.unitPrice || 0).toFixed(2)}`),
-            React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right', fontFamily: 'Helvetica-Bold' }] }, `$${(item.total || 0).toFixed(2)}`),
-          ),
-        ),
-        React.createElement(View, { style: [S.tRow, { backgroundColor: '#fef3c7' }] },
-          React.createElement(Text, { style: [S.tCell, { flex: 5, textAlign: 'right', fontFamily: 'Helvetica-Bold' }] }, 'Total in USD'),
-          React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right', fontFamily: 'Helvetica-Bold' }] }, `$${totalAmount.toFixed(2)}`),
-        ),
+    costSheet && React.createElement(View, { style: { marginTop: 12 } },
+      itinerary.included && React.createElement(View, null,
+        React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '✓ Included'),
+        React.createElement(Text, { style: S.sideTxt }, itinerary.included),
       ),
-      costSheet.paymentInstructions && React.createElement(View, { style: S.paymentBox },
-        React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '💳 Payment Details'),
-        React.createElement(Text, { style: S.sideTxt }, costSheet.paymentInstructions),
+      costSheet.included && React.createElement(View, null,
+        React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '✓ Included'),
+        React.createElement(Text, { style: S.sideTxt }, costSheet.included),
       ),
-      optionalExtras.length > 0 && React.createElement(View, { style: S.optionalTable },
-        React.createElement(Text, { style: S.sectionTitle }, 'Optional (not included)'),
-        React.createElement(View, { style: S.tHead },
-          React.createElement(Text, { style: [S.tCellHd, { flex: 2 }] }, 'Option'),
-          React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Destination'),
-          React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Price'),
-        ),
-        ...optionalExtras.map((opt: any, idx: number) =>
-          React.createElement(View, { style: S.tRow, key: idx },
-            React.createElement(Text, { style: [S.tCell, { flex: 2 }] }, opt.name),
-            React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right' }] }, opt.destination || ''),
-            React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right' }] }, `$${(opt.price || 0).toFixed(2)}`),
-          ),
-        ),
+      itinerary.excluded && React.createElement(View, { style: { marginTop: 8 } },
+        React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '✗ Excluded'),
+        React.createElement(Text, { style: S.sideTxt }, itinerary.excluded),
       ),
-      (costSheet.included || costSheet.excluded) && React.createElement(View, { style: { marginTop: 12 } },
-        costSheet.included && React.createElement(View, null,
-          React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '✓ Included'),
-          React.createElement(Text, { style: S.sideTxt }, costSheet.included),
-        ),
-        costSheet.excluded && React.createElement(View, { style: { marginTop: 8 } },
-          React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '✗ Excluded'),
-          React.createElement(Text, { style: S.sideTxt }, costSheet.excluded),
-        ),
-      ),
-    ),
-    // Costing by Pax table (Each Person)
-    React.createElement(View, { style: S.section },
-      React.createElement(Text, { style: S.sectionTitle }, 'Costing by Pax (Each Person)'),
-      React.createElement(Text, { style: [S.body, { marginBottom: 6 }] }, 'Total price per traveler count for your group.'),
-      React.createElement(View, { style: S.costTable },
-        React.createElement(View, { style: S.tHead },
-          React.createElement(Text, { style: [S.tCellHd, { flex: 1 }] }, 'Travelers'),
-          React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Grand Total'),
-        ),
-        ...(selectedPaxCostings && selectedPaxCostings.length > 0
-          ? selectedPaxCostings
-          : selectedPaxCosting
-            ? [selectedPaxCosting]
-            : []
-        ).map((opt: any) =>
-          React.createElement(View, { style: S.tRow, key: `cost-opt-${opt.pax}` },
-            React.createElement(Text, { style: [S.tCell, { flex: 1 }] }, `${opt.pax} Person${opt.pax > 1 ? 's' : ''}`),
-            React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right', fontFamily: 'Helvetica-Bold' }] }, `$${(opt.grandtotal || 0).toFixed(2)}`),
-          ),
-        ),
+      costSheet.excluded && React.createElement(View, { style: { marginTop: 8 } },
+        React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '✗ Excluded'),
+        React.createElement(Text, { style: S.sideTxt }, costSheet.excluded),
       ),
     ),
     React.createElement(Text, { style: S.pageNum, render: ({ pageNumber, totalPages }: any) => `${pageNumber} / ${totalPages}` }),
@@ -525,5 +475,76 @@ export function ItineraryPDF({ itinerary, costSheet, imagesByDay, counties, hote
     );
   });
 
-  return React.createElement(Document, { title: itinerary.title }, [firstPage, ...dayPages]);
+  const costPage = costSheet ? React.createElement(Page, { size: [PAGE_WIDTH, costPageHeight], style: S.page, key: 'cost-page' },
+    React.createElement(View, { style: S.section },
+      React.createElement(Text, { style: S.sectionTitle }, 'Breakdown of Costs'),
+      costItems.length > 0 && React.createElement(View, { style: S.costTable },
+        React.createElement(View, { style: S.tHead },
+          React.createElement(Text, { style: [S.tCellHd, { flex: 2 }] }, 'Item'),
+          React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Qty'),
+          React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Unit Price'),
+          React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Total'),
+        ),
+        ...costItems.map((item: any, idx: number) =>
+          React.createElement(View, { style: S.tRow, key: idx },
+            React.createElement(Text, { style: [S.tCell, { flex: 2 }] }, item.description || item.name),
+            React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right' }] }, item.quantity || ''),
+            React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right' }] }, `$${(item.unitPrice || 0).toFixed(2)}`),
+            React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right', fontFamily: 'Helvetica-Bold' }] }, `$${(item.total || 0).toFixed(2)}`),
+          ),
+        ),
+        React.createElement(View, { style: [S.tRow, { backgroundColor: '#fef3c7' }] },
+          React.createElement(Text, { style: [S.tCell, { flex: 5, textAlign: 'right', fontFamily: 'Helvetica-Bold' }] }, 'Total in USD'),
+          React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right', fontFamily: 'Helvetica-Bold' }] }, `$${totalAmount.toFixed(2)}`),
+        ),
+      ),
+      costSheet.paymentInstructions && React.createElement(View, { style: S.paymentBox },
+        React.createElement(Text, { style: [S.sideLabel, { marginBottom: 4 }] }, '💳 Payment Details'),
+        React.createElement(Text, { style: S.sideTxt }, costSheet.paymentInstructions),
+      ),
+      optionalExtras.length > 0 && React.createElement(View, { style: S.optionalTable },
+        React.createElement(Text, { style: S.sectionTitle }, 'Optional (not included)'),
+        React.createElement(View, { style: S.tHead },
+          React.createElement(Text, { style: [S.tCellHd, { flex: 2 }] }, 'Option'),
+          React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Destination'),
+          React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Price'),
+        ),
+        ...optionalExtras.map((opt: any, idx: number) =>
+          React.createElement(View, { style: S.tRow, key: idx },
+            React.createElement(Text, { style: [S.tCell, { flex: 2 }] }, opt.name),
+            React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right' }] }, opt.destination || ''),
+            React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right' }] }, `$${(opt.price || 0).toFixed(2)}`),
+          ),
+        ),
+      ),
+    ),
+    // Costing by Pax table (Each Person)
+    React.createElement(View, { style: S.section },
+      React.createElement(Text, { style: S.sectionTitle }, 'Costing by Pax (Each Person)'),
+      React.createElement(Text, { style: [S.body, { marginBottom: 6 }] }, 'Per-person rate from your cost sheet, multiplied by traveler count.'),
+      React.createElement(View, { style: S.costTable },
+        React.createElement(View, { style: S.tHead },
+          React.createElement(Text, { style: [S.tCellHd, { flex: 1 }] }, 'Pax'),
+          React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Based On Pax'),
+          React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Total Cost'),
+        ),
+        ...(selectedPaxCostings && selectedPaxCostings.length > 0
+          ? selectedPaxCostings
+          : selectedPaxCosting
+            ? [selectedPaxCosting]
+            : []
+        ).map((opt: any) => {
+          const totalCost = opt.pax * (opt.grandtotal || 0);
+          return React.createElement(View, { style: S.tRow, key: `cost-opt-${opt.pax}` },
+            React.createElement(Text, { style: [S.tCell, { flex: 1 }] }, `${opt.pax}`),
+            React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right', fontFamily: 'Helvetica-Bold' }] }, `$${(opt.grandtotal || 0).toFixed(2)}`),
+            React.createElement(Text, { style: [S.tCell, { flex: 1, textAlign: 'right', fontFamily: 'Helvetica-Bold' }] }, `$${totalCost.toFixed(2)}`),
+          );
+        }),
+      ),
+    ),
+    React.createElement(Text, { style: S.pageNum, render: ({ pageNumber, totalPages }: any) => `${pageNumber} / ${totalPages}` }),
+  ) : null;
+
+  return React.createElement(Document, { title: itinerary.title }, costSheet ? [firstPage, costPage, ...dayPages] : [firstPage, ...dayPages]);
 }

@@ -335,11 +335,31 @@ export default function EditItineraryPage() {
   }
 
   function initializeCostingOptions() {
-    if (costingOptions.length > 0) return;
+    // If itinerary already has costingOptions from DB, use those instead of defaults
+    if (itinerary?.costingOptions) {
+      const parsed = typeof itinerary.costingOptions === 'string'
+        ? (() => { try { return JSON.parse(itinerary.costingOptions); } catch { return []; } })()
+        : itinerary.costingOptions;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        setCostingOptions(parsed);
+        return;
+      }
+    }
     // Default to rows for pax 1..8, empty grandtotal to be filled by user
     const defaults = PAX_CHOICES.map(pax => ({ pax, grandtotal: 0 }));
     setCostingOptions(defaults);
   }
+
+  // Recalculate per-pax costing when a different cost sheet is linked
+  useEffect(() => {
+    if (itinerary?.costSheetId) {
+      const sheet = costSheets.find((s: any) => s.id === itinerary.costSheetId);
+      if (sheet) {
+        const calculated = calculateCostingFromSheet(sheet);
+        setCostingOptions(calculated);
+      }
+    }
+  }, [itinerary?.costSheetId, costSheets]);
 
   function updateCosting(pax: number, grandtotal: number) {
     setCostingOptions(prev => {
@@ -494,6 +514,8 @@ export default function EditItineraryPage() {
         title: itinerary.title,
         costSheetId: itinerary.costSheetId || null,
         costingOptions: JSON.stringify(costingOptions),
+        included: itinerary.included || null,
+        excluded: itinerary.excluded || null,
         days: itinerary.days.map((d: any) => ({
           dayNumber: d.dayNumber,
           date: d.date,
@@ -593,29 +615,38 @@ export default function EditItineraryPage() {
         {/* Per-pax costing options */}
         <div className="card">
           <label className="label">Costing by Pax (Each Person)</label>
-          <p className="text-xs text-gray-500 mb-3">Enter the grand total price for each number of travelers. Select one when downloading the PDF.</p>
-          <div className="grid grid-cols-4 gap-3">
-            {costingOptions.map((opt, idx) => (
-              <div key={`opt-${opt.pax}`} className="flex flex-col items-center gap-1">
-                <label className="text-xs font-medium text-gray-600">{opt.pax} Person{opt.pax > 1 ? 's' : ''}</label>
-                <input
-                  type="number"
-                  value={opt.grandtotal}
-                  onChange={e => updateCosting(opt.pax, Number(e.target.value) || 0)}
-                  className="input text-center text-sm font-bold text-orange-700"
-                  placeholder="0.00"
-                />
-                {costingOptions.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeCosting(opt.pax)}
-                    className="text-xs text-red-500 hover:text-red-700 px-1"
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-            ))}
+          <p className="text-xs text-gray-500 mb-3">Per-person rate from your cost sheet, multiplied by traveler count. Select one when downloading the PDF.</p>
+          <div className="grid grid-cols-3 gap-3">
+            {costingOptions.map((opt, idx) => {
+              const totalCost = opt.pax * (opt.grandtotal || 0);
+              return (
+                <div key={`opt-${opt.pax}`} className="flex flex-col items-center gap-1 p-2 bg-gray-50 rounded border border-gray-200">
+                  <label className="text-xs font-medium text-gray-600">Pax {opt.pax}</label>
+                  <input
+                    type="number"
+                    value={opt.grandtotal}
+                    onChange={e => updateCosting(opt.pax, Number(e.target.value) || 0)}
+                    className="input text-center text-sm font-bold text-orange-700 w-24"
+                    placeholder="0.00"
+                  />
+                  <div className="text-xs text-gray-500 font-mono">
+                    Based on {opt.pax}: ${(opt.grandtotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div className="text-xs font-bold text-green-700 font-mono">
+                    Total: ${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  {costingOptions.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeCosting(opt.pax)}
+                      className="text-xs text-red-500 hover:text-red-700 px-1"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              );
+            })}
             {costingOptions.length < PAX_CHOICES.length && (
               <button
                 type="button"
@@ -628,6 +659,32 @@ export default function EditItineraryPage() {
                 Add pax row
               </button>
             )}
+          </div>
+        </div>
+
+        {/* Inclusions & Exclusions */ }
+        <div className="card">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Included</label>
+              <textarea
+                className="input w-full text-sm"
+                value={itinerary.included || ''}
+                onChange={e => setItinerary((p: any) => ({ ...p, included: e.target.value }))}
+                rows={3}
+                placeholder="e.g. Accommodation, park fees, transport, meals…"
+              />
+            </div>
+            <div>
+              <label className="label">Excluded</label>
+              <textarea
+                className="input w-full text-sm"
+                value={itinerary.excluded || ''}
+                onChange={e => setItinerary((p: any) => ({ ...p, excluded: e.target.value }))}
+                rows={3}
+                placeholder="e.g. International flights, visas, tips…"
+              />
+            </div>
           </div>
         </div>
 

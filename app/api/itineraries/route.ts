@@ -29,6 +29,8 @@ export async function POST(req: NextRequest) {
       data: {
         bookingId: body.bookingId || null,
         title: body.title,
+        included: body.included || null,
+        excluded: body.excluded || null,
         days: {
           create: body.days.map((d: any) => ({
             dayNumber: d.dayNumber,

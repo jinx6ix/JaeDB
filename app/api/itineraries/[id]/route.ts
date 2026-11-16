@@ -57,6 +57,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       const updateData: any = {};
       if (body.bookingId !== undefined) updateData.bookingId = body.bookingId || null;
       if (body.title) updateData.title = body.title;
+      if (body.included !== undefined) updateData.included = body.included || null;
+      if (body.excluded !== undefined) updateData.excluded = body.excluded || null;
       if (body.costingOptions !== undefined) updateData.costingOptions = body.costingOptions;
       if (body.costSheetId !== undefined) updateData.costSheetId = body.costSheetId || null;
 
@@ -102,6 +104,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         where: { id: id },
         data: {
           title: body.title,
+          included: body.included !== undefined ? body.included || null : undefined,
+          excluded: body.excluded !== undefined ? body.excluded || null : undefined,
           costingOptions: body.costingOptions !== undefined ? body.costingOptions : undefined,
           costSheetId: body.costSheetId !== undefined ? body.costSheetId || null : undefined,
           bookingId: body.bookingId !== undefined ? body.bookingId || null : undefined,

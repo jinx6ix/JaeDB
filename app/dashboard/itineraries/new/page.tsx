@@ -54,6 +54,25 @@ interface ItineraryImage {
   dayId?: string | null;
 }
 
+interface CostSheet {
+  id: string;
+  tourTitle: string;
+  bookingRef?: string | null;
+  days?: number;
+  currency?: string;
+  numAdults?: number;
+  markupPercent?: number;
+  dayRows?: string | any[];
+  extras?: string | any[];
+  fileHandlingFee?: number;
+  ecoBottle?: number;
+  evacInsurance?: number;
+  arrivalTransfer?: number;
+  departureTransfer?: number;
+  maasaiVillage?: boolean;
+  maasaiCost?: number;
+}
+
 interface DayData {
   tempId: string;
   dayNumber: number;
@@ -97,6 +116,93 @@ export default function NewItineraryPage() {
   const [focusedField, setFocusedField] = useState<'dest' | 'acc' | null>(null);
   const dropdownMouseDownRef = useRef(false);
 
+  // Cost sheet selection + per-pax costing
+  const [costSheets, setCostSheets] = useState<CostSheet[]>([]);
+  const [costingOptions, setCostingOptions] = useState<{ pax: number; grandtotal: number }[]>([]);
+  const PAX_CHOICES = [1, 2, 3, 4, 5, 6, 7, 8];
+  const [included, setIncluded] = useState('');
+  const [excluded, setExcluded] = useState('');
+  const [selectedCostSheetId, setSelectedCostSheetId] = useState<string | null>(null);
+
+  // Parse day rows stored on a cost sheet (JSON string or array)
+  function parseDayRows(raw: any): any[] {
+    if (!raw) return [];
+    let parsed = raw;
+    if (typeof parsed === 'string') {
+      try { parsed = JSON.parse(parsed); } catch { return []; }
+    }
+    return Array.isArray(parsed) ? parsed : [];
+  }
+
+  // Parse extras stored on a cost sheet (JSON string or array)
+  function parseExtras(raw: any): any[] {
+    if (!raw) return [];
+    let parsed = raw;
+    if (typeof parsed === 'string') {
+      try { parsed = JSON.parse(parsed); } catch { return []; }
+    }
+    return Array.isArray(parsed) ? parsed : [];
+  }
+
+  // Calculate per-pax grand totals from a cost sheet using the spreadsheet methodology
+  function calculateCostingFromSheet(sheet: any): { pax: number; grandtotal: number }[] {
+    const dayRows = parseDayRows(sheet.dayRows);
+    const extras = parseExtras(sheet.extras);
+
+    const numAdults = Number(sheet.numAdults) || 1;
+    const markupPercent = Number(sheet.markupPercent) || 10;
+
+    const accommodationPpsTotal = dayRows.reduce((sum, row) => sum + (Number(row.adultAccomTotal) || 0), 0);
+    const dailyExtrasTotal = dayRows.reduce((sum, row) => sum + (Number(row.extrasTotal) || 0), 0);
+
+    const srsTotal = numAdults === 1
+      ? dayRows.reduce((sum, row) => sum + (Number(row.singleRoomRate) || 0), 0)
+      : 0;
+
+    let parkGroupTotal = 0;
+    let transportGroupTotal = 0;
+    dayRows.forEach((row: any) => {
+      parkGroupTotal += Number(row.parkFeeAdultTotal || 0) + Number(row.parkFeeChildTotal || 0);
+      transportGroupTotal += Number(row.transportTotal || 0);
+    });
+
+    let extrasTotal =
+      (sheet.fileHandlingFee || 0) +
+      (sheet.ecoBottle || 0) +
+      (sheet.evacInsurance || 0) +
+      (sheet.arrivalTransfer || 0) +
+      (sheet.departureTransfer || 0) +
+      (sheet.maasaiVillage ? (sheet.maasaiCost || 0) : 0);
+    extras.forEach((e: any) => { extrasTotal += Number(e.cost) || 0; });
+
+    return PAX_CHOICES.map((pax) => {
+      const transportPerPax = pax > 0 ? transportGroupTotal / pax : 0;
+      const subtotal = accommodationPpsTotal + parkGroupTotal + transportPerPax + dailyExtrasTotal + extrasTotal + srsTotal;
+      const markupAmount = subtotal * (markupPercent / 100);
+      const grandtotal = subtotal + markupAmount;
+      return { pax, grandtotal };
+    });
+  }
+
+  function initializeCostingOptions() {
+    const defaults = PAX_CHOICES.map(pax => ({ pax, grandtotal: 0 }));
+    setCostingOptions(defaults);
+  }
+
+  function updateCosting(pax: number, grandtotal: number) {
+    setCostingOptions(prev => {
+      const existing = prev.find(o => o.pax === pax);
+      if (existing) {
+        return prev.map(o => o.pax === pax ? { pax, grandtotal } : o);
+      }
+      return [...prev, { pax, grandtotal }].sort((a, b) => a.pax - b.pax);
+    });
+  }
+
+  function removeCosting(pax: number) {
+    setCostingOptions(prev => prev.filter(o => o.pax !== pax));
+  }
+
   useEffect(() => {
     fetch('/api/bookings?withTour=1').then(r => r.json()).then((data: Booking[]) => {
       setBookings(data);
@@ -111,6 +217,13 @@ export default function NewItineraryPage() {
     fetch('/api/safari-rates/hotels').then(r => r.json()).then((data: Hotel[]) => {
       setHotels(Array.isArray(data) ? data : []);
     });
+    fetch('/api/cost-sheets')
+      .then((r) => r.json())
+      .then((data: any) => {
+        const sheets = Array.isArray(data) ? data : data?.sheets || [];
+        setCostSheets(sheets);
+      })
+      .catch(() => setCostSheets([]));
   }, [preBookingId]);
 
   function generateTempId() {
@@ -344,6 +457,10 @@ export default function NewItineraryPage() {
 
     const body = {
       bookingId: selectedBooking?.id || null,
+      costSheetId: selectedCostSheetId,
+      costingOptions: JSON.stringify(costingOptions),
+      included: included || null,
+      excluded: excluded || null,
       title,
       days: days.map(d => ({
         dayNumber: d.dayNumber,
@@ -442,6 +559,114 @@ export default function NewItineraryPage() {
               ✓ Auto-populated {selectedBooking.tourPackage.days.length} days from <strong>{selectedBooking.tourPackage.title}</strong>. You can edit below.
             </div>
           )}
+        </div>
+
+        {/* Cost Sheet selector */}
+        <div className="card">
+          <label className="label">Costing Sheet</label>
+          <select
+            className="input w-full text-sm"
+            value={selectedCostSheetId || ''}
+            onChange={e => {
+              const sheetId = e.target.value || null;
+              setSelectedCostSheetId(sheetId);
+              if (sheetId) {
+                const sheet = costSheets.find((s: any) => s.id === sheetId);
+                if (sheet) {
+                  const calculated = calculateCostingFromSheet(sheet);
+                  setCostingOptions(calculated);
+                }
+              } else {
+                initializeCostingOptions();
+              }
+            }}
+          >
+            <option value="">— No cost sheet (standalone itinerary) —</option>
+            {costSheets.map((sheet: any) => (
+              <option key={sheet.id} value={sheet.id}>
+                {sheet.tourTitle || 'Untitled'} · {sheet.days} day{sheet.days !== 1 ? 's' : ''} · {sheet.booking?.bookingRef || sheet.bookingRef || 'No ref'} · ${sheet.currency || 'USD'}
+              </option>
+            ))}
+          </select>
+          {costSheets.length === 0 && (
+            <p className="text-xs text-gray-400 mt-1">No cost sheets found. Create one first.</p>
+          )}
+        </div>
+
+        {/* Per-pax costing options */}
+        <div className="card">
+          <label className="label">Costing by Pax (Each Person)</label>
+          <p className="text-xs text-gray-500 mb-3">Per-person rate from your cost sheet, multiplied by traveler count. Select one when downloading the PDF.</p>
+          <div className="grid grid-cols-3 gap-3">
+            {costingOptions.map((opt, idx) => {
+              const totalCost = opt.pax * (opt.grandtotal || 0);
+              return (
+                <div key={`opt-${opt.pax}`} className="flex flex-col items-center gap-1 p-2 bg-gray-50 rounded border border-gray-200">
+                  <label className="text-xs font-medium text-gray-600">Pax {opt.pax}</label>
+                  <input
+                    type="number"
+                    value={opt.grandtotal}
+                    onChange={e => updateCosting(opt.pax, Number(e.target.value) || 0)}
+                    className="input text-center text-sm font-bold text-orange-700 w-24"
+                    placeholder="0.00"
+                  />
+                  <div className="text-xs text-gray-500 font-mono">
+                    Based on {opt.pax}: ${(opt.grandtotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div className="text-xs font-bold text-green-700 font-mono">
+                    Total: ${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  {costingOptions.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeCosting(opt.pax)}
+                      className="text-xs text-red-500 hover:text-red-700 px-1"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+            {costingOptions.length < PAX_CHOICES.length && (
+              <button
+                type="button"
+                onClick={() => {
+                  const next = PAX_CHOICES.find(p => !costingOptions.some(o => o.pax === p));
+                  if (next) initializeCostingOptions();
+                }}
+                className="btn-secondary text-xs text-gray-500"
+              >
+                Add pax row
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Inclusions & Exclusions */}
+        <div className="card">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Included</label>
+              <textarea
+                className="input w-full text-sm"
+                value={included}
+                onChange={e => setIncluded(e.target.value)}
+                rows={3}
+                placeholder="e.g. Accommodation, park fees, transport, meals…"
+              />
+            </div>
+            <div>
+              <label className="label">Excluded</label>
+              <textarea
+                className="input w-full text-sm"
+                value={excluded}
+                onChange={e => setExcluded(e.target.value)}
+                rows={3}
+                placeholder="e.g. International flights, visas, tips…"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Days table — click a day row to open its details popup */}
