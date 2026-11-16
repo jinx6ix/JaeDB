@@ -64,8 +64,6 @@ export async function POST(req: NextRequest) {
         totalCost:        Number(body.totalCost),
         perAdultCost:     Number(body.perAdultCost),
         perChildCost:     Number(body.perChildCost) || 0,
-        included:         body.included || null,
-        excluded:         body.excluded || null,
         notes:            body.notes || null,
       },
       include: {

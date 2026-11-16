@@ -65,8 +65,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         totalCost:        Number(body.totalCost),
         perAdultCost:     Number(body.perAdultCost),
         perChildCost:     Number(body.perChildCost) || 0,
-        included:         body.included || null,
-        excluded:         body.excluded || null,
         notes:            body.notes || null,
       },
     });
