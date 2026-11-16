@@ -75,6 +75,14 @@ export default function HotelsPage() {
 
   useEffect(() => { load(); }, []);
 
+  // Preload images for all hotels so card thumbnails show on first render
+  useEffect(() => {
+    if (!hotels.length) return;
+    hotels.forEach(h => {
+      if (!hotelImages[h.id]) loadHotelImages(h.id);
+    });
+  }, [hotels]);
+
   async function loadHotelImages(hotelId: number) {
     try {
       const res = await fetch(`/api/safari-rates/hotels/${hotelId}/images`);
