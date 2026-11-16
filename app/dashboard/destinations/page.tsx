@@ -57,6 +57,14 @@ export default function DestinationsPage() {
 
   useEffect(() => { load(); }, []);
 
+  // Preload images for all destinations so card thumbnails show on first render
+  useEffect(() => {
+    if (!destinations.length) return;
+    destinations.forEach(d => {
+      if (!destImages[d.id]) loadDestImages(d.id);
+    });
+  }, [destinations]);
+
   async function loadDestImages(destId: number) {
     try {
       const res = await fetch(`/api/destinations/${destId}/images`);
