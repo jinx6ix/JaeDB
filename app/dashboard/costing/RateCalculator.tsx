@@ -882,7 +882,9 @@ export default function RateCalculator({
                 >
                   +
                 </button>
-              </div>            <div>
+              </div>
+              </div>
+              <div>
               <label className="label text-xs">Booking (optional)</label>
               <select className="input text-sm" value={bookingId} onChange={e => setBookingId(e.target.value)}>
                 <option value="">— Standalone —</option>
