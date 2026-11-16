@@ -434,7 +434,6 @@ export default function FlyersPage() {
               </Document>
             }
             fileName={`flyer-${state.formatId}.pdf`}
-            loader={() => <div className="text-xs text-orange-600 animate-pulse">Generating PDF…</div>}
           >
             {({ blob, url, loading: isLoading }) => (
               <button
