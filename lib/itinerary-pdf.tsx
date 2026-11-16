@@ -477,7 +477,7 @@ export function ItineraryPDF({ itinerary, costSheet, imagesByDay, counties, hote
 
   const costPage = costSheet ? React.createElement(Page, { size: [PAGE_WIDTH, costPageHeight], style: S.page, key: 'cost-page' },
     React.createElement(View, { style: S.section },
-      React.createElement(Text, { style: S.sectionTitle }, 'Breakdown of Costs'),
+      React.createElement(Text, { style: S.sectionTitle }, 'Cost Breakdown'),
       costItems.length > 0 && React.createElement(View, { style: S.costTable },
         React.createElement(View, { style: S.tHead },
           React.createElement(Text, { style: [S.tCellHd, { flex: 2 }] }, 'Item'),
@@ -520,12 +520,10 @@ export function ItineraryPDF({ itinerary, costSheet, imagesByDay, counties, hote
     ),
     // Costing by Pax table (Each Person)
     React.createElement(View, { style: S.section },
-      React.createElement(Text, { style: S.sectionTitle }, 'Costing by Pax (Each Person)'),
-      React.createElement(Text, { style: [S.body, { marginBottom: 6 }] }, 'Per-person rate from your cost sheet, multiplied by traveler count.'),
       React.createElement(View, { style: S.costTable },
         React.createElement(View, { style: S.tHead },
-          React.createElement(Text, { style: [S.tCellHd, { flex: 1 }] }, 'Pax'),
-          React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Based On Pax'),
+          React.createElement(Text, { style: [S.tCellHd, { flex: 1 }] }, 'No. of pax'),
+          React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Per person sharing rate'),
           React.createElement(Text, { style: [S.tCellHd, { flex: 1, textAlign: 'right' }] }, 'Total Cost'),
         ),
         ...(selectedPaxCostings && selectedPaxCostings.length > 0

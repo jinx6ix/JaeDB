@@ -381,6 +381,74 @@ export default async function ItineraryDetailPage({ params }: { params: Promise<
           );
         })}
 
+        {/* Inclusions & Exclusions */ }
+        {(itinerary.included || itinerary.excluded) && (
+          <div className="px-8 py-6 border-b border-gray-100">
+            <h3 className="font-bold text-gray-800 text-lg mb-4">Inclusions & Exclusions</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {itinerary.included && (
+                <div className="bg-green-50 border border-green-100 rounded-lg p-4">
+                  <p className="font-bold text-green-800 text-sm mb-3">✓ Included</p>
+                  <p className="text-gray-700 text-sm">{itinerary.included}</p>
+                </div>
+              )}
+              {itinerary.excluded && (
+                <div className="bg-red-50 border border-red-100 rounded-lg p-4">
+                  <p className="font-bold text-red-800 text-sm mb-3">✗ Excluded</p>
+                  <p className="text-gray-700 text-sm">{itinerary.excluded}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Costing by Pax */}
+        {(function() {
+          const opts: any[] = [];
+          if (!itinerary.costingOptions) return false;
+          if (typeof itinerary.costingOptions === 'string') {
+            try { opts.push(...JSON.parse(itinerary.costingOptions)); } catch { return false; }
+          } else if (Array.isArray(itinerary.costingOptions)) {
+            opts.push(...itinerary.costingOptions);
+          }
+          return opts.length > 0;
+        })() && (
+          <div className="px-8 py-6 border-b border-gray-100">
+            <h3 className="font-bold text-gray-800 text-lg mb-4">Costing by Pax</h3>
+            <p className="text-xs text-gray-500 mb-4">Per-person rate multiplied by number of travelers.</p>
+            <div className="overflow-hidden rounded-lg border border-gray-200">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="text-left px-4 py-2.5 font-semibold text-gray-700">No. of pax</th>
+                    <th className="text-right px-4 py-2.5 font-semibold text-gray-700">Per person sharing rate</th>
+                    <th className="text-right px-4 py-2.5 font-semibold text-gray-700">Total Cost</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {(function() {
+                    const opts: any[] = [];
+                    if (!itinerary.costingOptions) return [];
+                    if (typeof itinerary.costingOptions === 'string') {
+                      try { return JSON.parse(itinerary.costingOptions); } catch { return []; }
+                    }
+                    return Array.isArray(itinerary.costingOptions) ? itinerary.costingOptions : [];
+                  })().map((opt: any) => {
+                    const totalCost = opt.pax * (opt.grandtotal || 0);
+                    return (
+                      <tr key={opt.pax}>
+                        <td className="px-4 py-3">{opt.pax}</td>
+                        <td className="px-4 py-3 text-right font-mono text-gray-800">${(opt.grandtotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td className="px-4 py-3 text-right font-bold font-mono text-green-700">${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* Footer */}
         <div className="px-8 py-6 bg-gray-50 border-t">
           <div className="flex items-center justify-between text-sm text-gray-500">

@@ -611,14 +611,12 @@ export default function EditItineraryPage() {
 
         {/* Per-pax costing options */}
         <div className="card">
-          <label className="label">Costing by Pax (Each Person)</label>
-          <p className="text-xs text-gray-500 mb-3">Per-person rate from your cost sheet, multiplied by traveler count. Select one when downloading the PDF.</p>
           <div className="grid grid-cols-3 gap-3">
             {costingOptions.map((opt, idx) => {
               const totalCost = opt.pax * (opt.grandtotal || 0);
               return (
                 <div key={`opt-${opt.pax}`} className="flex flex-col items-center gap-1 p-2 bg-gray-50 rounded border border-gray-200">
-                  <label className="text-xs font-medium text-gray-600">Pax {opt.pax}</label>
+                  <label className="text-xs font-medium text-gray-600">No. of pax {opt.pax}</label>
                   <input
                     type="number"
                     value={opt.grandtotal}
@@ -627,7 +625,7 @@ export default function EditItineraryPage() {
                     placeholder="0.00"
                   />
                   <div className="text-xs text-gray-500 font-mono">
-                    Based on {opt.pax}: ${(opt.grandtotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    Per person sharing rate: ${(opt.grandtotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                   <div className="text-xs font-bold text-green-700 font-mono">
                     Total: ${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
