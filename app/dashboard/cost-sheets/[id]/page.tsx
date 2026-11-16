@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -76,6 +76,54 @@ function fmt2(n: number): string {
   return Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+const PAX_CHOICES = [1, 2, 3, 4, 5, 6, 7, 8];
+
+// Compute per-pax "each person" grand totals using the verified spreadsheet
+// methodology: accommodation PPS summed directly (never divided by pax),
+// park fees (group expense), transport group expense divided by pax,
+// per-day extras + fixed extras, SRS (single adult only), then markup.
+// Mirrors calculateCostingFromSheet in the itinerary edit page.
+function computePerPaxCosting(editable: any): { pax: number; grandtotal: number }[] {
+  const dayRows = editable.dayRows || [];
+  const extras = editable.extras || [];
+
+  const numAdults = Number(editable.numAdults) || 1;
+  const markupPercent = Number(editable.markupPercent) || 10;
+
+  // Accommodation PPS is per-person — sum directly, never divide by pax.
+  const accommodationPpsTotal = dayRows.reduce((sum: number, row: any) => sum + (Number(row.adultAccomTotal) || 0), 0);
+  const dailyExtrasTotal = dayRows.reduce((sum: number, row: any) => sum + (Number(row.extrasTotal) || 0), 0);
+
+  // SRS handled separately: only when a single adult travels with a single-room rate.
+  const srsTotal = numAdults === 1
+    ? dayRows.reduce((sum: number, row: any) => sum + (Number(row.singleRoomRate) || 0), 0)
+    : 0;
+
+  let parkGroupTotal = 0;
+  let transportGroupTotal = 0;
+  dayRows.forEach((row: any) => {
+    parkGroupTotal += Number(row.parkFeeAdultTotal || 0) + Number(row.parkFeeChildTotal || 0);
+    transportGroupTotal += Number(row.transportTotal || 0);
+  });
+
+  let extrasTotal =
+    (Number(editable.fileHandlingFee) || 0) +
+    (Number(editable.ecoBottle) || 0) +
+    (Number(editable.evacInsurance) || 0) +
+    (Number(editable.arrivalTransfer) || 0) +
+    (Number(editable.departureTransfer) || 0) +
+    (editable.maasaiVillage ? (Number(editable.maasaiCost) || 0) : 0);
+  extras.forEach((e: any) => { extrasTotal += Number(e.cost || 0); });
+
+  return PAX_CHOICES.map((pax) => {
+    const transportPerPax = pax > 0 ? transportGroupTotal / pax : 0;
+    const subtotal = accommodationPpsTotal + parkGroupTotal + transportPerPax + dailyExtrasTotal + extrasTotal + srsTotal;
+    const markupAmount = subtotal * (markupPercent / 100);
+    const grandtotal = subtotal + markupAmount;
+    return { pax, grandtotal };
+  });
+}
+
 export default function CostSheetDetailPage() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
@@ -111,6 +159,9 @@ export default function CostSheetDetailPage() {
     arrivalTransfer: 0, departureTransfer: 0, extras: [], maasaiVillage: false,
     maasaiCost: 0, notes: '',
   });
+
+  // Per-pax "each person" grand totals derived from the current editable costing data.
+  const perPaxCosting = useMemo(() => computePerPaxCosting(editable), [editable]);
 
   useEffect(() => {
     Promise.all([
@@ -603,6 +654,22 @@ export default function CostSheetDetailPage() {
                 {editable.extras.map((e, i) => <p key={i}>{e.label}: {currentCurrency} {fmt2(e.cost)}</p>)}
               </div>
             )}
+          </div>
+
+          {/* Costing by Pax (Each Person) — grand total per traveler count 1–8 */}
+          <div className="border-t pt-4"><h3 className="text-sm font-bold text-gray-700 mb-3">Costing by Pax (Each Person)</h3>
+            <div className="grid grid-cols-4 gap-3 text-center">
+              {perPaxCosting.map((opt) => {
+                const isCurrent = opt.pax === numPax;
+                return (
+                  <div key={`pax-${opt.pax}`} className={`p-2 rounded-lg border ${isCurrent ? 'bg-orange-50 border-orange-300' : 'bg-gray-50 border-gray-200'}`}>
+                    <div className="text-xs font-medium text-gray-600">{opt.pax} Person{opt.pax > 1 ? 's' : ''}</div>
+                    <div className="font-bold text-sm font-mono text-orange-700">{currentCurrency} {fmt2(opt.grandtotal)}</div>
+                    {isCurrent && <span className="text-[10px] text-orange-600 mt-1 block">current</span>}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           <div className="flex justify-end"><div className="w-80 space-y-2">
