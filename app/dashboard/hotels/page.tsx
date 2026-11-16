@@ -75,12 +75,26 @@ export default function HotelsPage() {
 
   useEffect(() => { load(); }, []);
 
-  // Preload images for all hotels so card thumbnails show on first render
+  // Preload images for all hotels so card thumbnails show on first render.
+  // Batches fetches (4 concurrent, 200ms between batches) so we don't
+  // exhaust the Supabase connection pool with N+1 simultaneous requests.
   useEffect(() => {
     if (!hotels.length) return;
-    hotels.forEach(h => {
-      if (!hotelImages[h.id]) loadHotelImages(h.id);
-    });
+    const concurrency = 4;
+    const delayMs = 200;
+    (async () => {
+      for (let i = 0; i < hotels.length; i += concurrency) {
+        const batch = hotels.slice(i, i + concurrency);
+        await Promise.all(
+          batch.map(h =>
+            hotelImages[h.id] ? Promise.resolve() : loadHotelImages(h.id)
+          )
+        );
+        if (i + concurrency < hotels.length) {
+          await new Promise(r => setTimeout(r, delayMs));
+        }
+      }
+    })();
   }, [hotels]);
 
   async function loadHotelImages(hotelId: number) {

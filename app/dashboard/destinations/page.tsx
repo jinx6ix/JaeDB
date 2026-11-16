@@ -57,12 +57,26 @@ export default function DestinationsPage() {
 
   useEffect(() => { load(); }, []);
 
-  // Preload images for all destinations so card thumbnails show on first render
+  // Preload images for all destinations so card thumbnails show on first render.
+  // Batches fetches (4 concurrent, 200ms between batches) so we don't
+  // exhaust the Supabase connection pool with N+1 simultaneous requests.
   useEffect(() => {
     if (!destinations.length) return;
-    destinations.forEach(d => {
-      if (!destImages[d.id]) loadDestImages(d.id);
-    });
+    const concurrency = 4;
+    const delayMs = 200;
+    (async () => {
+      for (let i = 0; i < destinations.length; i += concurrency) {
+        const batch = destinations.slice(i, i + concurrency);
+        await Promise.all(
+          batch.map(d =>
+            destImages[d.id] ? Promise.resolve() : loadDestImages(d.id)
+          )
+        );
+        if (i + concurrency < destinations.length) {
+          await new Promise(r => setTimeout(r, delayMs));
+        }
+      }
+    })();
   }, [destinations]);
 
   async function loadDestImages(destId: number) {
