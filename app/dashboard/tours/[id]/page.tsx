@@ -40,6 +40,7 @@ export default async function TourDetailPage({ params }: { params: Promise<{ id:
         </div>
         <div className="flex gap-2">
           <Link href={`/dashboard/costing/new?tourId=${tour.id}`} className="btn-secondary">+ Rate Card</Link>
+          <Link href={`/dashboard/tours/${tour.id}/flyer`} className="btn-secondary">Flyer</Link>
           <Link href={`/dashboard/tours/${tour.id}/edit`} className="btn-primary">Edit</Link>
         </div>
       </div>

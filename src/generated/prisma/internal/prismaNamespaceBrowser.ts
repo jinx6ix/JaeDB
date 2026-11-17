@@ -78,7 +78,8 @@ export const ModelName = {
   AgentRun: 'AgentRun',
   AgentMessage: 'AgentMessage',
   ItineraryEmbed: 'ItineraryEmbed',
-  SavedFlyer: 'SavedFlyer'
+  SavedFlyer: 'SavedFlyer',
+  TourImage: 'TourImage'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -180,7 +181,11 @@ export const TourPackageScalarFieldEnum = {
   highlights: 'highlights',
   isActive: 'isActive',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  flyerHeadline1: 'flyerHeadline1',
+  flyerHeadline2: 'flyerHeadline2',
+  flyerSubtitle: 'flyerSubtitle',
+  flyerHighlights: 'flyerHighlights'
 } as const
 
 export type TourPackageScalarFieldEnum = (typeof TourPackageScalarFieldEnum)[keyof typeof TourPackageScalarFieldEnum]
@@ -599,6 +604,20 @@ export const SavedFlyerScalarFieldEnum = {
 } as const
 
 export type SavedFlyerScalarFieldEnum = (typeof SavedFlyerScalarFieldEnum)[keyof typeof SavedFlyerScalarFieldEnum]
+
+
+export const TourImageScalarFieldEnum = {
+  id: 'id',
+  tourPackageId: 'tourPackageId',
+  filename: 'filename',
+  mimeType: 'mimeType',
+  data: 'data',
+  caption: 'caption',
+  isCover: 'isCover',
+  createdAt: 'createdAt'
+} as const
+
+export type TourImageScalarFieldEnum = (typeof TourImageScalarFieldEnum)[keyof typeof TourImageScalarFieldEnum]
 
 
 export const SortOrder = {

@@ -1,13 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import {
-  Eye,
-  Printer,
-  Plus,
-  Save,
-} from 'lucide-react';
+import { Save, Plus } from 'lucide-react';
 import {
   Document,
   Page,
@@ -18,216 +13,189 @@ import {
   PDFDownloadLink,
 } from '@react-pdf/renderer';
 
-const FORMATS: { id: string; label: string; w: number; h: number; ratio: string }[] = [
-  { id: 'a4', label: 'A4 (210×297mm)', w: 210, h: 297, ratio: '1:1.414' },
-  { id: 'letter', label: 'US Letter (8.5×11in)', w: 215.9, h: 279.4, ratio: '1:1.294' },
-  { id: 'square', label: 'Square (1080×1080)', w: 1080, h: 1080, ratio: '1:1' },
-  { id: 'story', label: 'Instagram Story (1080×1920)', w: 1080, h: 1920, ratio: '9:16' },
-  { id: 'facebook', label: 'Facebook Post (1200×630)', w: 1200, h: 630, ratio: '1.9:1' },
-];
+// Design tokens matching lib/tour-flyer-pdf.tsx (Jae_Travel_Tour_Flier.pdf design)
+const GREEN = '#1F3D2B';
+const GOLD = '#E8A33D';
+const SAND = '#F6EBD7';
+const ORANGE = '#D9622B';
+const DARK = '#16241B';
+const BODY = '#4A5A4F';
 
-const TEMPLATES: { id: string; label: string; desc: string }[] = [
-  { id: 'classic', label: 'Classic', desc: 'Image header, title below, details grid' },
-  { id: 'split', label: 'Split', desc: 'Image left, text right (or reverse)' },
-  { id: 'minimal', label: 'Minimal', desc: 'Clean text-focused with small accent image' },
-  { id: 'poster', label: 'Poster', desc: 'Full-bleed image with overlay text' },
-];
+const W = 595.28;
+const H = 841.89;
+const NUM_HIGHLIGHTS = 6;
 
-interface SavedImage {
+interface FlyerImage {
   id: string;
   filename: string;
   mimeType: string;
   data: string;
   caption?: string | null;
   createdAt: string;
-  source?: string;
-  hotelName?: string;
-  dayId?: string | null;
+}
+
+interface Highlight {
+  title: string;
+  description: string;
 }
 
 interface FlyerState {
-  formatId: string;
-  templateId: string;
-  bgColor: string;
-  textColor: string;
-  accentColor: string;
-  title: string;
+  headline1: string;
+  headline2: string;
   subtitle: string;
-  body: string;
-  price: string;
-  contact: string;
-  buttonText: string;
-  imagePosition: 'top' | 'left' | 'right' | 'full';
-  selectedImage: SavedImage | null;
+  highlights: Highlight[];
+  coverImage: FlyerImage | null;
   logoUrl: string;
+  phone: string;
+  email: string;
+  website: string;
+  social: string;
 }
 
 const DEFAULT_STATE: FlyerState = {
-  formatId: 'a4',
-  templateId: 'classic',
-  bgColor: '#ffffff',
-  textColor: '#111827',
-  accentColor: '#f97316',
-  title: '',
-  subtitle: '',
-  body: '',
-  price: '',
-  contact: '',
-  buttonText: 'Book Now',
-  imagePosition: 'top',
-  selectedImage: null,
+  headline1: 'Your Safari',
+  headline2: 'Adventure Awaits',
+  subtitle: 'Guided tours into the heart of the wild — crafted around you.',
+  highlights: Array.from({ length: NUM_HIGHLIGHTS }, () => ({ title: '', description: '' })),
+  coverImage: null,
   logoUrl: '',
+  phone: '+254 726 485228',
+  email: 'info@jaetravel.co.ke',
+  website: 'www.jaetravel.co.ke',
+  social: '@JaeTravelExpeditions',
 };
 
-// Saved flyer (persisted to database)
-interface SavedFlyer {
-  id: string;
-  createdAt: string;
-  updatedAt: string;
-  title: string | null;
-  subtitle: string | null;
-  body: string | null;
-  price: string | null;
-  contact: string | null;
-  buttonText: string | null;
-  formatId: string;
-  templateId: string;
-  bgColor: string;
-  textColor: string;
-  accentColor: string;
-  imagePosition: string;
-  selectedImage: any | null;
-  logoUrl: string | null;
-}
+const blankHighlight: Highlight = { title: '', description: '' };
+
+// react-pdf positions text by its top edge; the Helvetica baseline sits ~0.9 *
+// fontSize below the top edge, so a target baseline-from-top B needs
+// top = B - 0.9 * fontSize. This is the same top-edge method the card titles
+// already use, corrected for the baseline offset.
+const topForBaseline = (baselineFromTop: number, fontSize: number) =>
+  baselineFromTop - 0.9 * fontSize;
+
+// Convert spec bottom-left y to react-pdf top edge for a block of height h.
+const topFromY = (y: number, height: number) => H - y - height;
+
+// Tour-flyer spec constants (bottom-left origin, mirrored from lib/tour-flyer-pdf.tsx)
+const HERO_HEIGHT = H * 0.44; // 370.43
+const HERO_BOTTOM = H - HERO_HEIGHT; // 471.46
+const Y0 = HERO_BOTTOM - 40; // 431.46
+const CW = (W - 72 - 20) / 2; // 251.64
+const CH = 56;
+const BY = 112;
 
 const pdfStyles = StyleSheet.create({
-  page: {
-    backgroundColor: '#ffffff',
-    fontFamily: 'Helvetica',
-  },
-  header: {
-    padding: 24,
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    marginBottom: 6,
-  },
-  subtitle: {
-    fontSize: 14,
-    marginBottom: 14,
-    opacity: 0.8,
-  },
-  body: {
-    fontSize: 12,
-    lineHeight: 1.6,
-    marginBottom: 12,
-  },
-  details: {
-    width: '100%',
-    marginBottom: 12,
-  },
-  detailsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 2,
-  },
-  button: {
-    padding: 12,
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  imgBox: {
-    flex: 1,
+  page: { backgroundColor: SAND, fontFamily: 'Helvetica' },
+  hero: { backgroundColor: SAND, height: HERO_HEIGHT, overflow: 'hidden' } as any,
+  headline1: { position: 'absolute', fontFamily: 'Helvetica-Bold', fontSize: 36, color: '#ffffff' } as any,
+  headline2: { position: 'absolute', fontFamily: 'Helvetica-Bold', fontSize: 36, color: GOLD } as any,
+  subtitle: { position: 'absolute', fontFamily: 'Helvetica', fontSize: 11, color: '#ffffff' } as any,
+  section: { position: 'absolute', fontFamily: 'Helvetica-Bold', fontSize: 20, color: GREEN } as any,
+  sectionUnderline: { position: 'absolute', width: 54, height: 3.5, backgroundColor: GOLD } as any,
+  card: { position: 'absolute', backgroundColor: '#ffffff', borderRadius: 8 } as any,
+  cardAccent: { position: 'absolute', width: 6, backgroundColor: GOLD, borderRadius: 3 } as any,
+  cardTitle: { position: 'absolute', fontFamily: 'Helvetica-Bold', fontSize: 12.5, color: GREEN } as any,
+  cardDesc: { position: 'absolute', fontFamily: 'Helvetica', fontSize: 9.5, color: BODY, lineHeight: 12 } as any,
+  banner: { position: 'absolute', backgroundColor: GREEN, borderRadius: 10 } as any,
+  bannerTitle: { position: 'absolute', fontFamily: 'Helvetica-Bold', fontSize: 16, color: GOLD } as any,
+  bannerLine1: { position: 'absolute', fontFamily: 'Helvetica', fontSize: 11, color: '#ffffff' } as any,
+  bannerLine2: { position: 'absolute', fontFamily: 'Helvetica', fontSize: 11, color: '#ffffff' } as any,
+  bannerButton: {
+    position: 'absolute',
+    backgroundColor: ORANGE,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
-  },
-  textBox: {
-    flex: 1,
-    padding: 24,
-  },
+  } as any,
+  bannerButtonText: { fontFamily: 'Helvetica-Bold', fontSize: 12, color: '#ffffff' },
+  footerDivider: { position: 'absolute', width: W - 72, height: 1.2, backgroundColor: GOLD } as any,
+  footerText: { position: 'absolute', fontFamily: 'Helvetica-Bold', fontSize: 10.5, color: GREEN },
+  footerCenter: {
+    position: 'absolute',
+    left: 0,
+    width: W,
+    fontFamily: 'Helvetica-Oblique',
+    fontSize: 9,
+    color: BODY,
+    textAlign: 'center',
+  } as any,
 });
 
 export default function FlyersPage() {
-  const [images, setImages] = useState<SavedImage[]>([]);
+  const [images, setImages] = useState<FlyerImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [state, setState] = useState<FlyerState>(DEFAULT_STATE);
-  const [savedFlyers, setSavedFlyers] = useState<SavedFlyer[]>([]);
+  const [savedFlyers, setSavedFlyers] = useState<any[]>([]);
   const [error, setError] = useState('');
-  const previewRef = useRef<HTMLDivElement>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch saved images from all sources: itinerary-images, hotels, destinations
+  const setField = <K extends keyof FlyerState>(k: K, v: FlyerState[K]) =>
+    setState((prev) => ({ ...prev, [k]: v }));
+
+  const setHighlight = (i: number, k: 'title' | 'description', v: string) =>
+    setState((prev) => {
+      const next = [...prev.highlights];
+      next[i] = { ...next[i], [k]: v };
+      return { ...prev, highlights: next };
+    });
+
+  // ---- image library ----
   useEffect(() => {
     const fetchImages = async () => {
       try {
-        // 1. Itinerary images (user uploads)
-        const [itineraryRes, hotelsRes] = await Promise.all([
-          fetch('/api/itinerary-images'),
-          fetch('/api/safari-rates/hotels'),
-        ]);
-        const itineraryImages = await itineraryRes.json();
-        const hotels = await hotelsRes.json();
-
-        // 2. Hotel images flattened from hotel list
-        const hotelImages = (Array.isArray(hotels) ? hotels : [])
-          .flatMap((h: any) => (h.images || []).map((img: any) => ({
-            ...img,
-            source: 'hotel',
-            hotelName: h.name || 'Hotel',
-          })));
-
-        // Normalize itinerary images
-        const normalizedItinerary = (Array.isArray(itineraryImages) ? itineraryImages : []).map((img: any) => ({
-          ...img,
-          source: 'itinerary',
-        }));
-
-        setImages([...normalizedItinerary, ...hotelImages]);
-      } catch (e) {
-        // Fallback: just itinerary images
-        fetch('/api/itinerary-images')
-          .then(r => r.json())
-          .then((data: any) => { if (Array.isArray(data)) setImages(data); })
-          .catch(() => {});
+        const res = await fetch('/api/itinerary-images');
+        const data = await res.json();
+        setImages(Array.isArray(data) ? data : []);
+      } catch {
+        setImages([]);
       } finally {
         setLoading(false);
-        setError('');
       }
     };
     fetchImages();
   }, []);
 
-  // Fetch saved flyers from database
+  // ---- load saved flyers ----
   useEffect(() => {
     fetch('/api/saved-flyers')
-      .then(r => r.json())
+      .then((r) => r.json())
       .then((data: any) => {
         if (Array.isArray(data)) setSavedFlyers(data);
       })
       .catch(() => setError('Failed to load saved flyers'));
   }, []);
 
-  const setField = (k: keyof FlyerState, v: any) =>
-    setState(prev => ({ ...prev, [k]: v }));
+  // Hydrate state from a saved flyer (full state stored as JSON in `body`, cover in `selectedImage`)
+  const loadSaved = useCallback((f: any) => {
+    let next = { ...DEFAULT_STATE };
+    try {
+      const parsed = f.body ? JSON.parse(f.body) : {};
+      if (typeof parsed === 'object' && parsed !== null) {
+        next = { ...DEFAULT_STATE, ...parsed };
+      }
+    } catch {
+      /* keep defaults */
+    }
+    next.coverImage = f.selectedImage || null;
+    next.headline1 = f.title || next.headline1;
+    next.headline2 = f.subtitle || next.headline2;
+    while (next.highlights.length < NUM_HIGHLIGHTS) next.highlights.push(blankHighlight);
+    next.highlights.length = NUM_HIGHLIGHTS;
+    setState(next);
+  }, []);
 
-  const selectImage = (img: SavedImage) => setField('selectedImage', img);
-  const removeImage = () => setField('selectedImage', null);
+  const selectImage = (img: FlyerImage) => setField('coverImage', img);
+  const removeImage = () => setField('coverImage', null);
 
-  const format = FORMATS.find(f => f.id === state.formatId)!;
-  const mmToPx = (mm: number) => mm * 3.779528; // 96 DPI
+  const imageSrc = (img: FlyerImage | null | undefined) => {
+    if (!img || !img.data) return '';
+    const data = img.data.replace(/^data:image\/[^;]+;base64,/, '');
+    return `data:${img.mimeType};base64,${data}`;
+  };
 
-  // Build a proper data URL from base64 data (handles both prefixed and non-prefixed)
-const imageSrc = (img: SavedImage | null | undefined) => {
-  if (!img || !img.data) return '';
-  const data = img.data.replace(/^data:image\/[^;]+;base64,/, '');
-  return `data:${img.mimeType};base64,${data}`;
-};
   const convertToJpegBase64 = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
       const img = new Image();
@@ -236,26 +204,38 @@ const imageSrc = (img: SavedImage | null | undefined) => {
         canvas.width = img.width;
         canvas.height = img.height;
         const ctx = canvas.getContext('2d');
-        if (!ctx) { reject(new Error('No canvas context')); return; }
+        if (!ctx) {
+          reject(new Error('No canvas context'));
+          return;
+        }
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0);
-        canvas.toBlob((blob) => {
-          if (!blob) { reject(new Error('No blob')); return; }
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.readAsDataURL(blob);
-        }, 'image/jpeg', 0.92);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error('No blob'));
+              return;
+            }
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          },
+          'image/jpeg',
+          0.8,
+        );
       };
       img.onerror = reject;
       img.src = URL.createObjectURL(file);
     });
 
-  // Upload a new image directly to the image library
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) { setError('Please select an image file'); return; }
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setError('Please select a JPG, PNG or WEBP image');
+      return;
+    }
     setUploading(true);
     setError('');
     try {
@@ -272,8 +252,8 @@ const imageSrc = (img: SavedImage | null | undefined) => {
       });
       if (!res.ok) throw new Error('Upload failed');
       const created = await res.json();
-      setImages(prev => [created, ...prev]);
-      selectImage(created as SavedImage);
+      setImages((prev) => [created, ...prev]);
+      selectImage(created as FlyerImage);
       e.target.value = '';
     } catch (err: any) {
       setError(err.message || 'Upload failed');
@@ -282,31 +262,39 @@ const imageSrc = (img: SavedImage | null | undefined) => {
     }
   };
 
-  // ── Save current flyer to database ──
   const saveFlyer = useCallback(async () => {
-    if (!state.title.trim() && !state.selectedImage) {
-      setError('Add a title or image before saving');
-      return;
-    }
     setSaving(true);
+    setError('');
     try {
+      const body = JSON.stringify({
+        headline1: state.headline1,
+        headline2: state.headline2,
+        subtitle: state.subtitle,
+        highlights: state.highlights,
+        coverImage: state.coverImage ? { id: state.coverImage.id, filename: state.coverImage.filename } : null,
+        logoUrl: state.logoUrl,
+        phone: state.phone,
+        email: state.email,
+        website: state.website,
+        social: state.social,
+      });
       const res = await fetch('/api/saved-flyers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: state.title || null,
-          subtitle: state.subtitle || null,
-          body: state.body || null,
-          price: state.price || null,
-          contact: state.contact || null,
-          buttonText: state.buttonText || 'Book Now',
-          formatId: state.formatId,
-          templateId: state.templateId,
-          bgColor: state.bgColor,
-          textColor: state.textColor,
-          accentColor: state.accentColor,
-          imagePosition: state.imagePosition,
-          selectedImage: state.selectedImage || null,
+          title: state.headline1 || null,
+          subtitle: state.headline2 || null,
+          body,
+          price: null,
+          contact: state.phone || null,
+          buttonText: 'BOOK NOW',
+          formatId: 'a4',
+          templateId: 'classic',
+          bgColor: SAND,
+          textColor: '#111827',
+          accentColor: GOLD,
+          imagePosition: 'top',
+          selectedImage: state.coverImage || null,
           logoUrl: state.logoUrl || null,
         }),
       });
@@ -315,172 +303,194 @@ const imageSrc = (img: SavedImage | null | undefined) => {
         throw new Error(errBody.error || `Save failed (${res.status})`);
       }
       const created = await res.json();
-      setSavedFlyers(prev => [created, ...prev]);
+      setSavedFlyers((prev) => [created, ...prev]);
       setSaving(false);
-      setError('');
     } catch (err: any) {
-      const msg = err.message || 'Save failed';
-      setError(msg);
+      setError(err.message || 'Save failed');
       setSaving(false);
     }
   }, [state]);
 
-  // ── Delete saved flyer ──
   const deleteFlyer = async (id: string) => {
     try {
       const res = await fetch(`/api/saved-flyers?id=${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Delete failed');
-      setSavedFlyers(prev => prev.filter(x => x.id !== id));
+      setSavedFlyers((prev) => prev.filter((x) => x.id !== id));
     } catch (err: any) {
       setError(err.message || 'Delete failed');
     }
   };
 
-  // Render the flyer HTML string for preview and canvas draw
+  // ---- preview HTML (mirrors the tour flyer design) ----
   const flyerHtml = useCallback(() => {
     const s = state;
-    const imgHtml = s.selectedImage
-      ? `<img src="${imageSrc(s.selectedImage)}" style="width:100%;height:100%;object-fit:cover;" />`
-      : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:14px;">No image selected</div>`;
+    const CW = (W - 72 - 20) / 2;
+    const CH = 56;
+    const heroImg = s.coverImage
+      ? `<img src="${imageSrc(s.coverImage)}" style="width:100%;height:100%;object-fit:cover;object-position:50% 40%;" />`
+      : `<div style="width:100%;height:100%;background:#2B1B3D;display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:14px;">Cover image</div>`;
 
-    const detailsRows = [
-      s.price ? `<tr><td style="padding:4px 0;color:#6b7280;font-size:13px;">Price</td><td style="padding:4px 0;text-align:right;font-weight:600;font-size:13px;">${s.price}</td></tr>` : '',
-      s.contact ? `<tr><td style="padding:4px 0;color:#6b7280;font-size:13px;">Contact</td><td style="padding:4px 0;text-align:right;font-weight:600;font-size:13px;">${s.contact}</td></tr>` : '',
-    ].filter(Boolean).join('');
-
-    const accent = s.accentColor;
-    const txt = s.textColor;
-    const bg = s.bgColor;
-
-    const header = s.title
-      ? `<div style="padding:24px;text-align:center;">
-          <h1 style="margin:0 0 8px;font-size:28px;font-weight:700;color:${txt};letter-spacing:-0.5px;">${s.title}</h1>
-          ${s.subtitle ? `<p style="margin:0;color:${txt};font-size:16px;opacity:0.8;">${s.subtitle}</p>` : ''}
-        </div>`
-      : '';
-
-    const bodyHtml = s.body
-      ? `<div style="padding:0 24px 24px;line-height:1.6;color:${txt};font-size:14px;">${s.body.split('\n').map(p => `<p style="margin:0 0 8px;">${p}</p>`).join('')}</div>`
-      : '';
-
-    const buttonHtml = s.buttonText
-      ? `<div style="padding:16px 24px;text-align:center;">
-          <a href="#" style="display:inline-block;padding:12px 28px;background:${accent};color:#fff;text-decoration:none;border-radius:6px;font-weight:600;font-size:14px;">${s.buttonText}</a>
-        </div>`
-      : '';
-
-    if (s.templateId === 'poster') {
-      return `
-        <div style="width:${format.w}mm;height:${format.h}mm;background:${bg};color:${txt};font-family:'Segoe UI',sans-serif;position:relative;overflow:hidden;">
-          <div style="position:absolute;inset:0;${imgHtml.replace('width:100%;height:100%','width:100%;height:100%')}"></div>
-          <div style="position:absolute;inset:0;background:rgba(0,0,0,0.45);"></div>
-          <div style="position:absolute;bottom:24px;left:24px;right:24px;z-index:2;">
-            ${header}
-            ${bodyHtml}
-            ${buttonHtml}
+    const cardRows: string[] = [];
+    for (let row = 0; row < 3; row++) {
+      for (let col = 0; col < 2; col++) {
+        const i = row * 2 + col;
+        const h = s.highlights[i] || blankHighlight;
+        const x = 36 + col * (CW + 20);
+        const y = 470 + row * (CH + 10);
+        cardRows.push(`
+          <div style="position:absolute;left:${x}px;top:${y}px;width:${CW}px;height:${CH}px;background:#fff;border-radius:8px;overflow:hidden;">
+            <div style="position:absolute;left:0;top:0;width:6px;height:${CH}px;background:${GOLD};border-radius:3px 0 0 3px;"></div>
+            <div style="position:absolute;left:20px;top:${CH - 22}px;font-family:Helvetica-Bold;font-size:12.5px;color:${GREEN};">${h.title}</div>
+            <div style="position:absolute;left:20px;top:${CH - 36}px;width:${CW - 30}px;font-family:Helvetica;font-size:9.5px;color:${BODY};line-height:12px;overflow:hidden;">${h.description}</div>
           </div>
-        </div>`;
+        `);
+      }
     }
 
-    if (s.templateId === 'split') {
-      const imgSide = s.imagePosition === 'left' ? 'order-1' : 'order-2';
-      const txtSide = s.imagePosition === 'left' ? 'order-2' : 'order-1';
-      return `
-        <div style="width:${format.w}mm;height:${format.h}mm;background:${bg};color:${txt};font-family:'Segoe UI',sans-serif;display:flex;">
-          <div style="flex:1;${imgSide};display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;">${imgHtml}</div>
-          <div style="flex:1;${txtSide};display:flex;flex-direction:justify:center;padding:24px;box-sizing:border-box;">
-            ${header}${bodyHtml}${detailsRows ? `<table style="width:100%;border-collapse:collapse;margin:16px 0;">${detailsRows}</table>` : ''}${buttonHtml}
-          </div>
-        </div>`;
-    }
-
-    if (s.templateId === 'minimal') {
-      return `
-        <div style="width:${format.w}mm;height:${format.h}mm;background:${bg};color:${txt};font-family:'Segoe UI',sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;box-sizing:border-box;text-align:center;">
-          <div style="width:90px;height:90px;border:2px dashed ${accent};border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:20px;color:${accent};font-size:11px;">${s.selectedImage ? imgHtml : '📷'}</div>
-          ${header}${bodyHtml}${buttonHtml}
-        </div>`;
-    }
-
-    // classic
     return `
-      <div style="width:${format.w}mm;height:${format.h}mm;background:${bg};color:${txt};font-family:'Segoe UI',sans-serif;display:flex;flex-direction:column;box-sizing:border-box;">
-        ${s.selectedImage ? `<div style="height:42%;border-bottom:1px solid #e5e7eb;">${imgHtml}</div>` : ''}
-        <div style="flex:1;padding:24px;overflow-y:auto;">
-          ${header}
-          ${bodyHtml}
-          ${detailsRows ? `<table style="width:100%;border-collapse:collapse;margin:16px 0;">${detailsRows}</table>` : ''}
-          ${buttonHtml}
+      <div style="width:${W}px;height:${H}px;background:${SAND};font-family:'Segoe UI',sans-serif;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:0;left:0;width:100%;height:62px;background:rgba(0,0,0,0.28);"></div>
+        <div style="position:absolute;left:36px;top:8px;width:46px;height:46px;border-radius:23px;overflow:hidden;background:${DARK};display:flex;align-items:center;justify-content:center;">
+          ${s.logoUrl ? `<img src="${s.logoUrl}" style="width:100%;height:100%;object-fit:cover;" />` : `<span style="font-family:Helvetica-Bold;font-size:14px;color:#fff;">JT</span>`}
         </div>
-      </div>`;
-  }, [state, format]);
+        <div style="position:absolute;left:92px;top:21px;font-family:Helvetica-Bold;font-size:16px;color:#fff;">JAE</div>
+        <div style="position:absolute;left:139px;top:21px;font-family:Helvetica-Bold;font-size:16px;color:${GOLD};">TRAVEL EXPEDITIONS</div>
+        <div style="position:absolute;top:0;left:0;width:100%;height:${HERO_HEIGHT}px;">${heroImg}</div>
+        <div style="position:absolute;top:67px;left:36px;font-family:Helvetica-Bold;font-size:36px;color:#fff;max-width:${W - 72}px;">${s.headline1}</div>
+        <div style="position:absolute;top:115px;left:36px;font-family:Helvetica-Bold;font-size:36px;color:${GOLD};max-width:${W - 72}px;">${s.headline2}</div>
+        <div style="position:absolute;top:142px;left:38px;font-family:Helvetica;font-size:11px;color:#fff;max-width:${W - 76}px;">${s.subtitle}</div>
+        <div style="position:absolute;top:410px;left:36px;font-family:Helvetica-Bold;font-size:20px;color:${GREEN};">What's included</div>
+        <div style="position:absolute;top:435px;left:36px;width:54px;height:3.5px;background:${GOLD};"></div>
+        ${cardRows.join('')}
+        <div style="position:absolute;top:620px;left:36px;width:${W - 72}px;height:74px;background:${GREEN};border-radius:10px;"></div>
+        <div style="position:absolute;top:634px;left:54px;font-family:Helvetica-Bold;font-size:16px;color:${GOLD};">Secure your adventure</div>
+        <div style="position:absolute;top:654px;left:54px;font-family:Helvetica;font-size:11px;color:#fff;">A 30% non-refundable deposit confirms your booking.</div>
+        <div style="position:absolute;top:670px;left:54px;font-family:Helvetica;font-size:11px;color:#fff;">Contact us for dates, group rates and custom quotes.</div>
+        <div style="position:absolute;top:634px;left:${W - 36 - 118}px;width:100px;height:34px;background:${ORANGE};border-radius:17px;display:flex;align-items:center;justify-content:center;">
+          <span style="font-family:Helvetica-Bold;font-size:12px;color:#fff;">BOOK NOW</span>
+        </div>
+        <div style="position:absolute;top:795px;left:36px;width:${W - 72}px;height:1.2px;background:${GOLD};"></div>
+        <div style="position:absolute;top:778px;left:36px;font-family:Helvetica-Bold;font-size:10.5px;color:${GREEN};">Phone:  ${s.phone}</div>
+        <div style="position:absolute;top:794px;left:36px;font-family:Helvetica-Bold;font-size:10.5px;color:${GREEN};">Email:   ${s.email}</div>
+        <div style="position:absolute;top:778px;left:${W / 2 + 10}px;font-family:Helvetica-Bold;font-size:10.5px;color:${GREEN};">Web:  ${s.website}</div>
+        ${s.social ? `<div style="position:absolute;top:794px;left:${W / 2 + 10}px;font-family:Helvetica-Bold;font-size:10.5px;color:${GREEN};">Social:  ${s.social}</div>` : ''}
+        <div style="position:absolute;top:811px;left:0;width:100%;text-align:center;font-family:Helvetica-Oblique;font-size:9px;color:${BODY};">Jae Travel Expeditions  •  ${s.social}</div>
+      </div>
+    `;
+  }, [state, imageSrc]);
+
+  // ---- react-pdf document mirroring the tour flyer (baseline-corrected positions) ----
+  const buildPdfDoc = (s: FlyerState = state) => {
+    const cards: any[] = [];
+    for (let row = 0; row < 3; row++) {
+      for (let col = 0; col < 2; col++) {
+        const i = row * 2 + col;
+        const h = s.highlights[i] || blankHighlight;
+        const x = 36 + col * (CW + 20);
+        const y = Y0 - 30 - CH - row * (CH + 10); // bottom-left origin of card
+        cards.push(
+          <View key={`card-bg-${i}`} style={[pdfStyles.card, { top: topFromY(y, CH), left: x, width: CW, height: CH }]} />,
+          <View key={`card-accent-${i}`} style={[pdfStyles.cardAccent, { top: topFromY(y, CH), left: x, width: 6, height: CH }]} />,
+          <View key={`card-title-${i}`} style={[pdfStyles.cardTitle, { top: topFromY(y + CH - 20, 12.5), left: x + 18 }]}>
+            <Text>{h.title}</Text>
+          </View>,
+          <View key={`card-desc-${i}`} style={[pdfStyles.cardDesc, { top: topForBaseline(H - (y + CH - 34), 9.5), left: x + 18, width: CW - 30 }]}>
+            <Text>{h.description}</Text>
+          </View>,
+        );
+      }
+    }
+
+    return (
+      <Document>
+        <Page size="A4" style={pdfStyles.page}>
+          {s.coverImage ? (
+            <View style={pdfStyles.hero}>
+              <PdfImage src={imageSrc(s.coverImage)} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: '50% 40%' }} />
+            </View>
+          ) : null}
+          <View style={[pdfStyles.headline1, { top: topForBaseline(135, 36), left: 36 }]}>
+            <Text>{s.headline1}</Text>
+          </View>
+          <View style={[pdfStyles.headline2, { top: topForBaseline(183, 36), left: 36 }]}>
+            <Text>{s.headline2}</Text>
+          </View>
+          <View style={[pdfStyles.subtitle, { top: topForBaseline(210, 11), left: 38 }]}>
+            <Text>{s.subtitle}</Text>
+          </View>
+          <View style={[pdfStyles.section, { top: topForBaseline(410.4, 20), left: 36 }]}>
+            <Text>What's included</Text>
+          </View>
+          <View style={[pdfStyles.sectionUnderline, { top: topFromY(Y0 - 9, 3.5), left: 36, width: 54 }]} />
+          {cards}
+          <View style={[pdfStyles.banner, { top: topFromY(BY, 74), left: 36, width: W - 72, height: 74 }]} />
+          <View style={[pdfStyles.bannerTitle, { top: topForBaseline(681.9, 16), left: 54 }]}>
+            <Text>Secure your adventure</Text>
+          </View>
+          <View style={[pdfStyles.bannerLine1, { top: topForBaseline(701.9, 11), left: 54 }]}>
+            <Text>A 30% non-refundable deposit confirms your booking.</Text>
+          </View>
+          <View style={[pdfStyles.bannerLine2, { top: topForBaseline(717.9, 11), left: 54 }]}>
+            <Text>Contact us for dates, group rates and custom quotes.</Text>
+          </View>
+          <View style={[pdfStyles.bannerButton, { top: topFromY(BY + 20, 34), left: W - 36 - 118, width: 100, height: 34 }]}>
+            <Text style={pdfStyles.bannerButtonText}>BOOK NOW</Text>
+          </View>
+          <View style={[pdfStyles.footerDivider, { top: topFromY(46, 1.2), left: 36 }]} />
+          <View style={[pdfStyles.footerText, { top: topForBaseline(763.9, 10.5), left: 36 }]}>
+            <Text>Phone:  {s.phone}</Text>
+          </View>
+          <View style={[pdfStyles.footerText, { top: topForBaseline(779.9, 10.5), left: 36 }]}>
+            <Text>Email:   {s.email}</Text>
+          </View>
+          <View style={[pdfStyles.footerText, { top: topForBaseline(763.9, 10.5), left: W / 2 + 10 }]}>
+            <Text>Web:  {s.website}</Text>
+          </View>
+          {s.social && (
+            <View style={[pdfStyles.footerText, { top: topForBaseline(779.9, 10.5), left: W / 2 + 10 }]}>
+              <Text>Social:  {s.social}</Text>
+            </View>
+          )}
+          <View style={[pdfStyles.footerCenter, { top: topForBaseline(811.9, 9) }]}>
+            <Text>Jae Travel Expeditions  •  {s.social}</Text>
+          </View>
+        </Page>
+      </Document>
+    );
+  };
+
+  // Hydrate a saved flyer record into a FlyerState for PDF rendering
+  const hydrateSaved = (f: any): FlyerState => {
+    const s: FlyerState = { ...DEFAULT_STATE };
+    try {
+      const parsed = f.body ? JSON.parse(f.body) : {};
+      if (typeof parsed === 'object' && parsed !== null) {
+        Object.assign(s, parsed);
+      }
+    } catch {}
+    s.coverImage = f.selectedImage || null;
+    s.headline1 = f.title || s.headline1;
+    s.headline2 = f.subtitle || s.headline2;
+    while (s.highlights.length < NUM_HIGHLIGHTS) s.highlights.push(blankHighlight);
+    s.highlights.length = NUM_HIGHLIGHTS;
+    return s;
+  };
+
+  if (error) {
+    return <div className="bg-red-50 text-red-700 border border-red-200 rounded-lg p-3 text-sm">{error}</div>;
+  }
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Flyer Builder</h1>
-          <p className="text-gray-500 text-sm">Design tour flyers from your saved images</p>
+          <p className="text-gray-500 text-sm">Design tour flyers matching the Jae_Travel_Tour_Flier layout</p>
         </div>
         <div className="flex gap-2">
-          <PDFDownloadLink
-            document={
-              <Document>
-                <Page size={[format.w * 2.83465, format.h * 2.83465]} style={pdfStyles.page}>
-                  {state.selectedImage && (
-                    <View style={pdfStyles.imgBox}>
-                      <PdfImage
-                        src={imageSrc(state.selectedImage)}
-                        style={{ width: '100%', height: '100%' }}
-                      />
-                    </View>
-                  )}
-                  <View style={pdfStyles.textBox}>
-                    {state.title && (
-                      <View style={pdfStyles.header}>
-                        <Text style={pdfStyles.title}>{state.title}</Text>
-                        {state.subtitle && <Text style={pdfStyles.subtitle}>{state.subtitle}</Text>}
-                      </View>
-                    )}
-                    {state.body && (
-                      <Text style={pdfStyles.body}>
-                        {state.body.split('\n').map((p, i) => (
-                          <Text key={i}>{p}</Text>
-                        ))}
-                      </Text>
-                    )}
-                    {(state.price || state.contact) && (
-                      <View style={pdfStyles.details}>
-                        {state.price && (
-                          <View style={pdfStyles.detailsRow}>
-                            <Text>Price</Text>
-                            <Text>{state.price}</Text>
-                          </View>
-                        )}
-                        {state.contact && (
-                          <View style={pdfStyles.detailsRow}>
-                            <Text>Contact</Text>
-                            <Text>{state.contact}</Text>
-                          </View>
-                        )}
-                      </View>
-                    )}
-                    {state.buttonText && (
-                      <View style={pdfStyles.button}>
-                        <Text>{state.buttonText}</Text>
-                      </View>
-                    )}
-                  </View>
-                </Page>
-              </Document>
-            }
-            fileName={`flyer-${state.formatId}.pdf`}
-          >
-            {({ blob, url, loading: isLoading }) => (
-              <button
-                disabled={(!state.title.trim() && !state.selectedImage) || isLoading}
-                className={`btn-primary ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
+          <PDFDownloadLink document={buildPdfDoc()} fileName={`flyer-${slugify(state.headline1)}.pdf`}>
+            {({ loading: isLoading }) => (
+              <button disabled={isLoading} className={`btn-primary ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}>
                 {isLoading ? <Save size={14} className="animate-spin" /> : <Save size={14} />}
                 {isLoading ? ' Generating PDF…' : ' Download PDF'}
               </button>
@@ -494,29 +504,10 @@ const imageSrc = (img: SavedImage | null | undefined) => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Left: Controls */}
         <div className="lg:col-span-4 space-y-4 overflow-y-auto max-h-[calc(100vh-4rem)] pr-2">
-        {/* Direct image upload */}
+          {/* Cover image */}
           <div className="card space-y-3">
-            <h2 className="font-semibold text-gray-800 text-sm">Add Image</h2>
             <div className="flex items-center justify-between">
-              <label className="cursor-pointer block w-full">
-                <Plus size={14} className="mr-1" />
-                Upload Image
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleImageUpload}
-                />
-              </label>
-              {uploading && <span className="text-[10px] text-orange-500 animate-pulse">Uploading…</span>}
-            </div>
-            <p className="text-[10px] text-gray-400">JPEG/PNG — uploaded to your image library</p>
-          </div>
-
-          {/* Image Library */}
-          <div className="card">
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-              <h2 className="font-semibold text-gray-800 text-sm">Saved Images</h2>
+              <h2 className="font-semibold text-gray-800 text-sm">Cover Image</h2>
               <button
                 onClick={() => setLoading(true)}
                 className="text-xs text-gray-500 hover:text-gray-700 underline"
@@ -526,298 +517,215 @@ const imageSrc = (img: SavedImage | null | undefined) => {
               </button>
             </div>
             {loading ? (
-              <div className="h-40 flex items-center justify-center text-gray-400 text-xs">Loading images…</div>
+              <div className="h-32 flex items-center justify-center text-gray-400 text-xs">Loading images…</div>
             ) : images.length === 0 ? (
-              <div className="h-40 flex items-center justify-center text-gray-400 text-xs">
-                No images in library. Upload via Hotels / Destinations pages.
+              <div className="h-32 flex items-center justify-center text-gray-400 text-xs">
+                No images in library.
               </div>
             ) : (
               <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto">
-                {images.map(img => (
+                {images.map((img) => (
                   <button
                     key={img.id}
                     onClick={() => selectImage(img)}
-                    className={`relative aspect-square rounded-lg border-2 overflow-hidden cursor-pointer ${state.selectedImage?.id === img.id ? 'border-orange-500 bg-orange-50' : 'border-transparent hover:border-gray-300'}`}
+                    className={`relative aspect-square rounded-lg border-2 overflow-hidden cursor-pointer ${
+                      state.coverImage?.id === img.id ? 'border-orange-500 bg-orange-50' : 'border-transparent hover:border-gray-300'
+                    }`}
                   >
-                    <img
-                      src={imageSrc(img)}
-                      alt={img.filename}
-                      className="w-full h-full object-cover"
-                    />
+                    <img src={imageSrc(img)} alt={img.filename} className="w-full h-full object-cover" />
                     <div className="absolute top-1 right-1 bg-black/60 text-white text-[10px] px-1 rounded">
-                      {img.filename.split('.').slice(0,-1).join('.') || img.filename}
+                      {img.filename.split('.').slice(0, -1).join('.') || img.filename}
                     </div>
+                    {state.coverImage?.id === img.id && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-green-500/40">
+                        <span className="text-white text-sm font-bold">✓</span>
+                      </div>
+                    )}
                   </button>
                 ))}
               </div>
             )}
-            {state.selectedImage && (
+            {state.coverImage && (
               <div className="mt-3 p-3 bg-orange-50 rounded border border-orange-100">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-medium text-orange-700">Selected:</span>
-                  <button onClick={removeImage} className="text-xs text-orange-500 hover:text-orange-700 underline">Remove</button>
+                  <button onClick={removeImage} className="text-xs text-orange-500 hover:text-orange-700 underline">
+                    Remove
+                  </button>
                 </div>
                 <div className="flex items-center gap-2">
-                  <img src={imageSrc(state.selectedImage)} alt={state.selectedImage.filename} className="w-8 h-8 rounded object-cover" />
-                  <span className="text-xs text-gray-600 truncate max-w-[120px]">{state.selectedImage.filename}</span>
+                  <img src={imageSrc(state.coverImage)} alt={state.coverImage.filename} className="w-8 h-8 rounded object-cover" />
+                  <span className="text-xs text-gray-600 truncate max-w-[120px]">{state.coverImage.filename}</span>
                 </div>
               </div>
             )}
+            <div className="flex items-center justify-between">
+              <label className="cursor-pointer block w-full">
+                <Plus size={14} className="mr-1" />
+                Upload Image
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  ref={fileInputRef}
+                  onChange={handleImageUpload}
+                  disabled={uploading}
+                />
+              </label>
+              {uploading && <span className="text-[10px] text-orange-500 animate-pulse">Uploading…</span>}
+            </div>
+            <p className="text-[10px] text-gray-400">JPG/PNG/WEBP — max 10 MB</p>
           </div>
 
-          {/* Format & Template */}
-          <div className="card space-y-4">
-            <h2 className="font-semibold text-gray-800 text-sm">Format</h2>
-            <div className="grid grid-cols-2 gap-2">
-              {FORMATS.map(f => (
-                <button
-                  key={f.id}
-                  onClick={() => setField('formatId', f.id)}
-                  className={`text-xs rounded border px-2 py-2 text-left ${state.formatId === f.id ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-transparent hover:border-gray-200 bg-gray-50 text-gray-600'}`}
-                >
-                  <div className="font-semibold">{f.label}</div>
-                  <div className="text-[10px] text-gray-400">{f.ratio}</div>
-                </button>
-              ))}
-            </div>
-
-            <h2 className="font-semibold text-gray-800 text-sm">Template</h2>
-            <div className="space-y-2">
-              {TEMPLATES.map(t => (
-                <button
-                  key={t.id}
-                  onClick={() => setField('templateId', t.id)}
-                  className={`text-xs w-full rounded border px-3 py-2 text-left flex items-center gap-2 ${state.templateId === t.id ? 'border-orange-500 bg-orange-50' : 'border-transparent hover:border-gray-200 bg-gray-50 text-gray-600'}`}
-                >
-                  <div className="font-semibold">{t.label}</div>
-                  <span className="text-[10px] text-gray-400 ml-auto">{t.desc}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Colors */}
-          <div className="card space-y-4">
-            <h2 className="font-semibold text-gray-800 text-sm">Colors</h2>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Background</label>
-                <input
-                  type="color"
-                  value={state.bgColor}
-                  onChange={e => setField('bgColor', e.target.value)}
-                  className="w-full h-8 cursor-pointer border-0 bg-transparent"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Text</label>
-                <input
-                  type="color"
-                  value={state.textColor}
-                  onChange={e => setField('textColor', e.target.value)}
-                  className="w-full h-8 cursor-pointer border-0 bg-transparent"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Accent</label>
-                <input
-                  type="color"
-                  value={state.accentColor}
-                  onChange={e => setField('accentColor', e.target.value)}
-                  className="w-full h-8 cursor-pointer border-0 bg-transparent"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Content */}
+          {/* Headlines */}
           <div className="card space-y-3">
-            <h2 className="font-semibold text-gray-800 text-sm">Content</h2>
+            <h2 className="font-semibold text-gray-800 text-sm">Headlines</h2>
             <div className="space-y-2">
-              <label className="text-xs text-gray-500 block">Title</label>
+              <label className="text-xs text-gray-500 block">Headline line 1 *</label>
               <input
                 className="input w-full text-sm"
-                value={state.title}
-                onChange={e => setField('title', e.target.value)}
-                placeholder="Masai Mara Safari — 3 Days"
+                value={state.headline1}
+                onChange={(e) => setField('headline1', e.target.value)}
+                placeholder="Your Safari"
+              />
+              <label className="text-xs text-gray-500 block">Headline line 2 *</label>
+              <input
+                className="input w-full text-sm"
+                value={state.headline2}
+                onChange={(e) => setField('headline2', e.target.value)}
+                placeholder="Adventure Awaits"
               />
               <label className="text-xs text-gray-500 block">Subtitle</label>
-              <input
-                className="input w-full text-sm"
-                value={state.subtitle}
-                onChange={e => setField('subtitle', e.target.value)}
-                placeholder="Departing Nairobi • All inclusive"
-              />
-              <label className="text-xs text-gray-500 block">Body / Description</label>
+              <span className="text-xs text-gray-400">{state.subtitle.length} / 70</span>
               <textarea
                 className="input w-full text-sm"
-                value={state.body}
-                onChange={e => setField('body', e.target.value)}
-                rows={3}
-                placeholder="Experience the great migration…"
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-xs text-gray-500 block">Price</label>
-                  <input className="input w-full text-sm" value={state.price} onChange={e => setField('price', e.target.value)} placeholder="$1,200" />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 block">Contact</label>
-                  <input className="input w-full text-sm" value={state.contact} onChange={e => setField('contact', e.target.value)} placeholder="+254 700 000000" />
-                </div>
-              </div>
-              <label className="text-xs text-gray-500 block">Button Text</label>
-              <input
-                className="input w-full text-sm"
-                value={state.buttonText}
-                onChange={e => setField('buttonText', e.target.value)}
-                placeholder="Book Now"
+                value={state.subtitle}
+                onChange={(e) => setField('subtitle', e.target.value)}
+                rows={2}
+                maxLength={70}
+                placeholder="Guided tours into the heart of the wild"
               />
             </div>
-            <button
-              onClick={saveFlyer}
-              disabled={saving}
-              className="w-full btn-secondary text-xs mt-3"
-            >
-              {saving ? 'Saving…' : 'Save Flyer'}
-            </button>
           </div>
 
-          {/* Image position (only for classic/split) */}
-          {['classic', 'split'].includes(state.templateId) && (
-            <div className="card space-y-3">
-              <h2 className="font-semibold text-gray-800 text-sm">Image Placement</h2>
-              <div className="grid grid-cols-2 gap-2">
-                {['top', 'left', 'right', 'full'].map(pos => (
-                  <button
-                    key={pos}
-                    onClick={() => setField('imagePosition', pos)}
-                    className={`text-xs rounded border px-2 py-2 ${state.imagePosition === pos ? 'border-orange-500 bg-orange-50 text-orange-700 font-semibold' : 'border-transparent hover:border-gray-200 bg-gray-50 text-gray-600'}`}
-                  >
-                    {pos.charAt(0).toUpperCase() + pos.slice(1)}
-                  </button>
-                ))}
-              </div>
+          {/* Highlights */}
+          <div className="card space-y-3">
+            <h2 className="font-semibold text-gray-800 text-sm">Highlights (6 cards)</h2>
+            <p className="text-xs text-gray-400 mb-3">Title up to 24 chars · Description up to 95 chars</p>
+            <div className="grid grid-cols-2 gap-3">
+              {state.highlights.map((h, i) => (
+                <div key={i} className="space-y-2 p-2 border rounded-lg bg-gray-50">
+                  <div className="flex justify-between items-baseline">
+                    <label className="label text-xs">Card #{i + 1}</label>
+                    <span className="text-xs text-gray-400">{h.title.length} / 24</span>
+                  </div>
+                  <input
+                    value={h.title}
+                    onChange={(e) => setHighlight(i, 'title', e.target.value)}
+                    className="input text-sm"
+                    maxLength={24}
+                    placeholder="Game drives"
+                  />
+                  <label className="label text-xs mt-1">Description</label>
+                  <textarea
+                    value={h.description}
+                    onChange={(e) => setHighlight(i, 'description', e.target.value)}
+                    className="input h-20 resize-none"
+                    maxLength={95}
+                    placeholder="Sunrise drives…"
+                  />
+                  <span className="text-xs text-gray-400">{h.description.length} / 95</span>
+                </div>
+              ))}
             </div>
-          )}
+          </div>
+
+          {/* Contact */}
+          <div className="card space-y-3">
+            <h2 className="font-semibold text-gray-800 text-sm">Contact</h2>
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-gray-500 block">Phone</label>
+                  <input className="input w-full text-sm" value={state.phone} onChange={(e) => setField('phone', e.target.value)} placeholder="+254 726 485228" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block">Email</label>
+                  <input className="input w-full text-sm" value={state.email} onChange={(e) => setField('email', e.target.value)} placeholder="info@jaetravel.co.ke" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-gray-500 block">Website</label>
+                  <input className="input w-full text-sm" value={state.website} onChange={(e) => setField('website', e.target.value)} placeholder="www.jaetravel.co.ke" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block">Social</label>
+                  <input className="input w-full text-sm" value={state.social} onChange={(e) => setField('social', e.target.value)} placeholder="@JaeTravelExpeditions" />
+                </div>
+              </div>
+              <label className="text-xs text-gray-500 block">Logo URL (optional)</label>
+              <input
+                className="input w-full text-sm"
+                value={state.logoUrl}
+                onChange={(e) => setField('logoUrl', e.target.value)}
+                placeholder="https://…/logo.jpg"
+              />
+            </div>
+          </div>
+
+          <button onClick={saveFlyer} disabled={saving} className="w-full btn-secondary text-xs mt-3">
+            {saving ? 'Saving…' : 'Save Flyer'}
+          </button>
         </div>
 
         {/* Right: Preview */}
         <div className="lg:col-span-8 flex flex-col">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-gray-800 text-sm">Preview</h2>
-            <span className="text-xs text-gray-400">{format.w} × {format.h} mm · {format.label}</span>
+            <span className="text-xs text-gray-400">A4 · matches Jae_Travel_Tour_Flier</span>
           </div>
-          <div
-            ref={previewRef}
-            className="flex-1 relative bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex items-center justify-center"
-            dangerouslySetInnerHTML={{ __html: flyerHtml() }}
-          />
-          <div className="absolute bottom-2 right-2 flex gap-1 bg-white/90 backdrop-blur rounded-lg p-1 border border-gray-100 shadow-sm">
-            <button
-              title="Zoom"
-              onClick={() => {
-                const w = previewRef.current?.clientWidth;
-                const h = previewRef.current?.clientHeight;
-                const win = window.open('', '_blank', `width=${w || 800},height=${h || 1000}`);
-                win!.document.write(`<html><body style="margin:0;background:#f3f4f6;display:flex;align-items:center;justify-content:center;height:100vh">${flyerHtml()}</body></html>`);
-              }}
-              className="w-8 h-8 rounded flex items-center justify-center text-gray-500 hover:text-orange-600 hover:bg-gray-50 transition-colors"
-            >
-              <Eye size={14} />
-            </button>
-            <button
-              title="Print / Save PDF"
-              onClick={() => window.print()}
-              className="w-8 h-8 rounded flex items-center justify-center text-blue-500 hover:bg-blue-50 transition-colors"
-            >
-              <Printer size={14} />
-            </button>
-          </div>
+          <div className="flex-1 relative bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden" dangerouslySetInnerHTML={{ __html: flyerHtml() }} />
         </div>
+
         {/* Bottom: Saved Flyers gallery */}
         {savedFlyers.length > 0 && (
           <div className="lg:col-span-12">
             <div className="card">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-semibold text-gray-800 text-sm">Saved Flyers</h2>
-                <button
-                  onClick={() => setSavedFlyers([])}
-                  className="text-xs text-red-500 hover:text-red-700 underline"
-                >
+                <button onClick={() => setSavedFlyers([])} className="text-xs text-red-500 hover:text-red-700 underline">
                   Clear All
                 </button>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {savedFlyers.map(f => {
-                  const fFormat = FORMATS.find(fm => fm.id === f.formatId)!;
+                {savedFlyers.map((f) => {
+                  const parsed = (() => {
+                    try { return f.body ? JSON.parse(f.body) : {}; } catch { return {}; }
+                  })();
+                  const cover = f.selectedImage || null;
+                  const hs = hydrateSaved(f);
                   return (
                     <div key={f.id} className="border border-gray-200 rounded-lg p-3 bg-white">
                       <div className="relative h-32 mb-2 rounded overflow-hidden bg-gray-100 flex items-center justify-center">
-                        {f.selectedImage ? (
-                          <img src={imageSrc(f.selectedImage)} alt="flyer" className="w-full h-full object-cover" />
+                        {cover ? (
+                          <img src={imageSrc(cover)} alt="flyer" className="w-full h-full object-cover" />
                         ) : (
                           <div className="text-[10px] text-gray-400">No Image</div>
                         )}
                       </div>
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-medium text-gray-800 truncate max-w-[120px]">{f.title || 'Untitled'}</span>
-                        <span className="text-[10px] text-gray-400">{fFormat.label}</span>
+                        <span className="text-xs font-medium text-gray-800 truncate max-w-[140px]">{f.title || hs.headline1 || 'Untitled'}</span>
+                        <span className="text-[10px] text-gray-400">A4</span>
                       </div>
                       <div className="flex gap-1">
-                        <PDFDownloadLink
-                          document={
-                            <Document>
-                              <Page size={[fFormat.w * 2.83465, fFormat.h * 2.83465]} style={pdfStyles.page}>
-                                {f.selectedImage && (
-                                  <View style={pdfStyles.imgBox}>
-                                    <PdfImage
-                                      src={imageSrc(f.selectedImage)}
-                                      style={{ width: '100%', height: '100%' }}
-                                    />
-                                  </View>
-                                )}
-                                <View style={pdfStyles.textBox}>
-                                  {f.title && (
-                                    <View style={pdfStyles.header}>
-                                      <Text style={pdfStyles.title}>{f.title}</Text>
-                                      {f.subtitle && <Text style={pdfStyles.subtitle}>{f.subtitle}</Text>}
-                                    </View>
-                                  )}
-                                  {f.body && (
-                                    <Text style={pdfStyles.body}>
-                                      {f.body.split('\n').map((p, i) => (
-                                        <Text key={i}>{p}</Text>
-                                      ))}
-                                    </Text>
-                                  )}
-                                  {(f.price || f.contact) && (
-                                    <View style={pdfStyles.details}>
-                                      {f.price && (
-                                        <View style={pdfStyles.detailsRow}>
-                                          <Text>Price</Text>
-                                          <Text>{f.price}</Text>
-                                        </View>
-                                      )}
-                                      {f.contact && (
-                                        <View style={pdfStyles.detailsRow}>
-                                          <Text>Contact</Text>
-                                          <Text>{f.contact}</Text>
-                                        </View>
-                                      )}
-                                    </View>
-                                  )}
-                                  {f.buttonText && (
-                                    <View style={pdfStyles.button}>
-                                      <Text>{f.buttonText}</Text>
-                                    </View>
-                                  )}
-                                </View>
-                              </Page>
-                            </Document>
-                          }
-                          fileName={`flyer-${f.formatId}.pdf`}
+                        <button
+                          onClick={() => loadSaved(f)}
+                          className="text-xs flex-1 rounded border border-gray-300 bg-white px-2 py-1.5 text-center hover:bg-gray-50"
                         >
+                          Load
+                        </button>
+                        <PDFDownloadLink document={buildPdfDoc(hs)} fileName={`flyer-${slugify(f.title || hs.headline1 || 'tour')}.pdf`}>
                           {({ loading: isPdfLoading }) => (
                             <button
                               disabled={isPdfLoading}
@@ -844,4 +752,12 @@ const imageSrc = (img: SavedImage | null | undefined) => {
       </div>
     </div>
   );
+
+  function slugify(v: string): string {
+    return String(v || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 60) || 'tour_flyer';
+  }
 }

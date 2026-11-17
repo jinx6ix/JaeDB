@@ -411,7 +411,8 @@ export const ModelName = {
   AgentRun: 'AgentRun',
   AgentMessage: 'AgentMessage',
   ItineraryEmbed: 'ItineraryEmbed',
-  SavedFlyer: 'SavedFlyer'
+  SavedFlyer: 'SavedFlyer',
+  TourImage: 'TourImage'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -427,7 +428,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "agent" | "client" | "destination" | "destinationImage" | "tourPackage" | "tourDay" | "rateCard" | "property" | "vehicle" | "booking" | "itinerary" | "itineraryDay" | "itineraryImage" | "voucher" | "invoice" | "costSheet" | "sRCounty" | "sRHotel" | "sRHotelImage" | "sRRoomType" | "sRSeason" | "sRRoomPrice" | "log" | "agentRun" | "agentMessage" | "itineraryEmbed" | "savedFlyer"
+    modelProps: "user" | "agent" | "client" | "destination" | "destinationImage" | "tourPackage" | "tourDay" | "rateCard" | "property" | "vehicle" | "booking" | "itinerary" | "itineraryDay" | "itineraryImage" | "voucher" | "invoice" | "costSheet" | "sRCounty" | "sRHotel" | "sRHotelImage" | "sRRoomType" | "sRSeason" | "sRRoomPrice" | "log" | "agentRun" | "agentMessage" | "itineraryEmbed" | "savedFlyer" | "tourImage"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2503,6 +2504,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    TourImage: {
+      payload: Prisma.$TourImagePayload<ExtArgs>
+      fields: Prisma.TourImageFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.TourImageFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TourImagePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.TourImageFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TourImagePayload>
+        }
+        findFirst: {
+          args: Prisma.TourImageFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TourImagePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.TourImageFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TourImagePayload>
+        }
+        findMany: {
+          args: Prisma.TourImageFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TourImagePayload>[]
+        }
+        create: {
+          args: Prisma.TourImageCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TourImagePayload>
+        }
+        createMany: {
+          args: Prisma.TourImageCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.TourImageCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TourImagePayload>[]
+        }
+        delete: {
+          args: Prisma.TourImageDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TourImagePayload>
+        }
+        update: {
+          args: Prisma.TourImageUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TourImagePayload>
+        }
+        deleteMany: {
+          args: Prisma.TourImageDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.TourImageUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.TourImageUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TourImagePayload>[]
+        }
+        upsert: {
+          args: Prisma.TourImageUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TourImagePayload>
+        }
+        aggregate: {
+          args: Prisma.TourImageAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateTourImage>
+        }
+        groupBy: {
+          args: Prisma.TourImageGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.TourImageGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.TourImageCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.TourImageCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -2625,7 +2700,11 @@ export const TourPackageScalarFieldEnum = {
   highlights: 'highlights',
   isActive: 'isActive',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  flyerHeadline1: 'flyerHeadline1',
+  flyerHeadline2: 'flyerHeadline2',
+  flyerSubtitle: 'flyerSubtitle',
+  flyerHighlights: 'flyerHighlights'
 } as const
 
 export type TourPackageScalarFieldEnum = (typeof TourPackageScalarFieldEnum)[keyof typeof TourPackageScalarFieldEnum]
@@ -3046,6 +3125,20 @@ export const SavedFlyerScalarFieldEnum = {
 export type SavedFlyerScalarFieldEnum = (typeof SavedFlyerScalarFieldEnum)[keyof typeof SavedFlyerScalarFieldEnum]
 
 
+export const TourImageScalarFieldEnum = {
+  id: 'id',
+  tourPackageId: 'tourPackageId',
+  filename: 'filename',
+  mimeType: 'mimeType',
+  data: 'data',
+  caption: 'caption',
+  isCover: 'isCover',
+  createdAt: 'createdAt'
+} as const
+
+export type TourImageScalarFieldEnum = (typeof TourImageScalarFieldEnum)[keyof typeof TourImageScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -3307,6 +3400,7 @@ export type GlobalOmitConfig = {
   agentMessage?: Prisma.AgentMessageOmit
   itineraryEmbed?: Prisma.ItineraryEmbedOmit
   savedFlyer?: Prisma.SavedFlyerOmit
+  tourImage?: Prisma.TourImageOmit
 }
 
 /* Types for Logging */

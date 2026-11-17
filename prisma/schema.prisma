@@ -94,6 +94,11 @@ model TourPackage {
   bookings       Booking[]
   rateCards      RateCard[]
   days           TourDay[]
+  flyerHeadline1 String?
+  flyerHeadline2 String?
+  flyerSubtitle  String?
+  flyerHighlights String?
+  images         TourImage[]
 }
 
 model TourDay {
@@ -512,4 +517,19 @@ model SavedFlyer {
   logoUrl     String?  @map("logourl")
   createdAt   DateTime @default(now()) @map("createdat")
   updatedAt   DateTime @updatedAt @map("updatedat")
+}
+
+model TourImage {
+  id            String      @id @default(cuid())
+  tourPackageId String
+  filename      String
+  mimeType      String
+  data          String
+  caption       String?
+  isCover       Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  tourPackage   TourPackage @relation(fields: [tourPackageId], references: [id], onDelete: Cascade)
+
+  @@index([tourPackageId])
+  @@map("tour_images")
 }

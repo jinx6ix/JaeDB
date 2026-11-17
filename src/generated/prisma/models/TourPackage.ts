@@ -47,6 +47,10 @@ export type TourPackageMinAggregateOutputType = {
   isActive: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
+  flyerHeadline1: string | null
+  flyerHeadline2: string | null
+  flyerSubtitle: string | null
+  flyerHighlights: string | null
 }
 
 export type TourPackageMaxAggregateOutputType = {
@@ -60,6 +64,10 @@ export type TourPackageMaxAggregateOutputType = {
   isActive: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
+  flyerHeadline1: string | null
+  flyerHeadline2: string | null
+  flyerSubtitle: string | null
+  flyerHighlights: string | null
 }
 
 export type TourPackageCountAggregateOutputType = {
@@ -73,6 +81,10 @@ export type TourPackageCountAggregateOutputType = {
   isActive: number
   createdAt: number
   updatedAt: number
+  flyerHeadline1: number
+  flyerHeadline2: number
+  flyerSubtitle: number
+  flyerHighlights: number
   _all: number
 }
 
@@ -98,6 +110,10 @@ export type TourPackageMinAggregateInputType = {
   isActive?: true
   createdAt?: true
   updatedAt?: true
+  flyerHeadline1?: true
+  flyerHeadline2?: true
+  flyerSubtitle?: true
+  flyerHighlights?: true
 }
 
 export type TourPackageMaxAggregateInputType = {
@@ -111,6 +127,10 @@ export type TourPackageMaxAggregateInputType = {
   isActive?: true
   createdAt?: true
   updatedAt?: true
+  flyerHeadline1?: true
+  flyerHeadline2?: true
+  flyerSubtitle?: true
+  flyerHighlights?: true
 }
 
 export type TourPackageCountAggregateInputType = {
@@ -124,6 +144,10 @@ export type TourPackageCountAggregateInputType = {
   isActive?: true
   createdAt?: true
   updatedAt?: true
+  flyerHeadline1?: true
+  flyerHeadline2?: true
+  flyerSubtitle?: true
+  flyerHighlights?: true
   _all?: true
 }
 
@@ -224,6 +248,10 @@ export type TourPackageGroupByOutputType = {
   isActive: boolean
   createdAt: Date
   updatedAt: Date
+  flyerHeadline1: string | null
+  flyerHeadline2: string | null
+  flyerSubtitle: string | null
+  flyerHighlights: string | null
   _count: TourPackageCountAggregateOutputType | null
   _avg: TourPackageAvgAggregateOutputType | null
   _sum: TourPackageSumAggregateOutputType | null
@@ -260,9 +288,14 @@ export type TourPackageWhereInput = {
   isActive?: Prisma.BoolFilter<"TourPackage"> | boolean
   createdAt?: Prisma.DateTimeFilter<"TourPackage"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"TourPackage"> | Date | string
+  flyerHeadline1?: Prisma.StringNullableFilter<"TourPackage"> | string | null
+  flyerHeadline2?: Prisma.StringNullableFilter<"TourPackage"> | string | null
+  flyerSubtitle?: Prisma.StringNullableFilter<"TourPackage"> | string | null
+  flyerHighlights?: Prisma.StringNullableFilter<"TourPackage"> | string | null
   bookings?: Prisma.BookingListRelationFilter
   rateCards?: Prisma.RateCardListRelationFilter
   days?: Prisma.TourDayListRelationFilter
+  images?: Prisma.TourImageListRelationFilter
 }
 
 export type TourPackageOrderByWithRelationInput = {
@@ -276,9 +309,14 @@ export type TourPackageOrderByWithRelationInput = {
   isActive?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  flyerHeadline1?: Prisma.SortOrderInput | Prisma.SortOrder
+  flyerHeadline2?: Prisma.SortOrderInput | Prisma.SortOrder
+  flyerSubtitle?: Prisma.SortOrderInput | Prisma.SortOrder
+  flyerHighlights?: Prisma.SortOrderInput | Prisma.SortOrder
   bookings?: Prisma.BookingOrderByRelationAggregateInput
   rateCards?: Prisma.RateCardOrderByRelationAggregateInput
   days?: Prisma.TourDayOrderByRelationAggregateInput
+  images?: Prisma.TourImageOrderByRelationAggregateInput
 }
 
 export type TourPackageWhereUniqueInput = Prisma.AtLeast<{
@@ -295,9 +333,14 @@ export type TourPackageWhereUniqueInput = Prisma.AtLeast<{
   isActive?: Prisma.BoolFilter<"TourPackage"> | boolean
   createdAt?: Prisma.DateTimeFilter<"TourPackage"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"TourPackage"> | Date | string
+  flyerHeadline1?: Prisma.StringNullableFilter<"TourPackage"> | string | null
+  flyerHeadline2?: Prisma.StringNullableFilter<"TourPackage"> | string | null
+  flyerSubtitle?: Prisma.StringNullableFilter<"TourPackage"> | string | null
+  flyerHighlights?: Prisma.StringNullableFilter<"TourPackage"> | string | null
   bookings?: Prisma.BookingListRelationFilter
   rateCards?: Prisma.RateCardListRelationFilter
   days?: Prisma.TourDayListRelationFilter
+  images?: Prisma.TourImageListRelationFilter
 }, "id">
 
 export type TourPackageOrderByWithAggregationInput = {
@@ -311,6 +354,10 @@ export type TourPackageOrderByWithAggregationInput = {
   isActive?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  flyerHeadline1?: Prisma.SortOrderInput | Prisma.SortOrder
+  flyerHeadline2?: Prisma.SortOrderInput | Prisma.SortOrder
+  flyerSubtitle?: Prisma.SortOrderInput | Prisma.SortOrder
+  flyerHighlights?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.TourPackageCountOrderByAggregateInput
   _avg?: Prisma.TourPackageAvgOrderByAggregateInput
   _max?: Prisma.TourPackageMaxOrderByAggregateInput
@@ -332,6 +379,10 @@ export type TourPackageScalarWhereWithAggregatesInput = {
   isActive?: Prisma.BoolWithAggregatesFilter<"TourPackage"> | boolean
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"TourPackage"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"TourPackage"> | Date | string
+  flyerHeadline1?: Prisma.StringNullableWithAggregatesFilter<"TourPackage"> | string | null
+  flyerHeadline2?: Prisma.StringNullableWithAggregatesFilter<"TourPackage"> | string | null
+  flyerSubtitle?: Prisma.StringNullableWithAggregatesFilter<"TourPackage"> | string | null
+  flyerHighlights?: Prisma.StringNullableWithAggregatesFilter<"TourPackage"> | string | null
 }
 
 export type TourPackageCreateInput = {
@@ -345,9 +396,14 @@ export type TourPackageCreateInput = {
   isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  flyerHeadline1?: string | null
+  flyerHeadline2?: string | null
+  flyerSubtitle?: string | null
+  flyerHighlights?: string | null
   bookings?: Prisma.BookingCreateNestedManyWithoutTourPackageInput
   rateCards?: Prisma.RateCardCreateNestedManyWithoutTourPackageInput
   days?: Prisma.TourDayCreateNestedManyWithoutTourPackageInput
+  images?: Prisma.TourImageCreateNestedManyWithoutTourPackageInput
 }
 
 export type TourPackageUncheckedCreateInput = {
@@ -361,9 +417,14 @@ export type TourPackageUncheckedCreateInput = {
   isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  flyerHeadline1?: string | null
+  flyerHeadline2?: string | null
+  flyerSubtitle?: string | null
+  flyerHighlights?: string | null
   bookings?: Prisma.BookingUncheckedCreateNestedManyWithoutTourPackageInput
   rateCards?: Prisma.RateCardUncheckedCreateNestedManyWithoutTourPackageInput
   days?: Prisma.TourDayUncheckedCreateNestedManyWithoutTourPackageInput
+  images?: Prisma.TourImageUncheckedCreateNestedManyWithoutTourPackageInput
 }
 
 export type TourPackageUpdateInput = {
@@ -377,9 +438,14 @@ export type TourPackageUpdateInput = {
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flyerHeadline1?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerHeadline2?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerSubtitle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerHighlights?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bookings?: Prisma.BookingUpdateManyWithoutTourPackageNestedInput
   rateCards?: Prisma.RateCardUpdateManyWithoutTourPackageNestedInput
   days?: Prisma.TourDayUpdateManyWithoutTourPackageNestedInput
+  images?: Prisma.TourImageUpdateManyWithoutTourPackageNestedInput
 }
 
 export type TourPackageUncheckedUpdateInput = {
@@ -393,9 +459,14 @@ export type TourPackageUncheckedUpdateInput = {
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flyerHeadline1?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerHeadline2?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerSubtitle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerHighlights?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bookings?: Prisma.BookingUncheckedUpdateManyWithoutTourPackageNestedInput
   rateCards?: Prisma.RateCardUncheckedUpdateManyWithoutTourPackageNestedInput
   days?: Prisma.TourDayUncheckedUpdateManyWithoutTourPackageNestedInput
+  images?: Prisma.TourImageUncheckedUpdateManyWithoutTourPackageNestedInput
 }
 
 export type TourPackageCreateManyInput = {
@@ -409,6 +480,10 @@ export type TourPackageCreateManyInput = {
   isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  flyerHeadline1?: string | null
+  flyerHeadline2?: string | null
+  flyerSubtitle?: string | null
+  flyerHighlights?: string | null
 }
 
 export type TourPackageUpdateManyMutationInput = {
@@ -422,6 +497,10 @@ export type TourPackageUpdateManyMutationInput = {
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flyerHeadline1?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerHeadline2?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerSubtitle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerHighlights?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type TourPackageUncheckedUpdateManyInput = {
@@ -435,6 +514,10 @@ export type TourPackageUncheckedUpdateManyInput = {
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flyerHeadline1?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerHeadline2?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerSubtitle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerHighlights?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type TourPackageCountOrderByAggregateInput = {
@@ -448,6 +531,10 @@ export type TourPackageCountOrderByAggregateInput = {
   isActive?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  flyerHeadline1?: Prisma.SortOrder
+  flyerHeadline2?: Prisma.SortOrder
+  flyerSubtitle?: Prisma.SortOrder
+  flyerHighlights?: Prisma.SortOrder
 }
 
 export type TourPackageAvgOrderByAggregateInput = {
@@ -466,6 +553,10 @@ export type TourPackageMaxOrderByAggregateInput = {
   isActive?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  flyerHeadline1?: Prisma.SortOrder
+  flyerHeadline2?: Prisma.SortOrder
+  flyerSubtitle?: Prisma.SortOrder
+  flyerHighlights?: Prisma.SortOrder
 }
 
 export type TourPackageMinOrderByAggregateInput = {
@@ -479,6 +570,10 @@ export type TourPackageMinOrderByAggregateInput = {
   isActive?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  flyerHeadline1?: Prisma.SortOrder
+  flyerHeadline2?: Prisma.SortOrder
+  flyerSubtitle?: Prisma.SortOrder
+  flyerHighlights?: Prisma.SortOrder
 }
 
 export type TourPackageSumOrderByAggregateInput = {
@@ -540,6 +635,20 @@ export type TourPackageUpdateOneWithoutBookingsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.TourPackageUpdateToOneWithWhereWithoutBookingsInput, Prisma.TourPackageUpdateWithoutBookingsInput>, Prisma.TourPackageUncheckedUpdateWithoutBookingsInput>
 }
 
+export type TourPackageCreateNestedOneWithoutImagesInput = {
+  create?: Prisma.XOR<Prisma.TourPackageCreateWithoutImagesInput, Prisma.TourPackageUncheckedCreateWithoutImagesInput>
+  connectOrCreate?: Prisma.TourPackageCreateOrConnectWithoutImagesInput
+  connect?: Prisma.TourPackageWhereUniqueInput
+}
+
+export type TourPackageUpdateOneRequiredWithoutImagesNestedInput = {
+  create?: Prisma.XOR<Prisma.TourPackageCreateWithoutImagesInput, Prisma.TourPackageUncheckedCreateWithoutImagesInput>
+  connectOrCreate?: Prisma.TourPackageCreateOrConnectWithoutImagesInput
+  upsert?: Prisma.TourPackageUpsertWithoutImagesInput
+  connect?: Prisma.TourPackageWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.TourPackageUpdateToOneWithWhereWithoutImagesInput, Prisma.TourPackageUpdateWithoutImagesInput>, Prisma.TourPackageUncheckedUpdateWithoutImagesInput>
+}
+
 export type TourPackageCreateWithoutDaysInput = {
   id?: string
   title: string
@@ -551,8 +660,13 @@ export type TourPackageCreateWithoutDaysInput = {
   isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  flyerHeadline1?: string | null
+  flyerHeadline2?: string | null
+  flyerSubtitle?: string | null
+  flyerHighlights?: string | null
   bookings?: Prisma.BookingCreateNestedManyWithoutTourPackageInput
   rateCards?: Prisma.RateCardCreateNestedManyWithoutTourPackageInput
+  images?: Prisma.TourImageCreateNestedManyWithoutTourPackageInput
 }
 
 export type TourPackageUncheckedCreateWithoutDaysInput = {
@@ -566,8 +680,13 @@ export type TourPackageUncheckedCreateWithoutDaysInput = {
   isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  flyerHeadline1?: string | null
+  flyerHeadline2?: string | null
+  flyerSubtitle?: string | null
+  flyerHighlights?: string | null
   bookings?: Prisma.BookingUncheckedCreateNestedManyWithoutTourPackageInput
   rateCards?: Prisma.RateCardUncheckedCreateNestedManyWithoutTourPackageInput
+  images?: Prisma.TourImageUncheckedCreateNestedManyWithoutTourPackageInput
 }
 
 export type TourPackageCreateOrConnectWithoutDaysInput = {
@@ -597,8 +716,13 @@ export type TourPackageUpdateWithoutDaysInput = {
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flyerHeadline1?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerHeadline2?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerSubtitle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerHighlights?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bookings?: Prisma.BookingUpdateManyWithoutTourPackageNestedInput
   rateCards?: Prisma.RateCardUpdateManyWithoutTourPackageNestedInput
+  images?: Prisma.TourImageUpdateManyWithoutTourPackageNestedInput
 }
 
 export type TourPackageUncheckedUpdateWithoutDaysInput = {
@@ -612,8 +736,13 @@ export type TourPackageUncheckedUpdateWithoutDaysInput = {
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flyerHeadline1?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerHeadline2?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerSubtitle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerHighlights?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bookings?: Prisma.BookingUncheckedUpdateManyWithoutTourPackageNestedInput
   rateCards?: Prisma.RateCardUncheckedUpdateManyWithoutTourPackageNestedInput
+  images?: Prisma.TourImageUncheckedUpdateManyWithoutTourPackageNestedInput
 }
 
 export type TourPackageCreateWithoutRateCardsInput = {
@@ -627,8 +756,13 @@ export type TourPackageCreateWithoutRateCardsInput = {
   isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  flyerHeadline1?: string | null
+  flyerHeadline2?: string | null
+  flyerSubtitle?: string | null
+  flyerHighlights?: string | null
   bookings?: Prisma.BookingCreateNestedManyWithoutTourPackageInput
   days?: Prisma.TourDayCreateNestedManyWithoutTourPackageInput
+  images?: Prisma.TourImageCreateNestedManyWithoutTourPackageInput
 }
 
 export type TourPackageUncheckedCreateWithoutRateCardsInput = {
@@ -642,8 +776,13 @@ export type TourPackageUncheckedCreateWithoutRateCardsInput = {
   isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  flyerHeadline1?: string | null
+  flyerHeadline2?: string | null
+  flyerSubtitle?: string | null
+  flyerHighlights?: string | null
   bookings?: Prisma.BookingUncheckedCreateNestedManyWithoutTourPackageInput
   days?: Prisma.TourDayUncheckedCreateNestedManyWithoutTourPackageInput
+  images?: Prisma.TourImageUncheckedCreateNestedManyWithoutTourPackageInput
 }
 
 export type TourPackageCreateOrConnectWithoutRateCardsInput = {
@@ -673,8 +812,13 @@ export type TourPackageUpdateWithoutRateCardsInput = {
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flyerHeadline1?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerHeadline2?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerSubtitle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerHighlights?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bookings?: Prisma.BookingUpdateManyWithoutTourPackageNestedInput
   days?: Prisma.TourDayUpdateManyWithoutTourPackageNestedInput
+  images?: Prisma.TourImageUpdateManyWithoutTourPackageNestedInput
 }
 
 export type TourPackageUncheckedUpdateWithoutRateCardsInput = {
@@ -688,8 +832,13 @@ export type TourPackageUncheckedUpdateWithoutRateCardsInput = {
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flyerHeadline1?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerHeadline2?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerSubtitle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerHighlights?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bookings?: Prisma.BookingUncheckedUpdateManyWithoutTourPackageNestedInput
   days?: Prisma.TourDayUncheckedUpdateManyWithoutTourPackageNestedInput
+  images?: Prisma.TourImageUncheckedUpdateManyWithoutTourPackageNestedInput
 }
 
 export type TourPackageCreateWithoutBookingsInput = {
@@ -703,8 +852,13 @@ export type TourPackageCreateWithoutBookingsInput = {
   isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  flyerHeadline1?: string | null
+  flyerHeadline2?: string | null
+  flyerSubtitle?: string | null
+  flyerHighlights?: string | null
   rateCards?: Prisma.RateCardCreateNestedManyWithoutTourPackageInput
   days?: Prisma.TourDayCreateNestedManyWithoutTourPackageInput
+  images?: Prisma.TourImageCreateNestedManyWithoutTourPackageInput
 }
 
 export type TourPackageUncheckedCreateWithoutBookingsInput = {
@@ -718,8 +872,13 @@ export type TourPackageUncheckedCreateWithoutBookingsInput = {
   isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  flyerHeadline1?: string | null
+  flyerHeadline2?: string | null
+  flyerSubtitle?: string | null
+  flyerHighlights?: string | null
   rateCards?: Prisma.RateCardUncheckedCreateNestedManyWithoutTourPackageInput
   days?: Prisma.TourDayUncheckedCreateNestedManyWithoutTourPackageInput
+  images?: Prisma.TourImageUncheckedCreateNestedManyWithoutTourPackageInput
 }
 
 export type TourPackageCreateOrConnectWithoutBookingsInput = {
@@ -749,8 +908,13 @@ export type TourPackageUpdateWithoutBookingsInput = {
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flyerHeadline1?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerHeadline2?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerSubtitle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerHighlights?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   rateCards?: Prisma.RateCardUpdateManyWithoutTourPackageNestedInput
   days?: Prisma.TourDayUpdateManyWithoutTourPackageNestedInput
+  images?: Prisma.TourImageUpdateManyWithoutTourPackageNestedInput
 }
 
 export type TourPackageUncheckedUpdateWithoutBookingsInput = {
@@ -764,6 +928,107 @@ export type TourPackageUncheckedUpdateWithoutBookingsInput = {
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flyerHeadline1?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerHeadline2?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerSubtitle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerHighlights?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  rateCards?: Prisma.RateCardUncheckedUpdateManyWithoutTourPackageNestedInput
+  days?: Prisma.TourDayUncheckedUpdateManyWithoutTourPackageNestedInput
+  images?: Prisma.TourImageUncheckedUpdateManyWithoutTourPackageNestedInput
+}
+
+export type TourPackageCreateWithoutImagesInput = {
+  id?: string
+  title: string
+  description?: string | null
+  durationDays: number
+  durationNights: number
+  countries?: string
+  highlights?: string | null
+  isActive?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  flyerHeadline1?: string | null
+  flyerHeadline2?: string | null
+  flyerSubtitle?: string | null
+  flyerHighlights?: string | null
+  bookings?: Prisma.BookingCreateNestedManyWithoutTourPackageInput
+  rateCards?: Prisma.RateCardCreateNestedManyWithoutTourPackageInput
+  days?: Prisma.TourDayCreateNestedManyWithoutTourPackageInput
+}
+
+export type TourPackageUncheckedCreateWithoutImagesInput = {
+  id?: string
+  title: string
+  description?: string | null
+  durationDays: number
+  durationNights: number
+  countries?: string
+  highlights?: string | null
+  isActive?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  flyerHeadline1?: string | null
+  flyerHeadline2?: string | null
+  flyerSubtitle?: string | null
+  flyerHighlights?: string | null
+  bookings?: Prisma.BookingUncheckedCreateNestedManyWithoutTourPackageInput
+  rateCards?: Prisma.RateCardUncheckedCreateNestedManyWithoutTourPackageInput
+  days?: Prisma.TourDayUncheckedCreateNestedManyWithoutTourPackageInput
+}
+
+export type TourPackageCreateOrConnectWithoutImagesInput = {
+  where: Prisma.TourPackageWhereUniqueInput
+  create: Prisma.XOR<Prisma.TourPackageCreateWithoutImagesInput, Prisma.TourPackageUncheckedCreateWithoutImagesInput>
+}
+
+export type TourPackageUpsertWithoutImagesInput = {
+  update: Prisma.XOR<Prisma.TourPackageUpdateWithoutImagesInput, Prisma.TourPackageUncheckedUpdateWithoutImagesInput>
+  create: Prisma.XOR<Prisma.TourPackageCreateWithoutImagesInput, Prisma.TourPackageUncheckedCreateWithoutImagesInput>
+  where?: Prisma.TourPackageWhereInput
+}
+
+export type TourPackageUpdateToOneWithWhereWithoutImagesInput = {
+  where?: Prisma.TourPackageWhereInput
+  data: Prisma.XOR<Prisma.TourPackageUpdateWithoutImagesInput, Prisma.TourPackageUncheckedUpdateWithoutImagesInput>
+}
+
+export type TourPackageUpdateWithoutImagesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  durationDays?: Prisma.IntFieldUpdateOperationsInput | number
+  durationNights?: Prisma.IntFieldUpdateOperationsInput | number
+  countries?: Prisma.StringFieldUpdateOperationsInput | string
+  highlights?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flyerHeadline1?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerHeadline2?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerSubtitle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerHighlights?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bookings?: Prisma.BookingUpdateManyWithoutTourPackageNestedInput
+  rateCards?: Prisma.RateCardUpdateManyWithoutTourPackageNestedInput
+  days?: Prisma.TourDayUpdateManyWithoutTourPackageNestedInput
+}
+
+export type TourPackageUncheckedUpdateWithoutImagesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  durationDays?: Prisma.IntFieldUpdateOperationsInput | number
+  durationNights?: Prisma.IntFieldUpdateOperationsInput | number
+  countries?: Prisma.StringFieldUpdateOperationsInput | string
+  highlights?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flyerHeadline1?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerHeadline2?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerSubtitle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flyerHighlights?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bookings?: Prisma.BookingUncheckedUpdateManyWithoutTourPackageNestedInput
   rateCards?: Prisma.RateCardUncheckedUpdateManyWithoutTourPackageNestedInput
   days?: Prisma.TourDayUncheckedUpdateManyWithoutTourPackageNestedInput
 }
@@ -777,12 +1042,14 @@ export type TourPackageCountOutputType = {
   bookings: number
   rateCards: number
   days: number
+  images: number
 }
 
 export type TourPackageCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   bookings?: boolean | TourPackageCountOutputTypeCountBookingsArgs
   rateCards?: boolean | TourPackageCountOutputTypeCountRateCardsArgs
   days?: boolean | TourPackageCountOutputTypeCountDaysArgs
+  images?: boolean | TourPackageCountOutputTypeCountImagesArgs
 }
 
 /**
@@ -816,6 +1083,13 @@ export type TourPackageCountOutputTypeCountDaysArgs<ExtArgs extends runtime.Type
   where?: Prisma.TourDayWhereInput
 }
 
+/**
+ * TourPackageCountOutputType without action
+ */
+export type TourPackageCountOutputTypeCountImagesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.TourImageWhereInput
+}
+
 
 export type TourPackageSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -828,9 +1102,14 @@ export type TourPackageSelect<ExtArgs extends runtime.Types.Extensions.InternalA
   isActive?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  flyerHeadline1?: boolean
+  flyerHeadline2?: boolean
+  flyerSubtitle?: boolean
+  flyerHighlights?: boolean
   bookings?: boolean | Prisma.TourPackage$bookingsArgs<ExtArgs>
   rateCards?: boolean | Prisma.TourPackage$rateCardsArgs<ExtArgs>
   days?: boolean | Prisma.TourPackage$daysArgs<ExtArgs>
+  images?: boolean | Prisma.TourPackage$imagesArgs<ExtArgs>
   _count?: boolean | Prisma.TourPackageCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["tourPackage"]>
 
@@ -845,6 +1124,10 @@ export type TourPackageSelectCreateManyAndReturn<ExtArgs extends runtime.Types.E
   isActive?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  flyerHeadline1?: boolean
+  flyerHeadline2?: boolean
+  flyerSubtitle?: boolean
+  flyerHighlights?: boolean
 }, ExtArgs["result"]["tourPackage"]>
 
 export type TourPackageSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -858,6 +1141,10 @@ export type TourPackageSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.E
   isActive?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  flyerHeadline1?: boolean
+  flyerHeadline2?: boolean
+  flyerSubtitle?: boolean
+  flyerHighlights?: boolean
 }, ExtArgs["result"]["tourPackage"]>
 
 export type TourPackageSelectScalar = {
@@ -871,13 +1158,18 @@ export type TourPackageSelectScalar = {
   isActive?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  flyerHeadline1?: boolean
+  flyerHeadline2?: boolean
+  flyerSubtitle?: boolean
+  flyerHighlights?: boolean
 }
 
-export type TourPackageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "title" | "description" | "durationDays" | "durationNights" | "countries" | "highlights" | "isActive" | "createdAt" | "updatedAt", ExtArgs["result"]["tourPackage"]>
+export type TourPackageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "title" | "description" | "durationDays" | "durationNights" | "countries" | "highlights" | "isActive" | "createdAt" | "updatedAt" | "flyerHeadline1" | "flyerHeadline2" | "flyerSubtitle" | "flyerHighlights", ExtArgs["result"]["tourPackage"]>
 export type TourPackageInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   bookings?: boolean | Prisma.TourPackage$bookingsArgs<ExtArgs>
   rateCards?: boolean | Prisma.TourPackage$rateCardsArgs<ExtArgs>
   days?: boolean | Prisma.TourPackage$daysArgs<ExtArgs>
+  images?: boolean | Prisma.TourPackage$imagesArgs<ExtArgs>
   _count?: boolean | Prisma.TourPackageCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type TourPackageIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -889,6 +1181,7 @@ export type $TourPackagePayload<ExtArgs extends runtime.Types.Extensions.Interna
     bookings: Prisma.$BookingPayload<ExtArgs>[]
     rateCards: Prisma.$RateCardPayload<ExtArgs>[]
     days: Prisma.$TourDayPayload<ExtArgs>[]
+    images: Prisma.$TourImagePayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -901,6 +1194,10 @@ export type $TourPackagePayload<ExtArgs extends runtime.Types.Extensions.Interna
     isActive: boolean
     createdAt: Date
     updatedAt: Date
+    flyerHeadline1: string | null
+    flyerHeadline2: string | null
+    flyerSubtitle: string | null
+    flyerHighlights: string | null
   }, ExtArgs["result"]["tourPackage"]>
   composites: {}
 }
@@ -1298,6 +1595,7 @@ export interface Prisma__TourPackageClient<T, Null = never, ExtArgs extends runt
   bookings<T extends Prisma.TourPackage$bookingsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.TourPackage$bookingsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$BookingPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   rateCards<T extends Prisma.TourPackage$rateCardsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.TourPackage$rateCardsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RateCardPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   days<T extends Prisma.TourPackage$daysArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.TourPackage$daysArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$TourDayPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  images<T extends Prisma.TourPackage$imagesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.TourPackage$imagesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$TourImagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1337,6 +1635,10 @@ export interface TourPackageFieldRefs {
   readonly isActive: Prisma.FieldRef<"TourPackage", 'Boolean'>
   readonly createdAt: Prisma.FieldRef<"TourPackage", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"TourPackage", 'DateTime'>
+  readonly flyerHeadline1: Prisma.FieldRef<"TourPackage", 'String'>
+  readonly flyerHeadline2: Prisma.FieldRef<"TourPackage", 'String'>
+  readonly flyerSubtitle: Prisma.FieldRef<"TourPackage", 'String'>
+  readonly flyerHighlights: Prisma.FieldRef<"TourPackage", 'String'>
 }
     
 
@@ -1799,6 +2101,30 @@ export type TourPackage$daysArgs<ExtArgs extends runtime.Types.Extensions.Intern
   take?: number
   skip?: number
   distinct?: Prisma.TourDayScalarFieldEnum | Prisma.TourDayScalarFieldEnum[]
+}
+
+/**
+ * TourPackage.images
+ */
+export type TourPackage$imagesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the TourImage
+   */
+  select?: Prisma.TourImageSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the TourImage
+   */
+  omit?: Prisma.TourImageOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.TourImageInclude<ExtArgs> | null
+  where?: Prisma.TourImageWhereInput
+  orderBy?: Prisma.TourImageOrderByWithRelationInput | Prisma.TourImageOrderByWithRelationInput[]
+  cursor?: Prisma.TourImageWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.TourImageScalarFieldEnum | Prisma.TourImageScalarFieldEnum[]
 }
 
 /**

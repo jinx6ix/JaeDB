@@ -116,3 +116,4 @@ yarn-error.log*
 /*.dylib
 /*.test
 /*.out
+tmp/
