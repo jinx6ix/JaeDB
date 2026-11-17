@@ -51,6 +51,10 @@ export default function HotelsPage() {
   const [galleryDescEditing, setGalleryDescEditing] = useState(false);
   const [galleryDesc, setGalleryDesc] = useState('');
 
+  // Hotel name edit state (gallery)
+  const [nameEditing, setNameEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+
   // Image edit/delete popup state (deliberate buttons — no accidental x-delete)
   const [popupOpen, setPopupOpen] = useState(false);
   const [popupImage, setPopupImage] = useState<HotelImage | null>(null);
@@ -295,11 +299,35 @@ export default function HotelsPage() {
     }
   }
 
+  async function saveHotelName() {
+    if (!galleryHotel) return;
+    const name = editName.trim();
+    if (!name) { alert('Please enter a hotel name'); return; }
+    try {
+      const res = await fetch(`/api/safari-rates/hotels/${galleryHotel.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed to update name' }));
+        throw new Error(err.error || 'Failed to update name');
+      }
+      const updated = await res.json();
+      setHotels(prev => prev.map(h => h.id === galleryHotel!.id ? { ...h, name: updated.name } : h));
+      setGalleryHotel(prev => prev ? { ...prev, name: updated.name } : null);
+      setNameEditing(false);
+    } catch (err: any) {
+      alert(err.message);
+    }
+  }
+
   // --- Gallery handlers ---
   async function openGallery(hotel: Hotel) {
     setGalleryHotel(hotel);
     setGalleryIndex(0);
     setGalleryDesc(hotel.description || '');
+    setEditName(hotel.name || '');
     setGalleryOpen(true);
 
     const cached = hotelImages[hotel.id];
@@ -506,17 +534,17 @@ export default function HotelsPage() {
                 <p className="text-xs text-gray-500">{galleryHotel.category || '—'} · {galleryHotel.stars ? '★'.repeat(galleryHotel.stars) : '—'} · {galleryHotel.county.name}</p>
               </div>
               <div className="flex gap-2">
-                {galleryDescEditing ? (
+                {nameEditing ? (
                   <>
                     <button
-                      onClick={saveGalleryDescription}
+                      onClick={saveHotelName}
                       disabled={saving}
                       className="text-xs text-orange-600 hover:underline font-medium"
                     >
                       {saving ? '…' : 'Save'}
                     </button>
                     <button
-                      onClick={() => { setGalleryDescEditing(false); setGalleryDesc(galleryHotel.description || ''); }}
+                      onClick={() => { setEditName(galleryHotel.name || ''); setNameEditing(false); }}
                       className="text-xs text-gray-500 hover:underline"
                     >
                       Cancel
@@ -525,14 +553,40 @@ export default function HotelsPage() {
                 ) : (
                   <>
                     <button
-                      onClick={() => { setGalleryDesc(galleryHotel.description || ''); setGalleryDescEditing(true); }}
+                      onClick={() => setNameEditing(true)}
                       className="text-xs text-blue-600 hover:underline font-medium"
                     >
-                      Edit Description
+                      Edit Name
                     </button>
-                    <button onClick={closeGallery} className="text-gray-500 hover:text-gray-700">
-                      <X size={20} />
-                    </button>
+                    {galleryDescEditing ? (
+                      <>
+                        <button
+                          onClick={saveGalleryDescription}
+                          disabled={saving}
+                          className="text-xs text-orange-600 hover:underline font-medium"
+                        >
+                          {saving ? '…' : 'Save'}
+                        </button>
+                        <button
+                          onClick={() => { setGalleryDescEditing(false); setGalleryDesc(galleryHotel.description || ''); }}
+                          className="text-xs text-gray-500 hover:underline"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => { setGalleryDesc(galleryHotel.description || ''); setGalleryDescEditing(true); }}
+                          className="text-xs text-blue-600 hover:underline font-medium"
+                        >
+                          Edit Description
+                        </button>
+                        <button onClick={closeGallery} className="text-gray-500 hover:text-gray-700">
+                          <X size={20} />
+                        </button>
+                      </>
+                    )}
                   </>
                 )}
               </div>
@@ -547,6 +601,18 @@ export default function HotelsPage() {
                   className="input w-full"
                   placeholder="Describe the hotel…"
                   autoFocus
+                />
+              </div>
+            )}
+
+            {nameEditing && (
+              <div className="p-4 border-b border-gray-100 bg-gray-50">
+                <input
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  autoFocus
+                  className="input w-full"
+                  placeholder="Hotel name…"
                 />
               </div>
             )}
