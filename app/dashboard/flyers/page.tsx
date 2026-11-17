@@ -485,8 +485,8 @@ export default function FlyersPage() {
         cardRows.push(`
           <div style="position:absolute;left:${x}px;top:${y}px;width:${CW}px;height:${CH}px;background:#fff;border-radius:8px;overflow:hidden;">
             <div style="position:absolute;left:0;top:0;width:6px;height:${CH}px;background:${GOLD};border-radius:3px 0 0 3px;"></div>
-            <div style="position:absolute;left:20px;top:${CH - 22}px;font-family:Helvetica-Bold;font-size:12.5px;color:${GREEN};">${h.title}</div>
-            <div style="position:absolute;left:20px;top:${CH - 36}px;width:${CW - 30}px;font-family:Helvetica;font-size:9.5px;color:${BODY};line-height:12px;overflow:hidden;">${h.description}</div>
+            <div style="position:absolute;left:20px;top:${CH - 48}px;font-family:Helvetica-Bold;font-size:12.5px;color:${GREEN};">${h.title}</div>
+            <div style="position:absolute;left:20px;top:${CH - 28}px;width:${CW - 30}px;font-family:Helvetica;font-size:9.5px;color:${BODY};line-height:12px;overflow:hidden;max-height:24px;">${h.description}</div>
           </div>
         `);
       }
@@ -554,7 +554,7 @@ export default function FlyersPage() {
           <View key={`card-title-${i}`} style={[pdfStyles.cardTitle, { top: topFromY(y + CH - 20, 12.5), left: x + 18 }]}>
             <Text>{h.title}</Text>
           </View>,
-          <View key={`card-desc-${i}`} style={[pdfStyles.cardDesc, { top: topForBaseline(H - (y + CH - 34), 9.5), left: x + 18, width: CW - 30 }]}>
+          <View key={`card-desc-${i}`} style={[pdfStyles.cardDesc, { top: topForBaseline(H - (y + CH - 34), 9.5), left: x + 18, width: CW - 30, maxHeight: 24 }]}>
             <Text>{h.description}</Text>
           </View>,
         );
