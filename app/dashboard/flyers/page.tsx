@@ -295,12 +295,26 @@ export default function FlyersPage() {
 
   // ---- load saved flyers ----
   useEffect(() => {
+    let cancelled = false;
     fetch('/api/saved-flyers')
-      .then((r) => r.json())
-      .then((data: any) => {
-        if (Array.isArray(data)) setSavedFlyers(data);
+      .then(async (r) => {
+        if (!r.ok) {
+          const errBody = await r.json().catch(() => ({ error: `HTTP ${r.status}` }));
+          throw new Error(errBody.error || `Failed to load saved flyers (HTTP ${r.status})`);
+        }
+        return r.json();
       })
-      .catch(() => setError('Failed to load saved flyers'));
+      .then((data: any) => {
+        if (cancelled) return;
+        if (Array.isArray(data)) setSavedFlyers(data);
+        else setError('Unexpected response loading saved flyers');
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error('Failed to load saved flyers:', err);
+        setError(err.message || 'Failed to load saved flyers');
+      });
+    return () => { cancelled = true; };
   }, []);
 
   // Hydrate state from a saved flyer (full state stored as JSON in `body`, cover in `selectedImage`)
