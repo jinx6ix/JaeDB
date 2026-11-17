@@ -140,14 +140,14 @@ function textTopSub(pos: 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight'):
 // Image placement helpers
 // object-position: 50% + (pos * 50)%, where pos in [-1,1]; 0 = center
 function imageObjectPosition(s: FlyerState): string {
-  const x = 50 + s.imagePositionX * 50;
-  const y = 50 + s.imagePositionY * 50;
-  return `${x}% ${y}%`;
+  const x = s.imagePositionX ?? 0;
+  const y = s.imagePositionY ?? 0;
+  return `${50 + x * 50}% ${50 + y * 50}%`;
 }
 function imageTransformOrigin(s: FlyerState): string {
-  const x = 50 + s.imagePositionX * 50;
-  const y = 50 + s.imagePositionY * 50;
-  return `${x}% ${y}%`;
+  const x = s.imagePositionX ?? 0;
+  const y = s.imagePositionY ?? 0;
+  return `${50 + x * 50}% ${50 + y * 50}%`;
 }
 
 // Logo from the public directory (used by default when no custom logoUrl is set).
@@ -471,7 +471,7 @@ export default function FlyersPage() {
     const CW = (W - 72 - 20) / 2;
     const CH = 56;
     const heroImg = s.coverImage
-      ? `<img src="${imageSrc(s.coverImage)}" style="width:100%;height:100%;object-fit:${s.imageFit};object-position:${imageObjectPosition(s)};transform:scale(${s.imageScale});transform-origin:${imageTransformOrigin(s)};" />`
+      ? `<img src="${imageSrc(s.coverImage)}" style="width:100%;height:100%;object-fit:${s.imageFit ?? 'cover'};object-position:${imageObjectPosition({ ...s, imagePositionX: s.imagePositionX ?? 0, imagePositionY: s.imagePositionY ?? 0 })};transform:scale(${s.imageScale ?? 1});transform-origin:${imageTransformOrigin({ ...s, imagePositionX: s.imagePositionX ?? 0, imagePositionY: s.imagePositionY ?? 0 })};" />`
       : `<div style="width:100%;height:100%;background:#2B1B3D;display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:14px;">Cover image</div>`;
 
     // Logo position: left | center | right
@@ -606,7 +606,7 @@ export default function FlyersPage() {
         <Page size="A4" style={pdfStyles.page}>
           {s.coverImage ? (
             <View style={pdfStyles.hero}>
-              <PdfImage src={imageSrc(s.coverImage)} style={{ width: '100%', height: '100%', objectFit: s.imageFit, objectPosition: imageObjectPosition(s), transform: [{ scale: s.imageScale }] } as any} />
+              <PdfImage src={imageSrc(s.coverImage)} style={{ width: '100%', height: '100%', objectFit: s.imageFit ?? 'cover', objectPosition: imageObjectPosition(s), transform: [{ scale: s.imageScale ?? 1 }] } as any} />
             </View>
           ) : null}
           {/* Logo (public/logo.jpg) + wordmark */}
