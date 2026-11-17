@@ -29,6 +29,7 @@ const nav = [
   { label: 'Hotels',         href: '/dashboard/hotels',           icon: Building,        adminOnly: false },
   { label: 'Destinations',   href: '/dashboard/destinations',     icon: MapPin,          adminOnly: false },
   { label: 'Flyers',         href: '/dashboard/flyers',           icon: Image,           adminOnly: false },
+  { label: 'Newsletter',     href: '/dashboard/news-letter',      icon: FileText,        adminOnly: false },
   { label: 'Amend Voucher',  href: '/dashboard/vouchers/amend',   icon: PenLine,         adminOnly: false },
   { label: 'Users',          href: '/dashboard/admin/users',      icon: UserCog,         adminOnly: true  },
 ];

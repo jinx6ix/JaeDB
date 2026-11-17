@@ -519,6 +519,24 @@ model SavedFlyer {
   updatedAt   DateTime @updatedAt @map("updatedat")
 }
 
+model Newsletter {
+  id               String   @id @default(cuid()) @map("id")
+  title            String?  @map("title")
+  subtitle         String?  @map("subtitle")
+  announcementTitle String?  @map("announcementtitle")
+  announcementSubtitle String? @map("announcementsubtitle")
+  body             String?  @map("body")
+  heroImage        Json?    @map("heroimage")
+  items            Json?    @map("items")
+  contactEmail     String?  @map("contactemail")
+  contactPhone     String?  @map("contactphone")
+  contactWebsite   String?  @map("contactwebsite")
+  createdAt        DateTime @default(now()) @map("createdat")
+  updatedAt        DateTime @updatedAt @map("updatedat")
+
+  @@map("newsletters")
+}
+
 model TourImage {
   id            String      @id @default(cuid())
   tourPackageId String

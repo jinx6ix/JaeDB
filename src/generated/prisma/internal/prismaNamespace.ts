@@ -412,6 +412,7 @@ export const ModelName = {
   AgentMessage: 'AgentMessage',
   ItineraryEmbed: 'ItineraryEmbed',
   SavedFlyer: 'SavedFlyer',
+  Newsletter: 'Newsletter',
   TourImage: 'TourImage'
 } as const
 
@@ -428,7 +429,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "agent" | "client" | "destination" | "destinationImage" | "tourPackage" | "tourDay" | "rateCard" | "property" | "vehicle" | "booking" | "itinerary" | "itineraryDay" | "itineraryImage" | "voucher" | "invoice" | "costSheet" | "sRCounty" | "sRHotel" | "sRHotelImage" | "sRRoomType" | "sRSeason" | "sRRoomPrice" | "log" | "agentRun" | "agentMessage" | "itineraryEmbed" | "savedFlyer" | "tourImage"
+    modelProps: "user" | "agent" | "client" | "destination" | "destinationImage" | "tourPackage" | "tourDay" | "rateCard" | "property" | "vehicle" | "booking" | "itinerary" | "itineraryDay" | "itineraryImage" | "voucher" | "invoice" | "costSheet" | "sRCounty" | "sRHotel" | "sRHotelImage" | "sRRoomType" | "sRSeason" | "sRRoomPrice" | "log" | "agentRun" | "agentMessage" | "itineraryEmbed" | "savedFlyer" | "newsletter" | "tourImage"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2504,6 +2505,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    Newsletter: {
+      payload: Prisma.$NewsletterPayload<ExtArgs>
+      fields: Prisma.NewsletterFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.NewsletterFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NewsletterPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.NewsletterFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NewsletterPayload>
+        }
+        findFirst: {
+          args: Prisma.NewsletterFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NewsletterPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.NewsletterFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NewsletterPayload>
+        }
+        findMany: {
+          args: Prisma.NewsletterFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NewsletterPayload>[]
+        }
+        create: {
+          args: Prisma.NewsletterCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NewsletterPayload>
+        }
+        createMany: {
+          args: Prisma.NewsletterCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.NewsletterCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NewsletterPayload>[]
+        }
+        delete: {
+          args: Prisma.NewsletterDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NewsletterPayload>
+        }
+        update: {
+          args: Prisma.NewsletterUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NewsletterPayload>
+        }
+        deleteMany: {
+          args: Prisma.NewsletterDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.NewsletterUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.NewsletterUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NewsletterPayload>[]
+        }
+        upsert: {
+          args: Prisma.NewsletterUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NewsletterPayload>
+        }
+        aggregate: {
+          args: Prisma.NewsletterAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateNewsletter>
+        }
+        groupBy: {
+          args: Prisma.NewsletterGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.NewsletterGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.NewsletterCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.NewsletterCountAggregateOutputType> | number
+        }
+      }
+    }
     TourImage: {
       payload: Prisma.$TourImagePayload<ExtArgs>
       fields: Prisma.TourImageFieldRefs
@@ -3125,6 +3200,25 @@ export const SavedFlyerScalarFieldEnum = {
 export type SavedFlyerScalarFieldEnum = (typeof SavedFlyerScalarFieldEnum)[keyof typeof SavedFlyerScalarFieldEnum]
 
 
+export const NewsletterScalarFieldEnum = {
+  id: 'id',
+  title: 'title',
+  subtitle: 'subtitle',
+  announcementTitle: 'announcementTitle',
+  announcementSubtitle: 'announcementSubtitle',
+  body: 'body',
+  heroImage: 'heroImage',
+  items: 'items',
+  contactEmail: 'contactEmail',
+  contactPhone: 'contactPhone',
+  contactWebsite: 'contactWebsite',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type NewsletterScalarFieldEnum = (typeof NewsletterScalarFieldEnum)[keyof typeof NewsletterScalarFieldEnum]
+
+
 export const TourImageScalarFieldEnum = {
   id: 'id',
   tourPackageId: 'tourPackageId',
@@ -3400,6 +3494,7 @@ export type GlobalOmitConfig = {
   agentMessage?: Prisma.AgentMessageOmit
   itineraryEmbed?: Prisma.ItineraryEmbedOmit
   savedFlyer?: Prisma.SavedFlyerOmit
+  newsletter?: Prisma.NewsletterOmit
   tourImage?: Prisma.TourImageOmit
 }
 

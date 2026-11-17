@@ -79,6 +79,7 @@ export const ModelName = {
   AgentMessage: 'AgentMessage',
   ItineraryEmbed: 'ItineraryEmbed',
   SavedFlyer: 'SavedFlyer',
+  Newsletter: 'Newsletter',
   TourImage: 'TourImage'
 } as const
 
@@ -604,6 +605,25 @@ export const SavedFlyerScalarFieldEnum = {
 } as const
 
 export type SavedFlyerScalarFieldEnum = (typeof SavedFlyerScalarFieldEnum)[keyof typeof SavedFlyerScalarFieldEnum]
+
+
+export const NewsletterScalarFieldEnum = {
+  id: 'id',
+  title: 'title',
+  subtitle: 'subtitle',
+  announcementTitle: 'announcementTitle',
+  announcementSubtitle: 'announcementSubtitle',
+  body: 'body',
+  heroImage: 'heroImage',
+  items: 'items',
+  contactEmail: 'contactEmail',
+  contactPhone: 'contactPhone',
+  contactWebsite: 'contactWebsite',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type NewsletterScalarFieldEnum = (typeof NewsletterScalarFieldEnum)[keyof typeof NewsletterScalarFieldEnum]
 
 
 export const TourImageScalarFieldEnum = {

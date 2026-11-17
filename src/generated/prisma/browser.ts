@@ -158,6 +158,11 @@ export type ItineraryEmbed = Prisma.ItineraryEmbedModel
  */
 export type SavedFlyer = Prisma.SavedFlyerModel
 /**
+ * Model Newsletter
+ * 
+ */
+export type Newsletter = Prisma.NewsletterModel
+/**
  * Model TourImage
  * 
  */
