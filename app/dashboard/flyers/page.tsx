@@ -51,13 +51,18 @@ interface FlyerState {
   logoPosition: 'left' | 'center' | 'right';
   // 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight' — where the text block sits
   textPosition: 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight';
+  // Image placement controls (apply to cover image in hero)
+  imageFit: 'cover' | 'contain' | 'fill' | 'none';
+  imageScale: number; // 1 = 100%, zoom factor
+  imagePositionX: number; // -1 to 1, 0 = center horizontally
+  imagePositionY: number; // -1 to 1, 0 = center vertically
 }
 
 const DEFAULT_STATE: FlyerState = {
   headline1: 'Your Safari',
   headline2: 'Adventure Awaits',
   subtitle: 'Guided tours into the heart of the wild — crafted around you.',
-  highlights: [{ title: '', description: '' }], // start with one card; user adds more
+  highlights: [{ title: '', description: '' }],
   coverImage: null,
   phone: '+254 726 485228',
   email: 'info@jaetravel.co.ke',
@@ -65,6 +70,10 @@ const DEFAULT_STATE: FlyerState = {
   social: '@JaeTravelExpeditions',
   logoPosition: 'left',
   textPosition: 'bottomLeft',
+  imageFit: 'cover',
+  imageScale: 1,
+  imagePositionX: 0,
+  imagePositionY: 0,
 };
 
 const blankHighlight: Highlight = { title: '', description: '' };
@@ -126,6 +135,19 @@ function textTop2(pos: 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight'): n
 }
 function textTopSub(pos: 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight'): number {
   return pos.startsWith('top') ? SUB_TOP_BASELINE : SUB_BASELINE;
+}
+
+// Image placement helpers
+// object-position: 50% + (pos * 50)%, where pos in [-1,1]; 0 = center
+function imageObjectPosition(s: FlyerState): string {
+  const x = 50 + s.imagePositionX * 50;
+  const y = 50 + s.imagePositionY * 50;
+  return `${x}% ${y}%`;
+}
+function imageTransformOrigin(s: FlyerState): string {
+  const x = 50 + s.imagePositionX * 50;
+  const y = 50 + s.imagePositionY * 50;
+  return `${x}% ${y}%`;
 }
 
 // Logo from the public directory (used by default when no custom logoUrl is set).
@@ -392,6 +414,10 @@ export default function FlyersPage() {
         highlights: state.highlights,
         coverImage: state.coverImage ? { id: state.coverImage.id, filename: state.coverImage.filename } : null,
         textPosition: state.textPosition,
+        imageFit: state.imageFit,
+        imageScale: state.imageScale,
+        imagePositionX: state.imagePositionX,
+        imagePositionY: state.imagePositionY,
         phone: state.phone,
         email: state.email,
         website: state.website,
@@ -445,7 +471,7 @@ export default function FlyersPage() {
     const CW = (W - 72 - 20) / 2;
     const CH = 56;
     const heroImg = s.coverImage
-      ? `<img src="${imageSrc(s.coverImage)}" style="width:100%;height:100%;object-fit:cover;object-position:50% 40%;" />`
+      ? `<img src="${imageSrc(s.coverImage)}" style="width:100%;height:100%;object-fit:${s.imageFit};object-position:${imageObjectPosition(s)};transform:scale(${s.imageScale});transform-origin:${imageTransformOrigin(s)};" />`
       : `<div style="width:100%;height:100%;background:#2B1B3D;display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:14px;">Cover image</div>`;
 
     // Logo position: left | center | right
@@ -580,7 +606,7 @@ export default function FlyersPage() {
         <Page size="A4" style={pdfStyles.page}>
           {s.coverImage ? (
             <View style={pdfStyles.hero}>
-              <PdfImage src={imageSrc(s.coverImage)} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: '50% 40%' }} />
+              <PdfImage src={imageSrc(s.coverImage)} style={{ width: '100%', height: '100%', objectFit: s.imageFit, objectPosition: imageObjectPosition(s), transform: [{ scale: s.imageScale }] } as any} />
             </View>
           ) : null}
           {/* Logo (public/logo.jpg) + wordmark */}
@@ -764,6 +790,74 @@ export default function FlyersPage() {
             </div>
             <p className="text-[10px] text-gray-400">JPG/PNG/WEBP — max 10 MB</p>
           </div>
+
+          {/* Image placement controls — move, zoom, stretch, crop */}
+          {state.coverImage && (
+            <div className="card space-y-3">
+              <h2 className="font-semibold text-gray-800 text-sm">Image Placement</h2>
+              <div className="space-y-2">
+                <label className="text-xs text-gray-500 block">Fit (stretch / crop)</label>
+                <select
+                  className="input w-full text-sm"
+                  value={state.imageFit}
+                  onChange={(e) => setField('imageFit', e.target.value as any)}
+                >
+                  <option value="cover">Cover (fill, may crop)</option>
+                  <option value="contain">Contain (full image, may show edges)</option>
+                  <option value="fill">Fill (stretch to fit)</option>
+                  <option value="none">None (original size)</option>
+                </select>
+
+                <div className="space-y-1">
+                  <label className="text-xs text-gray-500 flex justify-between">
+                    <span>Zoom</span>
+                    <span className="text-[10px] text-gray-400">{Math.round(state.imageScale * 100)}%</span>
+                  </label>
+                  <input
+                    type="range"
+                    min="50"
+                    max="200"
+                    step="10"
+                    value={Math.round(state.imageScale * 100)}
+                    onChange={(e) => setField('imageScale', Number(e.target.value) / 100)}
+                    className="w-full accent-orange-600"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs text-gray-500 flex justify-between">
+                    <span>Position X (left/right)</span>
+                    <span className="text-[10px] text-gray-400">{Math.round(state.imagePositionX * 100)}%</span>
+                  </label>
+                  <input
+                    type="range"
+                    min="-100"
+                    max="100"
+                    step="10"
+                    value={Math.round(state.imagePositionX * 100)}
+                    onChange={(e) => setField('imagePositionX', Number(e.target.value) / 100)}
+                    className="w-full accent-orange-600"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs text-gray-500 flex justify-between">
+                    <span>Position Y (up/down)</span>
+                    <span className="text-[10px] text-gray-400">{Math.round(state.imagePositionY * 100)}%</span>
+                  </label>
+                  <input
+                    type="range"
+                    min="-100"
+                    max="100"
+                    step="10"
+                    value={Math.round(state.imagePositionY * 100)}
+                    onChange={(e) => setField('imagePositionY', Number(e.target.value) / 100)}
+                    className="w-full accent-orange-600"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Headlines */}
           <div className="card space-y-3">
