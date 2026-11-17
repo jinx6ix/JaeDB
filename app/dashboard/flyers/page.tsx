@@ -47,8 +47,10 @@ interface FlyerState {
   email: string;
   website: string;
   social: string;
-  // 'left' (default) or 'right' — which side of the hero the text block sits on
-  textPosition: 'left' | 'right';
+  // 'left' | 'center' | 'right' — where the circular logo sits in the hero header
+  logoPosition: 'left' | 'center' | 'right';
+  // 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight' — where the text block sits
+  textPosition: 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight';
 }
 
 const DEFAULT_STATE: FlyerState = {
@@ -61,7 +63,8 @@ const DEFAULT_STATE: FlyerState = {
   email: 'info@jaetravel.co.ke',
   website: 'www.jaetravel.co.ke',
   social: '@JaeTravelExpeditions',
-  textPosition: 'left',
+  logoPosition: 'left',
+  textPosition: 'bottomLeft',
 };
 
 const blankHighlight: Highlight = { title: '', description: '' };
@@ -83,6 +86,54 @@ const Y0 = HERO_BOTTOM - 40; // 431.46
 const CW = (W - 72 - 20) / 2; // 251.64
 const CH = 56;
 const BY = 112;
+
+// Logo width/height in the header bar
+const LOGO_SIZE = 46;
+
+// ---- Logo position helpers (top of hero) ----
+// Returns the left CSS value (or right for 'right') for the logo circle.
+function logoLeftPos(pos: 'left' | 'center' | 'right'): number | string {
+  if (pos === 'left') return 36;
+  if (pos === 'right') return W - 36 - LOGO_SIZE;
+  return (W - LOGO_SIZE) / 2; // center
+}
+
+// Wordmark text position relative to logo. Wordmark sits to the right of a
+// left logo, centered under a center logo, and ends before a right logo.
+function wordmarkX(pos: 'left' | 'center' | 'right'): number | string {
+  if (pos === 'left') return 92; // 36 + 46 + 10
+  if (pos === 'right') return W - 36 - LOGO_SIZE - 10; // end 10px before logo
+  return (W - LOGO_SIZE) / 2 - LOGO_SIZE / 2; // centered with logo
+}
+
+// ---- Text position helpers (within hero) ----
+// Anchor baselines measured from page top.
+const TEXT_BLOCK_BOTTOM = HERO_HEIGHT - 14; // subtitle baseline just inside hero bottom
+const H1_BASELINE = TEXT_BLOCK_BOTTOM - 68; // headline 1 baseline
+const H2_BASELINE = TEXT_BLOCK_BOTTOM - 24; // headline 2 baseline
+const SUB_BASELINE = TEXT_BLOCK_BOTTOM; // subtitle baseline
+const H1_TOP = H1_BASELINE - 0.9 * 36;
+const H2_TOP = H2_BASELINE - 0.9 * 36;
+const SUB_TOP = TEXT_BLOCK_BOTTOM - 0.9 * 11;
+
+// Top-anchored text baseline (just below header bar + small gap)
+const TEXT_TOP_BOTTOM = 72; // baseline from page top for top-anchored text
+const H1_TOP_TOP = TEXT_TOP_BOTTOM - 68;
+const H2_TOP_TOP = TEXT_TOP_BOTTOM - 24;
+const SUB_TOP_TOP = TEXT_TOP_BOTTOM;
+
+function textHorizPos(pos: 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight'): string {
+  return pos.endsWith('Right') ? 'right:36px;text-align:right' : 'left:36px';
+}
+function textTop(pos: 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight'): number {
+  return pos.startsWith('top') ? H1_TOP_TOP : H1_TOP;
+}
+function textTop2(pos: 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight'): number {
+  return pos.startsWith('top') ? H2_TOP_TOP : H2_TOP;
+}
+function textTopSub(pos: 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight'): number {
+  return pos.startsWith('top') ? SUB_TOP_TOP : SUB_TOP;
+}
 
 // Logo from the public directory (used by default when no custom logoUrl is set).
 // Loaded once on module init and cached as a data URI so both preview and download
@@ -381,19 +432,29 @@ export default function FlyersPage() {
       ? `<img src="${imageSrc(s.coverImage)}" style="width:100%;height:100%;object-fit:cover;object-position:50% 40%;" />`
       : `<div style="width:100%;height:100%;background:#2B1B3D;display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:14px;">Cover image</div>`;
 
-    // Text block side: 'left' (default) or 'right'
-    const isRight = s.textPosition === 'right';
-    const hPos = isRight ? `right:36px;text-align:right` : `left:36px`;
-    const sPos = isRight ? `right:38px;text-align:right` : `left:38px`;
+    // Logo position: left | center | right
+    const logoPos = s.logoPosition;
+    const logoCSS =
+      logoPos === 'right'
+        ? `right:36px`
+        : logoPos === 'center'
+        ? `left:${(W - LOGO_SIZE) / 2}px`
+        : 'left:36px';
+    // Wordmark sits relative to logo: right of left logo, centered with center logo,
+    // ends before right logo.
+    const wmX = wordmarkX(logoPos);
+    const wordmarkCSS =
+      logoPos === 'right'
+        ? `right:${W - (wmX as number) - 208}px`
+        : `left:${wmX}px`;
 
-    // Anchor the headline/subtitle block to the BOTTOM of the hero image
-    // (hero bottom edge = HERO_HEIGHT from top). Baselines measured from page top.
-    const textBlockBottom = HERO_HEIGHT - 14; // subtitle baseline, just inside hero bottom
-    const h1Baseline = textBlockBottom - 68;   // headline 1 baseline
-    const h2Baseline = textBlockBottom - 24;   // headline 2 baseline
-    const h1Top = h1Baseline - 0.9 * 36;
-    const h2Top = h2Baseline - 0.9 * 36;
-    const subTop = textBlockBottom - 0.9 * 11;
+    // Text block anchor (top or bottom of hero) and horizontal side
+    const isTop = s.textPosition.startsWith('top');
+    const isRight = s.textPosition.endsWith('Right');
+    const tHPos = isRight ? `right:36px;text-align:right` : 'left:36px';
+    const h1T = textTop(s.textPosition);
+    const h2T = textTop2(s.textPosition);
+    const sT = textTopSub(s.textPosition);
 
     const cardRows: string[] = [];
     // 2-column wrap: as many rows as needed for the number of cards
@@ -418,15 +479,16 @@ export default function FlyersPage() {
     return `
       <div style="width:${W}px;height:${H}px;background:${SAND};font-family:'Segoe UI',sans-serif;position:relative;overflow:hidden;">
         <div style="position:absolute;top:0;left:0;width:100%;height:62px;background:rgba(0,0,0,0.28);"></div>
-        <div style="position:absolute;left:36px;top:8px;width:46px;height:46px;border-radius:23px;overflow:hidden;background:${DARK};display:flex;align-items:center;justify-content:center;">
+        <div style="position:absolute;${logoCSS};top:8px;width:${LOGO_SIZE}px;height:${LOGO_SIZE}px;border-radius:23px;overflow:hidden;background:${DARK};display:flex;align-items:center;justify-content:center;z-index:2;">
           ${logoSrc ? `<img src="${logoSrc}" style="width:100%;height:100%;object-fit:cover;" />` : `<span style="font-family:Helvetica-Bold;font-size:14px;color:#fff;">JT</span>`}
         </div>
-        <div style="position:absolute;left:92px;top:21px;font-family:Helvetica-Bold;font-size:16px;color:#fff;">JAE</div>
-        <div style="position:absolute;left:139px;top:21px;font-family:Helvetica-Bold;font-size:16px;color:${GOLD};">TRAVEL EXPEDITIONS</div>
+        <div style="position:absolute;${wordmarkCSS};top:21px;font-family:Helvetica-Bold;font-size:16px;color:#fff;z-index:2;">
+          <span style="color:#fff;">JAE</span><span style="color:${GOLD};"> TRAVEL EXPEDITIONS</span>
+        </div>
         <div style="position:absolute;top:0;left:0;width:100%;height:${HERO_HEIGHT}px;">${heroImg}</div>
-        <div style="position:absolute;top:${h1Top}px;${hPos};font-family:Helvetica-Bold;font-size:36px;color:#fff;max-width:${W - 72}px;">${s.headline1}</div>
-        <div style="position:absolute;top:${h2Top}px;${hPos};font-family:Helvetica-Bold;font-size:36px;color:${GOLD};max-width:${W - 72}px;">${s.headline2}</div>
-        <div style="position:absolute;top:${subTop}px;${sPos};font-family:Helvetica;font-size:11px;color:#fff;max-width:${W - 76}px;">${s.subtitle}</div>
+        <div style="position:absolute;top:${h1T}px;${tHPos};font-family:Helvetica-Bold;font-size:36px;color:#fff;max-width:${W - 72}px;z-index:2;">${s.headline1}</div>
+        <div style="position:absolute;top:${h2T}px;${tHPos};font-family:Helvetica-Bold;font-size:36px;color:${GOLD};max-width:${W - 72}px;z-index:2;">${s.headline2}</div>
+        <div style="position:absolute;top:${sT}px;${tHPos};font-family:Helvetica;font-size:11px;color:#fff;max-width:${W - 76}px;z-index:2;">${s.subtitle}</div>
         <div style="position:absolute;top:410px;left:36px;font-family:Helvetica-Bold;font-size:20px;color:${GREEN};">What's included</div>
         <div style="position:absolute;top:435px;left:36px;width:54px;height:3.5px;background:${GOLD};"></div>
         ${cardRows.join('')}
@@ -450,18 +512,16 @@ export default function FlyersPage() {
   // ---- react-pdf document mirroring the tour flyer (baseline-corrected positions) ----
   const buildPdfDoc = (s: FlyerState = state) => {
     const cards: any[] = [];
-    const isRight = s.textPosition === 'right';
+    const isRight = s.textPosition.endsWith('Right');
+    const isTop = s.textPosition.startsWith('top');
     const textStyle = (baseline: number, fontSize: number, x: number) => ({
       top: topForBaseline(baseline, fontSize),
       ...(isRight ? { right: x, textAlign: 'right' } : { left: x }),
     });
 
-    // Anchor the headline/subtitle block to the BOTTOM of the hero image
-    // (hero bottom edge = HERO_HEIGHT from top). Baselines measured from page top.
-    const textBlockBottom = HERO_HEIGHT - 14; // subtitle baseline, just inside hero bottom
-    const h1Baseline = textBlockBottom - 68;   // headline 1 baseline
-    const h2Baseline = textBlockBottom - 24;   // headline 2 baseline
-    const subBaseline = textBlockBottom;       // subtitle baseline
+    const h1T = textTop(s.textPosition);
+    const h2T = textTop2(s.textPosition);
+    const sT = textTopSub(s.textPosition);
 
     // 2-column wrap: as many rows as needed for the number of cards
     const rows = Math.ceil(s.highlights.length / 2);
@@ -485,6 +545,19 @@ export default function FlyersPage() {
       }
     }
 
+    const logoPos = s.logoPosition;
+    const logoCSS =
+      logoPos === 'right'
+        ? { right: 36 }
+        : logoPos === 'center'
+        ? { left: (W - LOGO_SIZE) / 2 }
+        : { left: 36 };
+    const wmX = wordmarkX(logoPos);
+    const wordmarkCSS =
+      logoPos === 'right'
+        ? { right: W - (wmX as number) - 208 }
+        : { left: wmX };
+
     return (
       <Document>
         <Page size="A4" style={pdfStyles.page}>
@@ -494,21 +567,7 @@ export default function FlyersPage() {
             </View>
           ) : null}
           {/* Logo (public/logo.jpg) + wordmark */}
-          <View
-            style={{
-              position: 'absolute',
-              top: 8,
-              left: 36,
-              width: 46,
-              height: 46,
-              borderRadius: 23,
-              overflow: 'hidden',
-              backgroundColor: DARK,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
+          <View style={{ position: 'absolute', top: 8, ...logoCSS, width: LOGO_SIZE, height: LOGO_SIZE, borderRadius: 23, overflow: 'hidden', backgroundColor: DARK, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>
             {(() => {
               const src = logoSrc || publicLogo();
               return src ? (
@@ -518,15 +577,17 @@ export default function FlyersPage() {
               );
             })()}
           </View>
-          <View style={{ position: 'absolute', top: 21, left: 92, fontFamily: 'Helvetica-Bold', fontSize: 16, color: '#ffffff' }}>JAE</View>
-          <View style={{ position: 'absolute', top: 21, left: 139, fontFamily: 'Helvetica-Bold', fontSize: 16, color: GOLD }}>TRAVEL EXPEDITIONS</View>
-          <View style={[pdfStyles.headline1, textStyle(h1Baseline, 36, 36)]}>
+          <View style={{ position: 'absolute', top: 21, ...wordmarkCSS, fontFamily: 'Helvetica-Bold', fontSize: 16, color: '#ffffff', zIndex: 2 }}>
+            <Text style={{ color: '#ffffff' }}>JAE</Text>
+            <Text style={{ color: GOLD }}> TRAVEL EXPEDITIONS</Text>
+          </View>
+          <View style={[pdfStyles.headline1, textStyle(h1T, 36, 36)]}>
             <Text>{s.headline1}</Text>
           </View>
-          <View style={[pdfStyles.headline2, textStyle(h2Baseline, 36, 36)]}>
+          <View style={[pdfStyles.headline2, textStyle(h2T, 36, 36)]}>
             <Text>{s.headline2}</Text>
           </View>
-          <View style={[pdfStyles.subtitle, textStyle(subBaseline, 11, 38)]}>
+          <View style={[pdfStyles.subtitle, textStyle(sT, 11, 38)]}>
             <Text>{s.subtitle}</Text>
           </View>
           <View style={[pdfStyles.section, { top: topForBaseline(410.4, 20), left: 36 }]}>
@@ -719,14 +780,47 @@ export default function FlyersPage() {
               <label className="text-xs text-gray-500 block">Text position</label>
               <div className="flex gap-2">
                 <button
-                  onClick={() => setField('textPosition', 'left')}
-                  className={`text-xs rounded border px-2 py-2 text-left ${state.textPosition === 'left' ? 'border-orange-500 bg-orange-50 text-orange-700 font-semibold' : 'border-transparent hover:border-gray-200 bg-gray-50 text-gray-600'}`}
+                  onClick={() => setField('textPosition', 'topLeft')}
+                  className={`text-xs rounded border px-2 py-2 text-left ${state.textPosition === 'topLeft' ? 'border-orange-500 bg-orange-50 text-orange-700 font-semibold' : 'border-transparent hover:border-gray-200 bg-gray-50 text-gray-600'}`}
+                >
+                  Top Left
+                </button>
+                <button
+                  onClick={() => setField('textPosition', 'topRight')}
+                  className={`text-xs rounded border px-2 py-2 text-left ${state.textPosition === 'topRight' ? 'border-orange-500 bg-orange-50 text-orange-700 font-semibold' : 'border-transparent hover:border-gray-200 bg-gray-50 text-gray-600'}`}
+                >
+                  Top Right
+                </button>
+                <button
+                  onClick={() => setField('textPosition', 'bottomLeft')}
+                  className={`text-xs rounded border px-2 py-2 text-left ${state.textPosition === 'bottomLeft' ? 'border-orange-500 bg-orange-50 text-orange-700 font-semibold' : 'border-transparent hover:border-gray-200 bg-gray-50 text-gray-600'}`}
+                >
+                  Bottom Left
+                </button>
+                <button
+                  onClick={() => setField('textPosition', 'bottomRight')}
+                  className={`text-xs rounded border px-2 py-2 text-left ${state.textPosition === 'bottomRight' ? 'border-orange-500 bg-orange-50 text-orange-700 font-semibold' : 'border-transparent hover:border-gray-200 bg-gray-50 text-gray-600'}`}
+                >
+                  Bottom Right
+                </button>
+              </div>
+              <label className="text-xs text-gray-500 block mt-2">Logo position</label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setField('logoPosition', 'left')}
+                  className={`text-xs rounded border px-2 py-2 text-left ${state.logoPosition === 'left' ? 'border-orange-500 bg-orange-50 text-orange-700 font-semibold' : 'border-transparent hover:border-gray-200 bg-gray-50 text-gray-600'}`}
                 >
                   Left
                 </button>
                 <button
-                  onClick={() => setField('textPosition', 'right')}
-                  className={`text-xs rounded border px-2 py-2 text-left ${state.textPosition === 'right' ? 'border-orange-500 bg-orange-50 text-orange-700 font-semibold' : 'border-transparent hover:border-gray-200 bg-gray-50 text-gray-600'}`}
+                  onClick={() => setField('logoPosition', 'center')}
+                  className={`text-xs rounded border px-2 py-2 text-left ${state.logoPosition === 'center' ? 'border-orange-500 bg-orange-50 text-orange-700 font-semibold' : 'border-transparent hover:border-gray-200 bg-gray-50 text-gray-600'}`}
+                >
+                  Center
+                </button>
+                <button
+                  onClick={() => setField('logoPosition', 'right')}
+                  className={`text-xs rounded border px-2 py-2 text-left ${state.logoPosition === 'right' ? 'border-orange-500 bg-orange-50 text-orange-700 font-semibold' : 'border-transparent hover:border-gray-200 bg-gray-50 text-gray-600'}`}
                 >
                   Right
                 </button>
