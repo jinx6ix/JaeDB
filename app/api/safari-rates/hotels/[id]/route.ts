@@ -14,10 +14,10 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await req.json();
-  const { id: bodyId, name, description } = body;
-  if (!bodyId) return NextResponse.json({ error: 'id required' }, { status: 400 });
+  const { name, description } = body;
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
-  const current = await prisma.sRHotel.findUnique({ where: { id: Number(bodyId) } });
+  const current = await prisma.sRHotel.findUnique({ where: { id: Number(id) } });
   if (!current) return NextResponse.json({ error: 'Hotel not found' }, { status: 404 });
 
   const data: any = {};
@@ -25,7 +25,7 @@ export async function PATCH(
     const trimmed = name.trim();
     if (!trimmed) return NextResponse.json({ error: 'name is required' }, { status: 400 });
     const existing = await prisma.sRHotel.findFirst({
-      where: { countyId: current.countyId, name: trimmed, id: { not: Number(bodyId) } },
+      where: { countyId: current.countyId, name: trimmed, id: { not: Number(id) } },
     });
     if (existing) return NextResponse.json({ error: 'A hotel with this name already exists in this destination' }, { status: 409 });
     data.name = trimmed;
@@ -33,7 +33,7 @@ export async function PATCH(
   if (description !== undefined) data.description = description || null;
 
   const hotel = await prisma.sRHotel.update({
-    where: { id: Number(bodyId) },
+    where: { id: Number(id) },
     data,
     include: { county: true },
   });
