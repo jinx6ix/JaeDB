@@ -23,8 +23,6 @@ const BODY = '#4A5A4F';
 
 const W = 595.28;
 const H = 841.89;
-const NUM_HIGHLIGHTS = 6;
-
 interface FlyerImage {
   id: string;
   filename: string;
@@ -45,24 +43,25 @@ interface FlyerState {
   subtitle: string;
   highlights: Highlight[];
   coverImage: FlyerImage | null;
-  logoUrl: string;
   phone: string;
   email: string;
   website: string;
   social: string;
+  // 'left' (default) or 'right' — which side of the hero the text block sits on
+  textPosition: 'left' | 'right';
 }
 
 const DEFAULT_STATE: FlyerState = {
   headline1: 'Your Safari',
   headline2: 'Adventure Awaits',
   subtitle: 'Guided tours into the heart of the wild — crafted around you.',
-  highlights: Array.from({ length: NUM_HIGHLIGHTS }, () => ({ title: '', description: '' })),
+  highlights: [{ title: '', description: '' }], // start with one card; user adds more
   coverImage: null,
-  logoUrl: '',
   phone: '+254 726 485228',
   email: 'info@jaetravel.co.ke',
   website: 'www.jaetravel.co.ke',
   social: '@JaeTravelExpeditions',
+  textPosition: 'left',
 };
 
 const blankHighlight: Highlight = { title: '', description: '' };
@@ -84,6 +83,31 @@ const Y0 = HERO_BOTTOM - 40; // 431.46
 const CW = (W - 72 - 20) / 2; // 251.64
 const CH = 56;
 const BY = 112;
+
+// Logo from the public directory (used by default when no custom logoUrl is set).
+// Loaded once on module init and cached as a data URI so both preview and download
+// can embed it synchronously.
+let PUBLIC_LOGO_CACHE: string | null = null;
+void (async () => {
+  try {
+    const res = await fetch('/logo.jpg');
+    if (res.ok) {
+      const buf = await res.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let binary = '';
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      PUBLIC_LOGO_CACHE = `data:image/jpeg;base64,${btoa(binary)}`;
+    }
+  } catch {
+    /* logo unavailable; falls back to text mark */
+  }
+})();
+
+function publicLogo(): string | null {
+  return PUBLIC_LOGO_CACHE;
+}
 
 const pdfStyles = StyleSheet.create({
   page: { backgroundColor: SAND, fontFamily: 'Helvetica' },
@@ -126,6 +150,7 @@ export default function FlyersPage() {
   const [images, setImages] = useState<FlyerImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [state, setState] = useState<FlyerState>(DEFAULT_STATE);
+  const [logoSrc, setLogoSrc] = useState<string | null>(null);
   const [savedFlyers, setSavedFlyers] = useState<any[]>([]);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -158,6 +183,27 @@ export default function FlyersPage() {
     fetchImages();
   }, []);
 
+  // Load the public logo into component state so the preview re-renders when it arrives.
+  useEffect(() => {
+    const loadLogo = async () => {
+      try {
+        const res = await fetch('/logo.jpg');
+        if (res.ok) {
+          const buf = await res.arrayBuffer();
+          const bytes = new Uint8Array(buf);
+          let binary = '';
+          for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+          }
+          setLogoSrc(`data:image/jpeg;base64,${btoa(binary)}`);
+        }
+      } catch {
+        /* logo unavailable; falls back to text mark */
+      }
+    };
+    loadLogo();
+  }, []);
+
   // ---- load saved flyers ----
   useEffect(() => {
     fetch('/api/saved-flyers')
@@ -182,13 +228,19 @@ export default function FlyersPage() {
     next.coverImage = f.selectedImage || null;
     next.headline1 = f.title || next.headline1;
     next.headline2 = f.subtitle || next.headline2;
-    while (next.highlights.length < NUM_HIGHLIGHTS) next.highlights.push(blankHighlight);
-    next.highlights.length = NUM_HIGHLIGHTS;
+    next.textPosition = f.textPosition ?? next.textPosition;
+    // keep whatever number of cards was saved (no fixed 6)
     setState(next);
   }, []);
 
   const selectImage = (img: FlyerImage) => setField('coverImage', img);
   const removeImage = () => setField('coverImage', null);
+
+  const addCard = () =>
+    setField('highlights', [...state.highlights, { title: '', description: '' }]);
+
+  const removeCard = (i: number) =>
+    setField('highlights', state.highlights.filter((_, idx) => idx !== i));
 
   const imageSrc = (img: FlyerImage | null | undefined) => {
     if (!img || !img.data) return '';
@@ -272,7 +324,7 @@ export default function FlyersPage() {
         subtitle: state.subtitle,
         highlights: state.highlights,
         coverImage: state.coverImage ? { id: state.coverImage.id, filename: state.coverImage.filename } : null,
-        logoUrl: state.logoUrl,
+        textPosition: state.textPosition,
         phone: state.phone,
         email: state.email,
         website: state.website,
@@ -295,7 +347,6 @@ export default function FlyersPage() {
           accentColor: GOLD,
           imagePosition: 'top',
           selectedImage: state.coverImage || null,
-          logoUrl: state.logoUrl || null,
         }),
       });
       if (!res.ok) {
@@ -330,11 +381,28 @@ export default function FlyersPage() {
       ? `<img src="${imageSrc(s.coverImage)}" style="width:100%;height:100%;object-fit:cover;object-position:50% 40%;" />`
       : `<div style="width:100%;height:100%;background:#2B1B3D;display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:14px;">Cover image</div>`;
 
+    // Text block side: 'left' (default) or 'right'
+    const isRight = s.textPosition === 'right';
+    const hPos = isRight ? `right:36px;text-align:right` : `left:36px`;
+    const sPos = isRight ? `right:38px;text-align:right` : `left:38px`;
+
+    // Anchor the headline/subtitle block to the BOTTOM of the hero image
+    // (hero bottom edge = HERO_HEIGHT from top). Baselines measured from page top.
+    const textBlockBottom = HERO_HEIGHT - 14; // subtitle baseline, just inside hero bottom
+    const h1Baseline = textBlockBottom - 68;   // headline 1 baseline
+    const h2Baseline = textBlockBottom - 24;   // headline 2 baseline
+    const h1Top = h1Baseline - 0.9 * 36;
+    const h2Top = h2Baseline - 0.9 * 36;
+    const subTop = textBlockBottom - 0.9 * 11;
+
     const cardRows: string[] = [];
-    for (let row = 0; row < 3; row++) {
+    // 2-column wrap: as many rows as needed for the number of cards
+    const rows = Math.ceil(s.highlights.length / 2);
+    for (let row = 0; row < rows; row++) {
       for (let col = 0; col < 2; col++) {
         const i = row * 2 + col;
-        const h = s.highlights[i] || blankHighlight;
+        if (i >= s.highlights.length) continue;
+        const h = s.highlights[i];
         const x = 36 + col * (CW + 20);
         const y = 470 + row * (CH + 10);
         cardRows.push(`
@@ -351,14 +419,14 @@ export default function FlyersPage() {
       <div style="width:${W}px;height:${H}px;background:${SAND};font-family:'Segoe UI',sans-serif;position:relative;overflow:hidden;">
         <div style="position:absolute;top:0;left:0;width:100%;height:62px;background:rgba(0,0,0,0.28);"></div>
         <div style="position:absolute;left:36px;top:8px;width:46px;height:46px;border-radius:23px;overflow:hidden;background:${DARK};display:flex;align-items:center;justify-content:center;">
-          ${s.logoUrl ? `<img src="${s.logoUrl}" style="width:100%;height:100%;object-fit:cover;" />` : `<span style="font-family:Helvetica-Bold;font-size:14px;color:#fff;">JT</span>`}
+          ${logoSrc ? `<img src="${logoSrc}" style="width:100%;height:100%;object-fit:cover;" />` : `<span style="font-family:Helvetica-Bold;font-size:14px;color:#fff;">JT</span>`}
         </div>
         <div style="position:absolute;left:92px;top:21px;font-family:Helvetica-Bold;font-size:16px;color:#fff;">JAE</div>
         <div style="position:absolute;left:139px;top:21px;font-family:Helvetica-Bold;font-size:16px;color:${GOLD};">TRAVEL EXPEDITIONS</div>
         <div style="position:absolute;top:0;left:0;width:100%;height:${HERO_HEIGHT}px;">${heroImg}</div>
-        <div style="position:absolute;top:67px;left:36px;font-family:Helvetica-Bold;font-size:36px;color:#fff;max-width:${W - 72}px;">${s.headline1}</div>
-        <div style="position:absolute;top:115px;left:36px;font-family:Helvetica-Bold;font-size:36px;color:${GOLD};max-width:${W - 72}px;">${s.headline2}</div>
-        <div style="position:absolute;top:142px;left:38px;font-family:Helvetica;font-size:11px;color:#fff;max-width:${W - 76}px;">${s.subtitle}</div>
+        <div style="position:absolute;top:${h1Top}px;${hPos};font-family:Helvetica-Bold;font-size:36px;color:#fff;max-width:${W - 72}px;">${s.headline1}</div>
+        <div style="position:absolute;top:${h2Top}px;${hPos};font-family:Helvetica-Bold;font-size:36px;color:${GOLD};max-width:${W - 72}px;">${s.headline2}</div>
+        <div style="position:absolute;top:${subTop}px;${sPos};font-family:Helvetica;font-size:11px;color:#fff;max-width:${W - 76}px;">${s.subtitle}</div>
         <div style="position:absolute;top:410px;left:36px;font-family:Helvetica-Bold;font-size:20px;color:${GREEN};">What's included</div>
         <div style="position:absolute;top:435px;left:36px;width:54px;height:3.5px;background:${GOLD};"></div>
         ${cardRows.join('')}
@@ -377,15 +445,31 @@ export default function FlyersPage() {
         <div style="position:absolute;top:811px;left:0;width:100%;text-align:center;font-family:Helvetica-Oblique;font-size:9px;color:${BODY};">Jae Travel Expeditions  •  ${s.social}</div>
       </div>
     `;
-  }, [state, imageSrc]);
+  }, [state, imageSrc, logoSrc]);
 
   // ---- react-pdf document mirroring the tour flyer (baseline-corrected positions) ----
   const buildPdfDoc = (s: FlyerState = state) => {
     const cards: any[] = [];
-    for (let row = 0; row < 3; row++) {
+    const isRight = s.textPosition === 'right';
+    const textStyle = (baseline: number, fontSize: number, x: number) => ({
+      top: topForBaseline(baseline, fontSize),
+      ...(isRight ? { right: x, textAlign: 'right' } : { left: x }),
+    });
+
+    // Anchor the headline/subtitle block to the BOTTOM of the hero image
+    // (hero bottom edge = HERO_HEIGHT from top). Baselines measured from page top.
+    const textBlockBottom = HERO_HEIGHT - 14; // subtitle baseline, just inside hero bottom
+    const h1Baseline = textBlockBottom - 68;   // headline 1 baseline
+    const h2Baseline = textBlockBottom - 24;   // headline 2 baseline
+    const subBaseline = textBlockBottom;       // subtitle baseline
+
+    // 2-column wrap: as many rows as needed for the number of cards
+    const rows = Math.ceil(s.highlights.length / 2);
+    for (let row = 0; row < rows; row++) {
       for (let col = 0; col < 2; col++) {
         const i = row * 2 + col;
-        const h = s.highlights[i] || blankHighlight;
+        if (i >= s.highlights.length) continue;
+        const h = s.highlights[i];
         const x = 36 + col * (CW + 20);
         const y = Y0 - 30 - CH - row * (CH + 10); // bottom-left origin of card
         cards.push(
@@ -409,13 +493,40 @@ export default function FlyersPage() {
               <PdfImage src={imageSrc(s.coverImage)} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: '50% 40%' }} />
             </View>
           ) : null}
-          <View style={[pdfStyles.headline1, { top: topForBaseline(135, 36), left: 36 }]}>
+          {/* Logo (public/logo.jpg) + wordmark */}
+          <View
+            style={{
+              position: 'absolute',
+              top: 8,
+              left: 36,
+              width: 46,
+              height: 46,
+              borderRadius: 23,
+              overflow: 'hidden',
+              backgroundColor: DARK,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {(() => {
+              const src = logoSrc || publicLogo();
+              return src ? (
+                <PdfImage src={src} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 14, color: '#ffffff' }}>JT</Text>
+              );
+            })()}
+          </View>
+          <View style={{ position: 'absolute', top: 21, left: 92, fontFamily: 'Helvetica-Bold', fontSize: 16, color: '#ffffff' }}>JAE</View>
+          <View style={{ position: 'absolute', top: 21, left: 139, fontFamily: 'Helvetica-Bold', fontSize: 16, color: GOLD }}>TRAVEL EXPEDITIONS</View>
+          <View style={[pdfStyles.headline1, textStyle(h1Baseline, 36, 36)]}>
             <Text>{s.headline1}</Text>
           </View>
-          <View style={[pdfStyles.headline2, { top: topForBaseline(183, 36), left: 36 }]}>
+          <View style={[pdfStyles.headline2, textStyle(h2Baseline, 36, 36)]}>
             <Text>{s.headline2}</Text>
           </View>
-          <View style={[pdfStyles.subtitle, { top: topForBaseline(210, 11), left: 38 }]}>
+          <View style={[pdfStyles.subtitle, textStyle(subBaseline, 11, 38)]}>
             <Text>{s.subtitle}</Text>
           </View>
           <View style={[pdfStyles.section, { top: topForBaseline(410.4, 20), left: 36 }]}>
@@ -471,8 +582,8 @@ export default function FlyersPage() {
     s.coverImage = f.selectedImage || null;
     s.headline1 = f.title || s.headline1;
     s.headline2 = f.subtitle || s.headline2;
-    while (s.highlights.length < NUM_HIGHLIGHTS) s.highlights.push(blankHighlight);
-    s.highlights.length = NUM_HIGHLIGHTS;
+    s.textPosition = f.textPosition ?? s.textPosition;
+    // keep whatever number of cards was saved (no fixed 6)
     return s;
   };
 
@@ -605,19 +716,43 @@ export default function FlyersPage() {
                 maxLength={70}
                 placeholder="Guided tours into the heart of the wild"
               />
+              <label className="text-xs text-gray-500 block">Text position</label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setField('textPosition', 'left')}
+                  className={`text-xs rounded border px-2 py-2 text-left ${state.textPosition === 'left' ? 'border-orange-500 bg-orange-50 text-orange-700 font-semibold' : 'border-transparent hover:border-gray-200 bg-gray-50 text-gray-600'}`}
+                >
+                  Left
+                </button>
+                <button
+                  onClick={() => setField('textPosition', 'right')}
+                  className={`text-xs rounded border px-2 py-2 text-left ${state.textPosition === 'right' ? 'border-orange-500 bg-orange-50 text-orange-700 font-semibold' : 'border-transparent hover:border-gray-200 bg-gray-50 text-gray-600'}`}
+                >
+                  Right
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Highlights */}
           <div className="card space-y-3">
-            <h2 className="font-semibold text-gray-800 text-sm">Highlights (6 cards)</h2>
-            <p className="text-xs text-gray-400 mb-3">Title up to 24 chars · Description up to 95 chars</p>
+            <h2 className="font-semibold text-gray-800 text-sm">Highlights</h2>
+            <p className="text-xs text-gray-400 mb-3">
+              Title up to 24 chars · Description up to 95 chars · add as many cards as you like
+            </p>
             <div className="grid grid-cols-2 gap-3">
               {state.highlights.map((h, i) => (
                 <div key={i} className="space-y-2 p-2 border rounded-lg bg-gray-50">
                   <div className="flex justify-between items-baseline">
                     <label className="label text-xs">Card #{i + 1}</label>
                     <span className="text-xs text-gray-400">{h.title.length} / 24</span>
+                    <button
+                      onClick={() => removeCard(i)}
+                      className="text-xs text-red-600 hover:text-red-800 underline"
+                      title="Delete card"
+                    >
+                      ×
+                    </button>
                   </div>
                   <input
                     value={h.title}
@@ -637,7 +772,18 @@ export default function FlyersPage() {
                   <span className="text-xs text-gray-400">{h.description.length} / 95</span>
                 </div>
               ))}
+              {state.highlights.length === 0 && (
+                <p className="col-span-2 text-xs text-gray-400 text-center py-4">
+                  No cards yet — add one below.
+                </p>
+              )}
             </div>
+            <button
+              onClick={addCard}
+              className="text-xs flex items-center justify-center w-full gap-1 border border-dashed rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-600 hover:text-orange-600 transition-colors"
+            >
+              <Plus size={12} /> Add highlight card
+            </button>
           </div>
 
           {/* Contact */}
@@ -664,13 +810,6 @@ export default function FlyersPage() {
                   <input className="input w-full text-sm" value={state.social} onChange={(e) => setField('social', e.target.value)} placeholder="@JaeTravelExpeditions" />
                 </div>
               </div>
-              <label className="text-xs text-gray-500 block">Logo URL (optional)</label>
-              <input
-                className="input w-full text-sm"
-                value={state.logoUrl}
-                onChange={(e) => setField('logoUrl', e.target.value)}
-                placeholder="https://…/logo.jpg"
-              />
             </div>
           </div>
 
