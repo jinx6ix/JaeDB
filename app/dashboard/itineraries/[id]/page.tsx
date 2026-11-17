@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import PdfDownload from '@/components/PdfDownload';
 import SendItineraryWhatsApp from '@/components/SendItineraryWhatsApp';
+import CopyItineraryButton from '@/components/CopyItineraryButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -138,6 +139,7 @@ export default async function ItineraryDetailPage({ params }: { params: Promise<
         <div className="flex gap-2">
           <Link href={`/dashboard/itineraries/${itinerary.id}/embed`} className="btn-secondary text-sm">🔗 Embed</Link>
           <Link href={`/dashboard/itineraries/${itinerary.id}/edit`} className="btn-secondary">Edit</Link>
+          <CopyItineraryButton id={itinerary.id} title={itinerary.title} />
           <PdfDownload itineraryId={itinerary.id} />
           <SendItineraryWhatsApp
             itineraryId={itinerary.id}

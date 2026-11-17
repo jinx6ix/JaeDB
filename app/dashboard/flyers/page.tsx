@@ -98,14 +98,6 @@ function logoLeftPos(pos: 'left' | 'center' | 'right'): number | string {
   return (W - LOGO_SIZE) / 2; // center
 }
 
-// Wordmark text position relative to logo. Wordmark sits to the right of a
-// left logo, centered under a center logo, and ends before a right logo.
-function wordmarkX(pos: 'left' | 'center' | 'right'): number | string {
-  if (pos === 'left') return 92; // 36 + 46 + 10
-  if (pos === 'right') return W - 36 - LOGO_SIZE - 10; // end 10px before logo
-  return (W - LOGO_SIZE) / 2 - LOGO_SIZE / 2; // centered with logo
-}
-
 // ---- Text position helpers (within hero) ----
 // Anchor baselines measured from page top.
 const TEXT_BLOCK_BOTTOM = HERO_HEIGHT - 14; // subtitle baseline just inside hero bottom
@@ -116,23 +108,24 @@ const H1_TOP = H1_BASELINE - 0.9 * 36;
 const H2_TOP = H2_BASELINE - 0.9 * 36;
 const SUB_TOP = TEXT_BLOCK_BOTTOM - 0.9 * 11;
 
-// Top-anchored text baseline (just below header bar + small gap)
-const TEXT_TOP_BOTTOM = 72; // baseline from page top for top-anchored text
-const H1_TOP_TOP = TEXT_TOP_BOTTOM - 68;
-const H2_TOP_TOP = TEXT_TOP_BOTTOM - 24;
-const SUB_TOP_TOP = TEXT_TOP_BOTTOM;
+// Top-anchored text baseline (just below header bar + logo + wordmark)
+// Baselines are returned (not tops) so textStyle()/topForBaseline() can convert correctly.
+const TEXT_TOP_BASELINE = 105; // headline 1 baseline from page top for top-anchored text
+const H1_TOP_BASELINE = TEXT_TOP_BASELINE; // 105
+const H2_TOP_BASELINE = TEXT_TOP_BASELINE + 44; // 149
+const SUB_TOP_BASELINE = H2_TOP_BASELINE + 24; // 173
 
 function textHorizPos(pos: 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight'): string {
   return pos.endsWith('Right') ? 'right:36px;text-align:right' : 'left:36px';
 }
 function textTop(pos: 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight'): number {
-  return pos.startsWith('top') ? H1_TOP_TOP : H1_TOP;
+  return pos.startsWith('top') ? H1_TOP_BASELINE : H1_BASELINE;
 }
 function textTop2(pos: 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight'): number {
-  return pos.startsWith('top') ? H2_TOP_TOP : H2_TOP;
+  return pos.startsWith('top') ? H2_TOP_BASELINE : H2_BASELINE;
 }
 function textTopSub(pos: 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight'): number {
-  return pos.startsWith('top') ? SUB_TOP_TOP : SUB_TOP;
+  return pos.startsWith('top') ? SUB_TOP_BASELINE : SUB_BASELINE;
 }
 
 // Logo from the public directory (used by default when no custom logoUrl is set).
@@ -155,6 +148,29 @@ void (async () => {
     /* logo unavailable; falls back to text mark */
   }
 })();
+
+// Synchronously load the public logo as a data URI (used by buildPdfDoc so the
+// logo always appears on download regardless of client-state fetch timing).
+function loadLogoSync(): string | null {
+  if (typeof XMLHttpRequest === 'undefined') return null;
+  try {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', '/logo.jpg', false); // synchronous
+    xhr.responseType = 'arraybuffer';
+    xhr.send();
+    if (xhr.status === 200 && xhr.response) {
+      const bytes = new Uint8Array(xhr.response as ArrayBuffer);
+      let binary = '';
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return `data:image/jpeg;base64,${btoa(binary)}`;
+    }
+  } catch {
+    /* logo unavailable */
+  }
+  return null;
+}
 
 function publicLogo(): string | null {
   return PUBLIC_LOGO_CACHE;
@@ -440,13 +456,13 @@ export default function FlyersPage() {
         : logoPos === 'center'
         ? `left:${(W - LOGO_SIZE) / 2}px`
         : 'left:36px';
-    // Wordmark sits relative to logo: right of left logo, centered with center logo,
-    // ends before right logo.
-    const wmX = wordmarkX(logoPos);
-    const wordmarkCSS =
+    // Wordmark sits below the logo, aligned with it (left / centered / right).
+    const textPosCSS =
       logoPos === 'right'
-        ? `right:${W - (wmX as number) - 208}px`
-        : `left:${wmX}px`;
+        ? `right:36px;text-align:right`
+        : logoPos === 'center'
+        ? `left:${(W - LOGO_SIZE) / 2}px;text-align:center`
+        : 'left:36px;text-align:left';
 
     // Text block anchor (top or bottom of hero) and horizontal side
     const isTop = s.textPosition.startsWith('top');
@@ -482,13 +498,13 @@ export default function FlyersPage() {
         <div style="position:absolute;${logoCSS};top:8px;width:${LOGO_SIZE}px;height:${LOGO_SIZE}px;border-radius:23px;overflow:hidden;background:${DARK};display:flex;align-items:center;justify-content:center;z-index:2;">
           ${logoSrc ? `<img src="${logoSrc}" style="width:100%;height:100%;object-fit:cover;" />` : `<span style="font-family:Helvetica-Bold;font-size:14px;color:#fff;">JT</span>`}
         </div>
-        <div style="position:absolute;${wordmarkCSS};top:21px;font-family:Helvetica-Bold;font-size:16px;color:#fff;z-index:2;">
-          <span style="color:#fff;">JAE</span><span style="color:${GOLD};"> TRAVEL EXPEDITIONS</span>
+        <div style="position:absolute;${textPosCSS};top:${LOGO_SIZE + 12}px;font-family:Helvetica-Bold;font-size:10px;color:#fff;z-index:2;">
+          JAE TRAVEL EXPEDITIONS
         </div>
         <div style="position:absolute;top:0;left:0;width:100%;height:${HERO_HEIGHT}px;">${heroImg}</div>
-        <div style="position:absolute;top:${h1T}px;${tHPos};font-family:Helvetica-Bold;font-size:36px;color:#fff;max-width:${W - 72}px;z-index:2;">${s.headline1}</div>
-        <div style="position:absolute;top:${h2T}px;${tHPos};font-family:Helvetica-Bold;font-size:36px;color:${GOLD};max-width:${W - 72}px;z-index:2;">${s.headline2}</div>
-        <div style="position:absolute;top:${sT}px;${tHPos};font-family:Helvetica;font-size:11px;color:#fff;max-width:${W - 76}px;z-index:2;">${s.subtitle}</div>
+        <div style="position:absolute;top:${topForBaseline(h1T, 36)}px;${tHPos};font-family:Helvetica-Bold;font-size:36px;color:#fff;max-width:${W - 72}px;z-index:2;">${s.headline1}</div>
+        <div style="position:absolute;top:${topForBaseline(h2T, 36)}px;${tHPos};font-family:Helvetica-Bold;font-size:36px;color:${GOLD};max-width:${W - 72}px;z-index:2;">${s.headline2}</div>
+        <div style="position:absolute;top:${topForBaseline(sT, 11)}px;${tHPos};font-family:Helvetica;font-size:11px;color:#fff;max-width:${W - 76}px;z-index:2;">${s.subtitle}</div>
         <div style="position:absolute;top:410px;left:36px;font-family:Helvetica-Bold;font-size:20px;color:${GREEN};">What's included</div>
         <div style="position:absolute;top:435px;left:36px;width:54px;height:3.5px;background:${GOLD};"></div>
         ${cardRows.join('')}
@@ -552,11 +568,12 @@ export default function FlyersPage() {
         : logoPos === 'center'
         ? { left: (W - LOGO_SIZE) / 2 }
         : { left: 36 };
-    const wmX = wordmarkX(logoPos);
-    const wordmarkCSS =
+    const textPosCSS =
       logoPos === 'right'
-        ? { right: W - (wmX as number) - 208 }
-        : { left: wmX };
+        ? { right: 36 }
+        : logoPos === 'center'
+        ? { left: (W - LOGO_SIZE) / 2 }
+        : { left: 36 };
 
     return (
       <Document>
@@ -569,7 +586,7 @@ export default function FlyersPage() {
           {/* Logo (public/logo.jpg) + wordmark */}
           <View style={{ position: 'absolute', top: 8, ...logoCSS, width: LOGO_SIZE, height: LOGO_SIZE, borderRadius: 23, overflow: 'hidden', backgroundColor: DARK, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>
             {(() => {
-              const src = logoSrc || publicLogo();
+              const src = logoSrc || publicLogo() || loadLogoSync();
               return src ? (
                 <PdfImage src={src} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
@@ -577,9 +594,8 @@ export default function FlyersPage() {
               );
             })()}
           </View>
-          <View style={{ position: 'absolute', top: 21, ...wordmarkCSS, fontFamily: 'Helvetica-Bold', fontSize: 16, color: '#ffffff', zIndex: 2 }}>
-            <Text style={{ color: '#ffffff' }}>JAE</Text>
-            <Text style={{ color: GOLD }}> TRAVEL EXPEDITIONS</Text>
+          <View style={{ position: 'absolute', top: LOGO_SIZE + 12, ...textPosCSS, fontFamily: 'Helvetica-Bold', fontSize: 10, color: '#ffffff', zIndex: 2 }}>
+            <Text style={{ textAlign: logoPos === 'right' ? 'right' : logoPos === 'center' ? 'center' : 'left' }}>JAE TRAVEL EXPEDITIONS</Text>
           </View>
           <View style={[pdfStyles.headline1, textStyle(h1T, 36, 36)]}>
             <Text>{s.headline1}</Text>

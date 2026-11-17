@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import SearchInput from '@/components/SearchInput';
 import DeleteItineraryButton from '@/components/DeleteItineraryButton';
+import CopyItineraryButton from '@/components/CopyItineraryButton';
 import { Map, Globe, PlusCircle, Link2 } from 'lucide-react';
 
 interface ItineraryRow {
@@ -107,6 +108,7 @@ export default function ItinerariesClient({ itineraries }: { itineraries: Itiner
                 <Link href={`/dashboard/itineraries/${it.id}`} className="btn-secondary text-xs py-1.5 px-3">
                   View
                 </Link>
+                <CopyItineraryButton id={it.id} title={it.title} />
                 <DeleteItineraryButton id={it.id} title={it.title} />
               </div>
             </div>

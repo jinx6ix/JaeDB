@@ -834,8 +834,13 @@ export default function NewItineraryPage() {
                       <div className="absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
                         {focusedField === 'acc' && (() => {
                           const day = getDay(editingDayId);
-                          if (!day?.destinationId) return null;
-                          const destHotels = hotelsByDest[day.destinationId] ?? [];
+                          if (!day) return null;
+                          // When destinationId is null (e.g. day loaded from a booking where only the
+                          // destination name was stored), fall back to searching all hotels so the
+                          // autocomplete still works without re-selecting the destination.
+                          const destHotels = day.destinationId
+                            ? (hotelsByDest[day.destinationId] ?? [])
+                            : hotels;
                           const matches = destHotels.filter((h: Hotel) =>
                             h.name.toLowerCase().includes((day.accommodation || '').toLowerCase())
                           );
