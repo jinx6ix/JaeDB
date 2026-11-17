@@ -22,6 +22,8 @@ interface NewsState {
   announcementSubtitle: string;
   heroImage: NewsImage;
   items: { id: string; title: string; text: string; image: NewsImage }[];
+  letterSalute: string;
+  letterBody: string[];
   contactEmail: string;
   contactPhone: string;
   contactWebsite: string;
@@ -35,6 +37,12 @@ const DEFAULT_STATE: NewsState = {
     { id: '1', title: '[Tour / news title]', text: '[What to say — two or three sentences about this tour or announcement.]', image: { data: null, description: 'Image 1: [description]' } },
     { id: '2', title: '[Tour / news title]', text: '[What to say — two or three sentences about this tour or announcement.]', image: { data: null, description: 'Image 2: [description]' } },
     { id: '3', title: '[Tour / news title]', text: '[What to say — two or three sentences about this tour or announcement.]', image: { data: null, description: 'Image 3: [description]' } },
+  ],
+  letterSalute: 'Dear Travel Partner,',
+  letterBody: [
+    'We hope you are well. This note shares what’s new with Jae Travel Expeditions and the tours we’re most excited to send your way this season.',
+    'From classic Big Five safaris to private family departures, each itinerary is built around real wildlife moments and the comfort your clients expect.',
+    'Thank you for traveling with us. We look forward to welcoming your clients to the wild.',
   ],
   contactEmail: 'marketing@jaetravel.co.ke',
   contactPhone: '+254 700 000000',
@@ -151,6 +159,8 @@ export default function NewsLetterPage() {
       if (n.contactEmail) next.contactEmail = n.contactEmail;
       if (n.contactPhone) next.contactPhone = n.contactPhone;
       if (n.contactWebsite) next.contactWebsite = n.contactWebsite;
+      if (n.letterSalute) next.letterSalute = n.letterSalute;
+      if (n.letterBody) next.letterBody = Array.isArray(n.letterBody) ? n.letterBody : next.letterBody;
       setState(next);
       setError('');
     } catch {
@@ -678,10 +688,8 @@ export default function NewsLetterPage() {
           </div>
         </div>
         <div class="letter">
-          <p class="salute">Dear Travel Partner,&nbsp;</p>
-          <p>We hope you are well. This note shares what&apos;s new with Jae Travel Expeditions and the tours we&apos;re most excited to send your way this season.</p>
-          <p>From classic Big Five safaris to private family departures, each itinerary is built around real wildlife moments and the comfort your clients expect.</p>
-          <p>Thank you for traveling with us. We look forward to welcoming your clients to the wild.</p>
+          <p class="salute">${escapeHtml(state.letterSalute)}&nbsp;</p>
+          ${state.letterBody.map((p) => `<p>${escapeHtml(p)}</p>`).join('')}
         </div>
         <a href="#" class="main-button" tabindex="0">View all tours</a>
         <div class="blocks">${blocksHtml}</div>
@@ -729,6 +737,8 @@ export default function NewsLetterPage() {
           body: generateHtml(),
           heroImage: state.heroImage,
           items: state.items,
+          letterSalute: state.letterSalute || null,
+          letterBody: state.letterBody || null,
           contactEmail: state.contactEmail || null,
           contactPhone: state.contactPhone || null,
           contactWebsite: state.contactWebsite || null,
@@ -917,6 +927,25 @@ export default function NewsLetterPage() {
               <input className="input w-full text-sm" value={state.contactWebsite} onChange={(e) => setField('contactWebsite', e.target.value)} placeholder="www.jaetravel.co.ke" />
             </div>
             <p className="text-[10px] text-gray-500">Deposit note (fixed): 30% non-refundable deposit; balance and full terms come with the booking confirmation.</p>
+          </div>
+
+          <div className="card p-4 space-y-4">
+            <h2 className="font-semibold text-gray-800 text-sm">Opening letter</h2>
+            <div className="space-y-3">
+              <label className="label text-xs">Salutation</label>
+              <input className="input w-full text-sm" value={state.letterSalute} onChange={(e) => setField('letterSalute', e.target.value)} placeholder="e.g. Dear Travel Partner," />
+            </div>
+            <div className="space-y-2">
+              <label className="label text-xs">Letter body (one paragraph per line)</label>
+              <textarea
+                className="input w-full text-sm resize-none"
+                rows={5}
+                value={state.letterBody.join('\n\n')}
+                onChange={(e) => setField('letterBody', e.target.value.split('\n\n').filter(Boolean))}
+                placeholder="Write your letter here…"
+              />
+            </div>
+            <p className="text-[10px] text-gray-500">Press Enter twice between paragraphs.</p>
           </div>
 
           <div className="card p-4 space-y-4">

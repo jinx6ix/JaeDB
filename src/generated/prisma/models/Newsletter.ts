@@ -34,6 +34,7 @@ export type NewsletterMinAggregateOutputType = {
   contactEmail: string | null
   contactPhone: string | null
   contactWebsite: string | null
+  letterSalute: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -48,6 +49,7 @@ export type NewsletterMaxAggregateOutputType = {
   contactEmail: string | null
   contactPhone: string | null
   contactWebsite: string | null
+  letterSalute: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -64,6 +66,8 @@ export type NewsletterCountAggregateOutputType = {
   contactEmail: number
   contactPhone: number
   contactWebsite: number
+  letterSalute: number
+  letterBody: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -80,6 +84,7 @@ export type NewsletterMinAggregateInputType = {
   contactEmail?: true
   contactPhone?: true
   contactWebsite?: true
+  letterSalute?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -94,6 +99,7 @@ export type NewsletterMaxAggregateInputType = {
   contactEmail?: true
   contactPhone?: true
   contactWebsite?: true
+  letterSalute?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -110,6 +116,8 @@ export type NewsletterCountAggregateInputType = {
   contactEmail?: true
   contactPhone?: true
   contactWebsite?: true
+  letterSalute?: true
+  letterBody?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -199,6 +207,8 @@ export type NewsletterGroupByOutputType = {
   contactEmail: string | null
   contactPhone: string | null
   contactWebsite: string | null
+  letterSalute: string | null
+  letterBody: runtime.JsonValue | null
   createdAt: Date
   updatedAt: Date
   _count: NewsletterCountAggregateOutputType | null
@@ -236,6 +246,8 @@ export type NewsletterWhereInput = {
   contactEmail?: Prisma.StringNullableFilter<"Newsletter"> | string | null
   contactPhone?: Prisma.StringNullableFilter<"Newsletter"> | string | null
   contactWebsite?: Prisma.StringNullableFilter<"Newsletter"> | string | null
+  letterSalute?: Prisma.StringNullableFilter<"Newsletter"> | string | null
+  letterBody?: Prisma.JsonNullableFilter<"Newsletter">
   createdAt?: Prisma.DateTimeFilter<"Newsletter"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Newsletter"> | Date | string
 }
@@ -252,6 +264,8 @@ export type NewsletterOrderByWithRelationInput = {
   contactEmail?: Prisma.SortOrderInput | Prisma.SortOrder
   contactPhone?: Prisma.SortOrderInput | Prisma.SortOrder
   contactWebsite?: Prisma.SortOrderInput | Prisma.SortOrder
+  letterSalute?: Prisma.SortOrderInput | Prisma.SortOrder
+  letterBody?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -271,6 +285,8 @@ export type NewsletterWhereUniqueInput = Prisma.AtLeast<{
   contactEmail?: Prisma.StringNullableFilter<"Newsletter"> | string | null
   contactPhone?: Prisma.StringNullableFilter<"Newsletter"> | string | null
   contactWebsite?: Prisma.StringNullableFilter<"Newsletter"> | string | null
+  letterSalute?: Prisma.StringNullableFilter<"Newsletter"> | string | null
+  letterBody?: Prisma.JsonNullableFilter<"Newsletter">
   createdAt?: Prisma.DateTimeFilter<"Newsletter"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Newsletter"> | Date | string
 }, "id">
@@ -287,6 +303,8 @@ export type NewsletterOrderByWithAggregationInput = {
   contactEmail?: Prisma.SortOrderInput | Prisma.SortOrder
   contactPhone?: Prisma.SortOrderInput | Prisma.SortOrder
   contactWebsite?: Prisma.SortOrderInput | Prisma.SortOrder
+  letterSalute?: Prisma.SortOrderInput | Prisma.SortOrder
+  letterBody?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.NewsletterCountOrderByAggregateInput
@@ -309,6 +327,8 @@ export type NewsletterScalarWhereWithAggregatesInput = {
   contactEmail?: Prisma.StringNullableWithAggregatesFilter<"Newsletter"> | string | null
   contactPhone?: Prisma.StringNullableWithAggregatesFilter<"Newsletter"> | string | null
   contactWebsite?: Prisma.StringNullableWithAggregatesFilter<"Newsletter"> | string | null
+  letterSalute?: Prisma.StringNullableWithAggregatesFilter<"Newsletter"> | string | null
+  letterBody?: Prisma.JsonNullableWithAggregatesFilter<"Newsletter">
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Newsletter"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Newsletter"> | Date | string
 }
@@ -325,6 +345,8 @@ export type NewsletterCreateInput = {
   contactEmail?: string | null
   contactPhone?: string | null
   contactWebsite?: string | null
+  letterSalute?: string | null
+  letterBody?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -341,6 +363,8 @@ export type NewsletterUncheckedCreateInput = {
   contactEmail?: string | null
   contactPhone?: string | null
   contactWebsite?: string | null
+  letterSalute?: string | null
+  letterBody?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -357,6 +381,8 @@ export type NewsletterUpdateInput = {
   contactEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   contactWebsite?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  letterSalute?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  letterBody?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -373,6 +399,8 @@ export type NewsletterUncheckedUpdateInput = {
   contactEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   contactWebsite?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  letterSalute?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  letterBody?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -389,6 +417,8 @@ export type NewsletterCreateManyInput = {
   contactEmail?: string | null
   contactPhone?: string | null
   contactWebsite?: string | null
+  letterSalute?: string | null
+  letterBody?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -405,6 +435,8 @@ export type NewsletterUpdateManyMutationInput = {
   contactEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   contactWebsite?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  letterSalute?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  letterBody?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -421,6 +453,8 @@ export type NewsletterUncheckedUpdateManyInput = {
   contactEmail?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   contactWebsite?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  letterSalute?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  letterBody?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -437,6 +471,8 @@ export type NewsletterCountOrderByAggregateInput = {
   contactEmail?: Prisma.SortOrder
   contactPhone?: Prisma.SortOrder
   contactWebsite?: Prisma.SortOrder
+  letterSalute?: Prisma.SortOrder
+  letterBody?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -451,6 +487,7 @@ export type NewsletterMaxOrderByAggregateInput = {
   contactEmail?: Prisma.SortOrder
   contactPhone?: Prisma.SortOrder
   contactWebsite?: Prisma.SortOrder
+  letterSalute?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -465,6 +502,7 @@ export type NewsletterMinOrderByAggregateInput = {
   contactEmail?: Prisma.SortOrder
   contactPhone?: Prisma.SortOrder
   contactWebsite?: Prisma.SortOrder
+  letterSalute?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -483,6 +521,8 @@ export type NewsletterSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   contactEmail?: boolean
   contactPhone?: boolean
   contactWebsite?: boolean
+  letterSalute?: boolean
+  letterBody?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["newsletter"]>
@@ -499,6 +539,8 @@ export type NewsletterSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   contactEmail?: boolean
   contactPhone?: boolean
   contactWebsite?: boolean
+  letterSalute?: boolean
+  letterBody?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["newsletter"]>
@@ -515,6 +557,8 @@ export type NewsletterSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   contactEmail?: boolean
   contactPhone?: boolean
   contactWebsite?: boolean
+  letterSalute?: boolean
+  letterBody?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["newsletter"]>
@@ -531,11 +575,13 @@ export type NewsletterSelectScalar = {
   contactEmail?: boolean
   contactPhone?: boolean
   contactWebsite?: boolean
+  letterSalute?: boolean
+  letterBody?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type NewsletterOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "title" | "subtitle" | "announcementTitle" | "announcementSubtitle" | "body" | "heroImage" | "items" | "contactEmail" | "contactPhone" | "contactWebsite" | "createdAt" | "updatedAt", ExtArgs["result"]["newsletter"]>
+export type NewsletterOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "title" | "subtitle" | "announcementTitle" | "announcementSubtitle" | "body" | "heroImage" | "items" | "contactEmail" | "contactPhone" | "contactWebsite" | "letterSalute" | "letterBody" | "createdAt" | "updatedAt", ExtArgs["result"]["newsletter"]>
 
 export type $NewsletterPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Newsletter"
@@ -552,6 +598,8 @@ export type $NewsletterPayload<ExtArgs extends runtime.Types.Extensions.Internal
     contactEmail: string | null
     contactPhone: string | null
     contactWebsite: string | null
+    letterSalute: string | null
+    letterBody: runtime.JsonValue | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["newsletter"]>
@@ -988,6 +1036,8 @@ export interface NewsletterFieldRefs {
   readonly contactEmail: Prisma.FieldRef<"Newsletter", 'String'>
   readonly contactPhone: Prisma.FieldRef<"Newsletter", 'String'>
   readonly contactWebsite: Prisma.FieldRef<"Newsletter", 'String'>
+  readonly letterSalute: Prisma.FieldRef<"Newsletter", 'String'>
+  readonly letterBody: Prisma.FieldRef<"Newsletter", 'Json'>
   readonly createdAt: Prisma.FieldRef<"Newsletter", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Newsletter", 'DateTime'>
 }

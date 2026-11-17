@@ -531,6 +531,8 @@ model Newsletter {
   contactEmail     String?  @map("contactemail")
   contactPhone     String?  @map("contactphone")
   contactWebsite   String?  @map("contactwebsite")
+  letterSalute     String?  @map("lettersalute")
+  letterBody       Json?    @map("letterbody")
   createdAt        DateTime @default(now()) @map("createdat")
   updatedAt        DateTime @updatedAt @map("updatedat")
 

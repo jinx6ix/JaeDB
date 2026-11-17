@@ -28,7 +28,7 @@ export async function PATCH(
   const reqBody = await req.json();
   const {
     title, subtitle, announcementTitle, announcementSubtitle, body,
-    heroImage, items, contactEmail, contactPhone, contactWebsite,
+    heroImage, items, letterSalute, letterBody, contactEmail, contactPhone, contactWebsite,
   } = reqBody;
 
   try {
@@ -42,6 +42,8 @@ export async function PATCH(
         body: body !== undefined ? body : undefined,
         heroImage: heroImage !== undefined ? heroImage : undefined,
         items: items !== undefined ? items : undefined,
+        letterSalute: letterSalute !== undefined ? letterSalute : undefined,
+        letterBody: letterBody !== undefined ? letterBody : undefined,
         contactEmail: contactEmail !== undefined ? contactEmail : undefined,
         contactPhone: contactPhone !== undefined ? contactPhone : undefined,
         contactWebsite: contactWebsite !== undefined ? contactWebsite : undefined,

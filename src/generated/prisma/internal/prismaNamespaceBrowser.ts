@@ -619,6 +619,8 @@ export const NewsletterScalarFieldEnum = {
   contactEmail: 'contactEmail',
   contactPhone: 'contactPhone',
   contactWebsite: 'contactWebsite',
+  letterSalute: 'letterSalute',
+  letterBody: 'letterBody',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
