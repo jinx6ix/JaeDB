@@ -6,7 +6,7 @@
 //   pnpm exec ts-node-esm scripts/render-sample-flyer.tsx
 //   pnpm exec ts-node-esm scripts/render-sample-flyer.tsx --cover /path/to/image.jpg
 import { renderToBuffer } from '@react-pdf/renderer';
-import { TourFlyerPDF } from '../lib/tour-flyer-pdf.tsx';
+import { TourFlyerPDF } from '../lib/tour-flyer-pdf';
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
 

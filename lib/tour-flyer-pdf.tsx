@@ -22,7 +22,7 @@ import {
 import fs from 'fs';
 import path from 'path';
 
-import { BRAND } from './brand.ts';
+import { BRAND } from './brand';
 
 // ---------------------------------------------------------------------------
 // Constants (A4 in points)
