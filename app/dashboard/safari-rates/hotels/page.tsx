@@ -15,6 +15,10 @@ export default function HotelsPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ countyId:'', name:'', stars:'', category:'Lodge' });
   const [saving, setSaving] = useState(false);
+  // Inline hotel name edit state (shown beside the name in the Hotel / Camp column)
+  const [editingNameHotelId, setEditingNameHotelId] = useState<number | null>(null);
+  const [editName, setEditName] = useState('');
+  const [savingName, setSavingName] = useState(false);
   const [showDestForm, setShowDestForm] = useState(false);
   const [destForm, setDestForm] = useState({ name: '', region: '' });
   const [savingDest, setSavingDest] = useState(false);
@@ -80,6 +84,30 @@ export default function HotelsPage() {
       alert(err.message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function saveHotelName(hotelId: number) {
+    const name = editName.trim();
+    if (!name) { alert('Please enter a hotel name'); return; }
+    setSavingName(true);
+    try {
+      const res = await fetch(`/api/safari-rates/hotels/${hotelId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed to update name' }));
+        throw new Error(err.error || 'Failed to update name');
+      }
+      const updated = await res.json();
+      setHotels(prev => prev.map(h => h.id === hotelId ? { ...h, name: updated.name } : h));
+      setEditingNameHotelId(null);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSavingName(false);
     }
   }
 
@@ -290,7 +318,43 @@ export default function HotelsPage() {
             {filtered.map(h => (
               <React.Fragment key={h.id}>
                 <tr className="hover:bg-gray-50 cursor-pointer" onClick={() => toggleHotel(h.id)}>
-                  <td className="px-4 py-2.5 font-medium text-gray-800">{h.name}</td>
+                  <td className="px-4 py-2.5 font-medium text-gray-800">
+                    {editingNameHotelId === h.id ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          required
+                          className="input text-sm py-1 border-orange-300 focus:border-orange-500"
+                          value={editName}
+                          onChange={e => setEditName(e.target.value)}
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => saveHotelName(h.id)}
+                          disabled={savingName}
+                          className="text-xs text-green-600 hover:text-green-800 underline px-1"
+                        >
+                          {savingName ? '…' : 'Save'}
+                        </button>
+                        <button
+                          onClick={() => { setEditName(h.name); setEditingNameHotelId(null); }}
+                          className="text-xs text-gray-500 hover:text-gray-800 underline px-1"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        {h.name}
+                        <button
+                          onClick={() => { setEditName(h.name); setEditingNameHotelId(h.id); }}
+                          className="text-orange-500 hover:text-orange-700 p-0.5"
+                          title="Edit name"
+                        >
+                          ✏️
+                        </button>
+                      </div>
+                    )}
+                  </td>
                   <td className="px-4 py-2.5 text-gray-500">{h.category||'—'}</td>
                   <td className="px-4 py-2.5 text-yellow-500 text-sm">{h.stars?'★'.repeat(h.stars):'—'}</td>
                   <td className="px-4 py-2.5 text-gray-600">{h.county.name}</td>
