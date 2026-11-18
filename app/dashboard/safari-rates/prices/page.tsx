@@ -30,6 +30,7 @@ export default function PricesPage() {
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<number|null>(null);
   const [form, setForm] = useState({ roomTypeId:'', seasonId:'', boardBasis:'FB', ratePerPersonSharing:'', singleRoomRate:'', childRate:'', thirdAdultRate:'', currency:'USD' });
+  const [selectedRoomMaxOccupancy, setSelectedRoomMaxOccupancy] = useState<number|null>(null);
 
   // Hotel combobox state
   const [hotelSearch, setHotelSearch] = useState('');
@@ -131,6 +132,10 @@ export default function PricesPage() {
 
   async function save(e: React.FormEvent) {
     e.preventDefault(); setSaving(true);
+    // Enforce business rule: rooms with maxOccupancy <= 2 cannot have a third adult rate
+    if (selectedRoomMaxOccupancy != null && selectedRoomMaxOccupancy <= 2) {
+      setForm(f => ({ ...f, thirdAdultRate: '' }));
+    }
     await fetch('/api/safari-rates/prices', {
       method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(form),
     });
@@ -279,10 +284,11 @@ export default function PricesPage() {
   async function deleteSeason(id: number) { return handleDeleteSeason(id); }
 
   function handleEdit(p: Price) {
-    const room = rooms.find(r => r.name === p.roomType.name && p.roomType.hotel.name);
+    const room = rooms.find(r => r.name === p.roomType.name && r.hotel?.name === p.roomType.hotel.name);
     const season = seasons.find(s => s.name === p.season.name);
     const hotel = hotels.find(h => h.name === p.roomType.hotel.name);
     setSelHotel(hotel ? String(hotel.id) : '');
+    setSelectedRoomMaxOccupancy(room ? room.maxOccupancy : null);
     setForm({
       roomTypeId: room ? String(room.id) : '',
       seasonId: season ? String(season.id) : '',
@@ -290,7 +296,7 @@ export default function PricesPage() {
       ratePerPersonSharing: p.ratePerPersonSharing != null ? String(p.ratePerPersonSharing) : '',
       singleRoomRate: p.singleRoomRate != null ? String(p.singleRoomRate) : '',
       childRate: p.childRate != null ? String(p.childRate) : '',
-      thirdAdultRate: p.thirdAdultRate != null ? String(p.thirdAdultRate) : '',
+      thirdAdultRate: (room && room.maxOccupancy > 2 && p.thirdAdultRate != null) ? String(p.thirdAdultRate) : '',
       currency: p.currency,
     });
     setEditingId(p.id);
@@ -411,7 +417,12 @@ export default function PricesPage() {
                 </div>
               </div>
               {!addingRoom && !editingRoom && (
-                <select required className="input" value={form.roomTypeId} onChange={e=>setForm(f=>({...f,roomTypeId:e.target.value}))}>
+                <select required className="input" value={form.roomTypeId} onChange={e=>{
+                  const id = e.target.value;
+                  const room = rooms.find(r => r.id === Number(id));
+                  setForm(f=>({...f,roomTypeId:id}));
+                  setSelectedRoomMaxOccupancy(room ? room.maxOccupancy : null);
+                }}>
                   <option value="">—</option>
                   {filtRooms.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}
                 </select>
@@ -485,8 +496,15 @@ export default function PricesPage() {
               <input type="number" min={0} step="0.01" className="input font-mono" value={form.childRate} onChange={e=>setForm(f=>({...f,childRate:e.target.value}))} placeholder="0.00" />
             </div>
             <div>
-              <label className="label">Third Adult Rate</label> {/* 👈 New field */}
-              <input type="number" min={0} step="0.01" className="input font-mono" value={form.thirdAdultRate} onChange={e=>setForm(f=>({...f,thirdAdultRate:e.target.value}))} placeholder="0.00" />
+              <label className="label">Third Adult Rate</label>
+              {selectedRoomMaxOccupancy != null && selectedRoomMaxOccupancy <= 2 ? (
+                <div className="flex items-center gap-2">
+                  <input type="number" min={0} step="0.01" className="input font-mono text-gray-400" value="" disabled placeholder="N/A (max 2)" />
+                  <span className="text-xs text-orange-500">Not applicable (max occupancy ≤ 2)</span>
+                </div>
+              ) : (
+                <input type="number" min={0} step="0.01" className="input font-mono" value={form.thirdAdultRate} onChange={e=>setForm(f=>({...f,thirdAdultRate:e.target.value}))} placeholder="0.00" />
+              )}
             </div>
             <div>
               <label className="label">Currency</label>

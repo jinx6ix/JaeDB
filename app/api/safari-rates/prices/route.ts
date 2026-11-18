@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       ratePerPersonSharing: body.ratePerPersonSharing ? Number(body.ratePerPersonSharing) : null,
       singleRoomRate:       body.singleRoomRate       ? Number(body.singleRoomRate)       : null,
       childRate:            body.childRate            ? Number(body.childRate)            : null,
-      thirdAdultRate:       body.thirdAdultRate       ? Number(body.thirdAdultRate)       : null, // 👈 New
+      thirdAdultRate:       roomType.maxOccupancy > 2 && body.thirdAdultRate ? Number(body.thirdAdultRate) : null,
       currency: body.currency || 'USD',
     },
     create: {
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
       ratePerPersonSharing: body.ratePerPersonSharing ? Number(body.ratePerPersonSharing) : null,
       singleRoomRate:       body.singleRoomRate       ? Number(body.singleRoomRate)       : null,
       childRate:            body.childRate            ? Number(body.childRate)            : null,
-      thirdAdultRate:       body.thirdAdultRate       ? Number(body.thirdAdultRate)       : null, // 👈 New
+      thirdAdultRate:       roomType.maxOccupancy > 2 && body.thirdAdultRate ? Number(body.thirdAdultRate) : null,
       currency: body.currency || 'USD',
     },
   });

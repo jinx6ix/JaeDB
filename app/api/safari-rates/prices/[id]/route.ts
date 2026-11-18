@@ -15,6 +15,13 @@ export async function PUT(
   const priceId = Number(id);
   const body = await req.json();
 
+  // Fetch existing price with roomType to enforce maxOccupancy <= 2 rule
+  const existing = await prisma.sRRoomPrice.findUnique({
+    where: { id: priceId },
+    include: { roomType: true },
+  });
+  if (!existing) return NextResponse.json({ error: 'Price not found' }, { status: 404 });
+
   try {
     const price = await prisma.sRRoomPrice.update({
       where: { id: priceId },
@@ -22,7 +29,7 @@ export async function PUT(
         ratePerPersonSharing: body.ratePerPersonSharing != null ? Number(body.ratePerPersonSharing) : null,
         singleRoomRate:       body.singleRoomRate       != null ? Number(body.singleRoomRate)       : null,
         childRate:            body.childRate            != null ? Number(body.childRate)            : null,
-        thirdAdultRate:       body.thirdAdultRate       != null ? Number(body.thirdAdultRate)       : null,
+        thirdAdultRate:       existing.roomType.maxOccupancy > 2 && body.thirdAdultRate != null ? Number(body.thirdAdultRate) : null,
         currency:             body.currency || 'USD',
         boardBasis:           body.boardBasis || undefined,
       },
