@@ -40,6 +40,13 @@ export default function DestinationsPage() {
   const [galleryDescEditing, setGalleryDescEditing] = useState(false);
   const [galleryDesc, setGalleryDesc] = useState('');
 
+  // Destination name/region edit state (modal)
+  const [editDestId, setEditDestId] = useState<number | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editRegion, setEditRegion] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingDestId, setDeletingDestId] = useState<number | null>(null);
+
   // Image edit/delete popup state (deliberate buttons — no accidental x-delete)
   const [popupOpen, setPopupOpen] = useState(false);
   const [popupImage, setPopupImage] = useState<DestinationImage | null>(null);
@@ -112,6 +119,61 @@ export default function DestinationsPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function saveDestinationEdit() {
+    if (!editDestId) return;
+    if (!editName.trim()) { alert('Destination name is required'); return; }
+    setSavingEdit(true);
+    try {
+      const res = await fetch(`/api/safari-rates/counties/${editDestId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editName.trim(), region: editRegion.trim() || null }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed to update destination' }));
+        throw new Error(err.error || 'Failed to update destination');
+      }
+      const updated = await res.json();
+      setDestinations(prev => prev.map(d => d.id === editDestId ? { ...d, name: updated.name, region: updated.region } : d));
+      closeEditModal();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  async function deleteDestination(destId: number) {
+    if (!confirm('Delete this destination? This cannot be undone.')) return;
+    setDeletingDestId(destId);
+    try {
+      const res = await fetch(`/api/safari-rates/counties/${destId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed to delete destination' }));
+        throw new Error(err.error || 'Failed to delete destination');
+      }
+      setDestinations(prev => prev.filter(d => d.id !== destId));
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setDeletingDestId(null);
+    }
+  }
+
+  function openEditModal(dest: Destination) {
+    setEditDestId(dest.id);
+    setEditName(dest.name);
+    setEditRegion(dest.region || '');
+  }
+
+  function closeEditModal() {
+    setEditDestId(null);
+    setEditName('');
+    setEditRegion('');
   }
 
   // --- Image handling ---
@@ -439,7 +501,27 @@ export default function DestinationsPage() {
                 </div>
               </div>
               <div className="p-3">
-                <h3 className="font-semibold text-gray-800 text-sm leading-tight">{d.name}</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-800 text-sm leading-tight">{d.name}</h3>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); openEditModal(d); }}
+                    className="text-xs text-blue-600 hover:text-blue-800 underline px-2"
+                    title="Edit destination"
+                  >
+                    Edit
+                  </button>
+                  {deletingDestId === d.id ? (
+                    <button disabled className="text-xs text-gray-400 px-2">Deleting…</button>
+                  ) : (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); deleteDestination(d.id); }}
+                      className="text-xs text-red-600 hover:text-red-800 underline px-2"
+                      title="Delete destination"
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
                 {d.region && <p className="text-xs text-gray-500 mt-1">{d.region}</p>}
                 {d.description && (
                   <p className="text-sm text-gray-700 mt-1 line-clamp-2">{d.description}</p>
@@ -675,6 +757,65 @@ export default function DestinationsPage() {
                 className="btn-secondary text-sm px-4 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
               >
                 Delete Image
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit destination modal */}
+      {editDestId && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col">
+            <div className="p-4 border-b border-gray-100">
+              <h2 className="font-semibold text-gray-800">Edit Destination</h2>
+            </div>
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Destination Name *</label>
+                <input
+                  required
+                  className="input w-full"
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Region (optional)</label>
+                <input
+                  className="input w-full"
+                  value={editRegion}
+                  onChange={e => setEditRegion(e.target.value)}
+                  placeholder="e.g. Narok County"
+                />
+              </div>
+              {savingEdit && (
+                <p className="text-xs text-orange-500 flex items-center justify-center gap-2">
+                  <span className="inline-block w-3 h-3 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+                  Saving…
+                </p>
+              )}
+            </div>
+            <div className="p-4 border-t border-gray-100 flex justify-end gap-2">
+              <button
+                onClick={closeEditModal}
+                className="btn-secondary text-sm px-4"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveDestinationEdit}
+                disabled={savingEdit}
+                className="btn-primary text-sm px-4"
+              >
+                {savingEdit ? 'Saving…' : 'Save Changes'}
+              </button>
+              <button
+                onClick={() => { closeEditModal(); deleteDestination(editDestId!); }}
+                className="text-xs text-red-600 hover:text-red-800 underline px-2 py-1"
+              >
+                Delete Destination
               </button>
             </div>
           </div>
