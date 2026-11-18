@@ -8,8 +8,13 @@ function makeClient(): PrismaClient {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error('DATABASE_URL is not set.');
 
+  // Supabase requires SSL; append sslmode=require if not already present.
+  const connectionString = url.includes('sslmode=')
+    ? url
+    : url + (url.includes('?') ? '&sslmode=require' : '?sslmode=require');
+
   const adapter = new PrismaPg({
-    connectionString: url,
+    connectionString,
     max: 3,
     idleTimeoutMillis: 10000,
     connectionTimeoutMillis: 10000,
