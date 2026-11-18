@@ -73,11 +73,15 @@ export default function TransportFeesPage() {
   async function loadTransportFees() {
     try {
       const res = await fetch('/api/transport-fees');
-      if (!res.ok) throw new Error('Failed to load transport fees');
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || `Failed to load transport fees (HTTP ${res.status})`);
+      }
       const data = await res.json();
       setTransportFees(Array.isArray(data) ? data : []);
     } catch (err: any) {
       setError(err.message || 'Failed to load transport fees');
+      console.error('Transport fees load error:', err);
     }
   }
 

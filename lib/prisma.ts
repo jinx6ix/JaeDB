@@ -8,11 +8,6 @@ function makeClient(): PrismaClient {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error('DATABASE_URL is not set.');
 
-  // Limit the pool per serverless invocation so many concurrent
-  // Vercel functions don't exhaust Supabase's connection pool.
-  // max: 3 keeps each function lightweight while allowing a few concurrent queries.
-  // idleTimeoutMillis: close idle connections after 10s.
-  // connectionTimeoutMillis: fail fast (10s) instead of waiting 60s.
   const adapter = new PrismaPg({
     connectionString: url,
     max: 3,
