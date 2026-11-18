@@ -497,10 +497,14 @@ export default function PricesPage() {
             </div>
             <div>
               <label className="label">Third Adult Rate</label>
-              {selectedRoomMaxOccupancy != null && selectedRoomMaxOccupancy <= 2 ? (
+              {selectedRoomMaxOccupancy == null ? (
                 <div className="flex items-center gap-2">
-                  <input type="number" min={0} step="0.01" className="input font-mono text-gray-400" value="" disabled placeholder="N/A (max 2)" />
-                  <span className="text-xs text-orange-500">Not applicable (max occupancy ≤ 2)</span>
+                  <input type="number" min={0} step="0.01" className="input font-mono text-gray-400" value="" disabled placeholder="Select room type first" />
+                  <span className="text-xs text-gray-400">Select a room type to enable</span>
+                </div>
+              ) : selectedRoomMaxOccupancy <= 2 ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-orange-500 font-medium">Not applicable (max occupancy ≤ 2)</span>
                 </div>
               ) : (
                 <input type="number" min={0} step="0.01" className="input font-mono" value={form.thirdAdultRate} onChange={e=>setForm(f=>({...f,thirdAdultRate:e.target.value}))} placeholder="0.00" />
