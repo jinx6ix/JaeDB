@@ -413,7 +413,10 @@ export const ModelName = {
   ItineraryEmbed: 'ItineraryEmbed',
   SavedFlyer: 'SavedFlyer',
   Newsletter: 'Newsletter',
-  TourImage: 'TourImage'
+  TourImage: 'TourImage',
+  ParkFeeSeason: 'ParkFeeSeason',
+  ParkFee: 'ParkFee',
+  TransportFee: 'TransportFee'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -429,7 +432,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "agent" | "client" | "destination" | "destinationImage" | "tourPackage" | "tourDay" | "rateCard" | "property" | "vehicle" | "booking" | "itinerary" | "itineraryDay" | "itineraryImage" | "voucher" | "invoice" | "costSheet" | "sRCounty" | "sRHotel" | "sRHotelImage" | "sRRoomType" | "sRSeason" | "sRRoomPrice" | "log" | "agentRun" | "agentMessage" | "itineraryEmbed" | "savedFlyer" | "newsletter" | "tourImage"
+    modelProps: "user" | "agent" | "client" | "destination" | "destinationImage" | "tourPackage" | "tourDay" | "rateCard" | "property" | "vehicle" | "booking" | "itinerary" | "itineraryDay" | "itineraryImage" | "voucher" | "invoice" | "costSheet" | "sRCounty" | "sRHotel" | "sRHotelImage" | "sRRoomType" | "sRSeason" | "sRRoomPrice" | "log" | "agentRun" | "agentMessage" | "itineraryEmbed" | "savedFlyer" | "newsletter" | "tourImage" | "parkFeeSeason" | "parkFee" | "transportFee"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2653,6 +2656,228 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    ParkFeeSeason: {
+      payload: Prisma.$ParkFeeSeasonPayload<ExtArgs>
+      fields: Prisma.ParkFeeSeasonFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ParkFeeSeasonFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ParkFeeSeasonPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ParkFeeSeasonFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ParkFeeSeasonPayload>
+        }
+        findFirst: {
+          args: Prisma.ParkFeeSeasonFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ParkFeeSeasonPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ParkFeeSeasonFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ParkFeeSeasonPayload>
+        }
+        findMany: {
+          args: Prisma.ParkFeeSeasonFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ParkFeeSeasonPayload>[]
+        }
+        create: {
+          args: Prisma.ParkFeeSeasonCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ParkFeeSeasonPayload>
+        }
+        createMany: {
+          args: Prisma.ParkFeeSeasonCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ParkFeeSeasonCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ParkFeeSeasonPayload>[]
+        }
+        delete: {
+          args: Prisma.ParkFeeSeasonDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ParkFeeSeasonPayload>
+        }
+        update: {
+          args: Prisma.ParkFeeSeasonUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ParkFeeSeasonPayload>
+        }
+        deleteMany: {
+          args: Prisma.ParkFeeSeasonDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ParkFeeSeasonUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ParkFeeSeasonUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ParkFeeSeasonPayload>[]
+        }
+        upsert: {
+          args: Prisma.ParkFeeSeasonUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ParkFeeSeasonPayload>
+        }
+        aggregate: {
+          args: Prisma.ParkFeeSeasonAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateParkFeeSeason>
+        }
+        groupBy: {
+          args: Prisma.ParkFeeSeasonGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ParkFeeSeasonGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ParkFeeSeasonCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ParkFeeSeasonCountAggregateOutputType> | number
+        }
+      }
+    }
+    ParkFee: {
+      payload: Prisma.$ParkFeePayload<ExtArgs>
+      fields: Prisma.ParkFeeFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ParkFeeFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ParkFeePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ParkFeeFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ParkFeePayload>
+        }
+        findFirst: {
+          args: Prisma.ParkFeeFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ParkFeePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ParkFeeFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ParkFeePayload>
+        }
+        findMany: {
+          args: Prisma.ParkFeeFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ParkFeePayload>[]
+        }
+        create: {
+          args: Prisma.ParkFeeCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ParkFeePayload>
+        }
+        createMany: {
+          args: Prisma.ParkFeeCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ParkFeeCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ParkFeePayload>[]
+        }
+        delete: {
+          args: Prisma.ParkFeeDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ParkFeePayload>
+        }
+        update: {
+          args: Prisma.ParkFeeUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ParkFeePayload>
+        }
+        deleteMany: {
+          args: Prisma.ParkFeeDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ParkFeeUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ParkFeeUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ParkFeePayload>[]
+        }
+        upsert: {
+          args: Prisma.ParkFeeUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ParkFeePayload>
+        }
+        aggregate: {
+          args: Prisma.ParkFeeAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateParkFee>
+        }
+        groupBy: {
+          args: Prisma.ParkFeeGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ParkFeeGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ParkFeeCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ParkFeeCountAggregateOutputType> | number
+        }
+      }
+    }
+    TransportFee: {
+      payload: Prisma.$TransportFeePayload<ExtArgs>
+      fields: Prisma.TransportFeeFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.TransportFeeFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TransportFeePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.TransportFeeFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TransportFeePayload>
+        }
+        findFirst: {
+          args: Prisma.TransportFeeFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TransportFeePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.TransportFeeFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TransportFeePayload>
+        }
+        findMany: {
+          args: Prisma.TransportFeeFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TransportFeePayload>[]
+        }
+        create: {
+          args: Prisma.TransportFeeCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TransportFeePayload>
+        }
+        createMany: {
+          args: Prisma.TransportFeeCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.TransportFeeCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TransportFeePayload>[]
+        }
+        delete: {
+          args: Prisma.TransportFeeDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TransportFeePayload>
+        }
+        update: {
+          args: Prisma.TransportFeeUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TransportFeePayload>
+        }
+        deleteMany: {
+          args: Prisma.TransportFeeDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.TransportFeeUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.TransportFeeUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TransportFeePayload>[]
+        }
+        upsert: {
+          args: Prisma.TransportFeeUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TransportFeePayload>
+        }
+        aggregate: {
+          args: Prisma.TransportFeeAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateTransportFee>
+        }
+        groupBy: {
+          args: Prisma.TransportFeeGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.TransportFeeGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.TransportFeeCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.TransportFeeCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -3235,6 +3460,50 @@ export const TourImageScalarFieldEnum = {
 export type TourImageScalarFieldEnum = (typeof TourImageScalarFieldEnum)[keyof typeof TourImageScalarFieldEnum]
 
 
+export const ParkFeeSeasonScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  startDate: 'startDate',
+  endDate: 'endDate',
+  notes: 'notes',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ParkFeeSeasonScalarFieldEnum = (typeof ParkFeeSeasonScalarFieldEnum)[keyof typeof ParkFeeSeasonScalarFieldEnum]
+
+
+export const ParkFeeScalarFieldEnum = {
+  id: 'id',
+  countyId: 'countyId',
+  name: 'name',
+  fee: 'fee',
+  currency: 'currency',
+  seasonId: 'seasonId',
+  notes: 'notes',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ParkFeeScalarFieldEnum = (typeof ParkFeeScalarFieldEnum)[keyof typeof ParkFeeScalarFieldEnum]
+
+
+export const TransportFeeScalarFieldEnum = {
+  id: 'id',
+  vehicleType: 'vehicleType',
+  sittingCapacity: 'sittingCapacity',
+  fee: 'fee',
+  currency: 'currency',
+  seasonId: 'seasonId',
+  route: 'route',
+  notes: 'notes',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type TransportFeeScalarFieldEnum = (typeof TransportFeeScalarFieldEnum)[keyof typeof TransportFeeScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -3498,6 +3767,9 @@ export type GlobalOmitConfig = {
   savedFlyer?: Prisma.SavedFlyerOmit
   newsletter?: Prisma.NewsletterOmit
   tourImage?: Prisma.TourImageOmit
+  parkFeeSeason?: Prisma.ParkFeeSeasonOmit
+  parkFee?: Prisma.ParkFeeOmit
+  transportFee?: Prisma.TransportFeeOmit
 }
 
 /* Types for Logging */

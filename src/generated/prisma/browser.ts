@@ -167,3 +167,18 @@ export type Newsletter = Prisma.NewsletterModel
  * 
  */
 export type TourImage = Prisma.TourImageModel
+/**
+ * Model ParkFeeSeason
+ * 
+ */
+export type ParkFeeSeason = Prisma.ParkFeeSeasonModel
+/**
+ * Model ParkFee
+ * 
+ */
+export type ParkFee = Prisma.ParkFeeModel
+/**
+ * Model TransportFee
+ * 
+ */
+export type TransportFee = Prisma.TransportFeeModel

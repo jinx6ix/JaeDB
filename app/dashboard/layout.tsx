@@ -10,6 +10,7 @@ import {
   FileText, Map, Compass, Calculator, Table2, BarChart3,
   Building2, PenLine, UserCog, LogOut, Menu, X,
   CalendarDays, ShieldCheck, Building, MapPin, Image,
+  Truck,
 } from 'lucide-react';
 
 const nav = [
@@ -30,6 +31,8 @@ const nav = [
   { label: 'Destinations',   href: '/dashboard/destinations',     icon: MapPin,          adminOnly: false },
   { label: 'Flyers',         href: '/dashboard/flyers',           icon: Image,           adminOnly: false },
   { label: 'Newsletter',     href: '/dashboard/news-letter',      icon: FileText,        adminOnly: false },
+  { label: 'Park Fees',      href: '/dashboard/park-fees',        icon: MapPin,          adminOnly: false },
+  { label: 'Transport Fees', href: '/dashboard/transport-fees',   icon: Truck,           adminOnly: false },
   { label: 'Amend Voucher',  href: '/dashboard/vouchers/amend',   icon: PenLine,         adminOnly: false },
   { label: 'Users',          href: '/dashboard/admin/users',      icon: UserCog,         adminOnly: true  },
 ];

@@ -364,6 +364,7 @@ model SRCounty {
   createdAt DateTime  @default(now())
   images    DestinationImage[]
   hotels    SRHotel[]
+  parkFees  ParkFee[]
 
   @@map("sr_counties")
 }
@@ -552,4 +553,50 @@ model TourImage {
 
   @@index([tourPackageId])
   @@map("tour_images")
+}
+
+model ParkFeeSeason {
+  id          String   @id @default(cuid()) @map("id")
+  name        String   @map("name")
+  startDate   DateTime? @map("startdate")
+  endDate     DateTime? @map("enddate")
+  notes       String?  @map("notes")
+  createdAt   DateTime @default(now()) @map("createdat")
+  updatedAt   DateTime @updatedAt @map("updatedat")
+
+  parkFees ParkFee[]
+
+  @@map("park_fee_seasons")
+}
+
+model ParkFee {
+  id          String   @id @default(cuid()) @map("id")
+  countyId    Int      @map("countyid")
+  name        String   @map("name")
+  fee         Float    @map("fee")
+  currency    String   @default("USD") @map("currency")
+  seasonId    String?  @map("seasonid")
+  notes       String?  @map("notes")
+  createdAt   DateTime @default(now()) @map("createdat")
+  updatedAt   DateTime @updatedAt @map("updatedat")
+
+  county SRCounty @relation(fields: [countyId], references: [id], onDelete: Cascade)
+  season ParkFeeSeason? @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+
+  @@map("park_fees")
+}
+
+model TransportFee {
+  id            String   @id @default(cuid()) @map("id")
+  vehicleType   String   @map("vehicletype")
+  sittingCapacity Int    @map("sittingcapacity")
+  fee           Float    @map("fee")
+  currency      String   @default("USD") @map("currency")
+  seasonId      String   @map("seasonid")
+  route         String?  @map("route")
+  notes         String?  @map("notes")
+  createdAt   DateTime @default(now()) @map("createdat")
+  updatedAt   DateTime @updatedAt @map("updatedat")
+
+  @@map("transport_fees")
 }

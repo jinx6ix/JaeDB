@@ -210,6 +210,7 @@ export type SRCountyWhereInput = {
   createdAt?: Prisma.DateTimeFilter<"SRCounty"> | Date | string
   images?: Prisma.DestinationImageListRelationFilter
   hotels?: Prisma.SRHotelListRelationFilter
+  parkFees?: Prisma.ParkFeeListRelationFilter
 }
 
 export type SRCountyOrderByWithRelationInput = {
@@ -219,6 +220,7 @@ export type SRCountyOrderByWithRelationInput = {
   createdAt?: Prisma.SortOrder
   images?: Prisma.DestinationImageOrderByRelationAggregateInput
   hotels?: Prisma.SRHotelOrderByRelationAggregateInput
+  parkFees?: Prisma.ParkFeeOrderByRelationAggregateInput
 }
 
 export type SRCountyWhereUniqueInput = Prisma.AtLeast<{
@@ -231,6 +233,7 @@ export type SRCountyWhereUniqueInput = Prisma.AtLeast<{
   createdAt?: Prisma.DateTimeFilter<"SRCounty"> | Date | string
   images?: Prisma.DestinationImageListRelationFilter
   hotels?: Prisma.SRHotelListRelationFilter
+  parkFees?: Prisma.ParkFeeListRelationFilter
 }, "id" | "name">
 
 export type SRCountyOrderByWithAggregationInput = {
@@ -261,6 +264,7 @@ export type SRCountyCreateInput = {
   createdAt?: Date | string
   images?: Prisma.DestinationImageCreateNestedManyWithoutDestinationInput
   hotels?: Prisma.SRHotelCreateNestedManyWithoutCountyInput
+  parkFees?: Prisma.ParkFeeCreateNestedManyWithoutCountyInput
 }
 
 export type SRCountyUncheckedCreateInput = {
@@ -270,6 +274,7 @@ export type SRCountyUncheckedCreateInput = {
   createdAt?: Date | string
   images?: Prisma.DestinationImageUncheckedCreateNestedManyWithoutDestinationInput
   hotels?: Prisma.SRHotelUncheckedCreateNestedManyWithoutCountyInput
+  parkFees?: Prisma.ParkFeeUncheckedCreateNestedManyWithoutCountyInput
 }
 
 export type SRCountyUpdateInput = {
@@ -278,6 +283,7 @@ export type SRCountyUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   images?: Prisma.DestinationImageUpdateManyWithoutDestinationNestedInput
   hotels?: Prisma.SRHotelUpdateManyWithoutCountyNestedInput
+  parkFees?: Prisma.ParkFeeUpdateManyWithoutCountyNestedInput
 }
 
 export type SRCountyUncheckedUpdateInput = {
@@ -287,6 +293,7 @@ export type SRCountyUncheckedUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   images?: Prisma.DestinationImageUncheckedUpdateManyWithoutDestinationNestedInput
   hotels?: Prisma.SRHotelUncheckedUpdateManyWithoutCountyNestedInput
+  parkFees?: Prisma.ParkFeeUncheckedUpdateManyWithoutCountyNestedInput
 }
 
 export type SRCountyCreateManyInput = {
@@ -371,11 +378,26 @@ export type SRCountyUpdateOneRequiredWithoutHotelsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.SRCountyUpdateToOneWithWhereWithoutHotelsInput, Prisma.SRCountyUpdateWithoutHotelsInput>, Prisma.SRCountyUncheckedUpdateWithoutHotelsInput>
 }
 
+export type SRCountyCreateNestedOneWithoutParkFeesInput = {
+  create?: Prisma.XOR<Prisma.SRCountyCreateWithoutParkFeesInput, Prisma.SRCountyUncheckedCreateWithoutParkFeesInput>
+  connectOrCreate?: Prisma.SRCountyCreateOrConnectWithoutParkFeesInput
+  connect?: Prisma.SRCountyWhereUniqueInput
+}
+
+export type SRCountyUpdateOneRequiredWithoutParkFeesNestedInput = {
+  create?: Prisma.XOR<Prisma.SRCountyCreateWithoutParkFeesInput, Prisma.SRCountyUncheckedCreateWithoutParkFeesInput>
+  connectOrCreate?: Prisma.SRCountyCreateOrConnectWithoutParkFeesInput
+  upsert?: Prisma.SRCountyUpsertWithoutParkFeesInput
+  connect?: Prisma.SRCountyWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.SRCountyUpdateToOneWithWhereWithoutParkFeesInput, Prisma.SRCountyUpdateWithoutParkFeesInput>, Prisma.SRCountyUncheckedUpdateWithoutParkFeesInput>
+}
+
 export type SRCountyCreateWithoutImagesInput = {
   name: string
   region?: string | null
   createdAt?: Date | string
   hotels?: Prisma.SRHotelCreateNestedManyWithoutCountyInput
+  parkFees?: Prisma.ParkFeeCreateNestedManyWithoutCountyInput
 }
 
 export type SRCountyUncheckedCreateWithoutImagesInput = {
@@ -384,6 +406,7 @@ export type SRCountyUncheckedCreateWithoutImagesInput = {
   region?: string | null
   createdAt?: Date | string
   hotels?: Prisma.SRHotelUncheckedCreateNestedManyWithoutCountyInput
+  parkFees?: Prisma.ParkFeeUncheckedCreateNestedManyWithoutCountyInput
 }
 
 export type SRCountyCreateOrConnectWithoutImagesInput = {
@@ -407,6 +430,7 @@ export type SRCountyUpdateWithoutImagesInput = {
   region?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   hotels?: Prisma.SRHotelUpdateManyWithoutCountyNestedInput
+  parkFees?: Prisma.ParkFeeUpdateManyWithoutCountyNestedInput
 }
 
 export type SRCountyUncheckedUpdateWithoutImagesInput = {
@@ -415,6 +439,7 @@ export type SRCountyUncheckedUpdateWithoutImagesInput = {
   region?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   hotels?: Prisma.SRHotelUncheckedUpdateManyWithoutCountyNestedInput
+  parkFees?: Prisma.ParkFeeUncheckedUpdateManyWithoutCountyNestedInput
 }
 
 export type SRCountyCreateWithoutHotelsInput = {
@@ -422,6 +447,7 @@ export type SRCountyCreateWithoutHotelsInput = {
   region?: string | null
   createdAt?: Date | string
   images?: Prisma.DestinationImageCreateNestedManyWithoutDestinationInput
+  parkFees?: Prisma.ParkFeeCreateNestedManyWithoutCountyInput
 }
 
 export type SRCountyUncheckedCreateWithoutHotelsInput = {
@@ -430,6 +456,7 @@ export type SRCountyUncheckedCreateWithoutHotelsInput = {
   region?: string | null
   createdAt?: Date | string
   images?: Prisma.DestinationImageUncheckedCreateNestedManyWithoutDestinationInput
+  parkFees?: Prisma.ParkFeeUncheckedCreateNestedManyWithoutCountyInput
 }
 
 export type SRCountyCreateOrConnectWithoutHotelsInput = {
@@ -453,6 +480,7 @@ export type SRCountyUpdateWithoutHotelsInput = {
   region?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   images?: Prisma.DestinationImageUpdateManyWithoutDestinationNestedInput
+  parkFees?: Prisma.ParkFeeUpdateManyWithoutCountyNestedInput
 }
 
 export type SRCountyUncheckedUpdateWithoutHotelsInput = {
@@ -461,6 +489,57 @@ export type SRCountyUncheckedUpdateWithoutHotelsInput = {
   region?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   images?: Prisma.DestinationImageUncheckedUpdateManyWithoutDestinationNestedInput
+  parkFees?: Prisma.ParkFeeUncheckedUpdateManyWithoutCountyNestedInput
+}
+
+export type SRCountyCreateWithoutParkFeesInput = {
+  name: string
+  region?: string | null
+  createdAt?: Date | string
+  images?: Prisma.DestinationImageCreateNestedManyWithoutDestinationInput
+  hotels?: Prisma.SRHotelCreateNestedManyWithoutCountyInput
+}
+
+export type SRCountyUncheckedCreateWithoutParkFeesInput = {
+  id?: number
+  name: string
+  region?: string | null
+  createdAt?: Date | string
+  images?: Prisma.DestinationImageUncheckedCreateNestedManyWithoutDestinationInput
+  hotels?: Prisma.SRHotelUncheckedCreateNestedManyWithoutCountyInput
+}
+
+export type SRCountyCreateOrConnectWithoutParkFeesInput = {
+  where: Prisma.SRCountyWhereUniqueInput
+  create: Prisma.XOR<Prisma.SRCountyCreateWithoutParkFeesInput, Prisma.SRCountyUncheckedCreateWithoutParkFeesInput>
+}
+
+export type SRCountyUpsertWithoutParkFeesInput = {
+  update: Prisma.XOR<Prisma.SRCountyUpdateWithoutParkFeesInput, Prisma.SRCountyUncheckedUpdateWithoutParkFeesInput>
+  create: Prisma.XOR<Prisma.SRCountyCreateWithoutParkFeesInput, Prisma.SRCountyUncheckedCreateWithoutParkFeesInput>
+  where?: Prisma.SRCountyWhereInput
+}
+
+export type SRCountyUpdateToOneWithWhereWithoutParkFeesInput = {
+  where?: Prisma.SRCountyWhereInput
+  data: Prisma.XOR<Prisma.SRCountyUpdateWithoutParkFeesInput, Prisma.SRCountyUncheckedUpdateWithoutParkFeesInput>
+}
+
+export type SRCountyUpdateWithoutParkFeesInput = {
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  region?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  images?: Prisma.DestinationImageUpdateManyWithoutDestinationNestedInput
+  hotels?: Prisma.SRHotelUpdateManyWithoutCountyNestedInput
+}
+
+export type SRCountyUncheckedUpdateWithoutParkFeesInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  region?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  images?: Prisma.DestinationImageUncheckedUpdateManyWithoutDestinationNestedInput
+  hotels?: Prisma.SRHotelUncheckedUpdateManyWithoutCountyNestedInput
 }
 
 
@@ -471,11 +550,13 @@ export type SRCountyUncheckedUpdateWithoutHotelsInput = {
 export type SRCountyCountOutputType = {
   images: number
   hotels: number
+  parkFees: number
 }
 
 export type SRCountyCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   images?: boolean | SRCountyCountOutputTypeCountImagesArgs
   hotels?: boolean | SRCountyCountOutputTypeCountHotelsArgs
+  parkFees?: boolean | SRCountyCountOutputTypeCountParkFeesArgs
 }
 
 /**
@@ -502,6 +583,13 @@ export type SRCountyCountOutputTypeCountHotelsArgs<ExtArgs extends runtime.Types
   where?: Prisma.SRHotelWhereInput
 }
 
+/**
+ * SRCountyCountOutputType without action
+ */
+export type SRCountyCountOutputTypeCountParkFeesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ParkFeeWhereInput
+}
+
 
 export type SRCountySelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -510,6 +598,7 @@ export type SRCountySelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
   createdAt?: boolean
   images?: boolean | Prisma.SRCounty$imagesArgs<ExtArgs>
   hotels?: boolean | Prisma.SRCounty$hotelsArgs<ExtArgs>
+  parkFees?: boolean | Prisma.SRCounty$parkFeesArgs<ExtArgs>
   _count?: boolean | Prisma.SRCountyCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["sRCounty"]>
 
@@ -538,6 +627,7 @@ export type SRCountyOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs =
 export type SRCountyInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   images?: boolean | Prisma.SRCounty$imagesArgs<ExtArgs>
   hotels?: boolean | Prisma.SRCounty$hotelsArgs<ExtArgs>
+  parkFees?: boolean | Prisma.SRCounty$parkFeesArgs<ExtArgs>
   _count?: boolean | Prisma.SRCountyCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type SRCountyIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -548,6 +638,7 @@ export type $SRCountyPayload<ExtArgs extends runtime.Types.Extensions.InternalAr
   objects: {
     images: Prisma.$DestinationImagePayload<ExtArgs>[]
     hotels: Prisma.$SRHotelPayload<ExtArgs>[]
+    parkFees: Prisma.$ParkFeePayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
@@ -950,6 +1041,7 @@ export interface Prisma__SRCountyClient<T, Null = never, ExtArgs extends runtime
   readonly [Symbol.toStringTag]: "PrismaPromise"
   images<T extends Prisma.SRCounty$imagesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.SRCounty$imagesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$DestinationImagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   hotels<T extends Prisma.SRCounty$hotelsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.SRCounty$hotelsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SRHotelPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  parkFees<T extends Prisma.SRCounty$parkFeesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.SRCounty$parkFeesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ParkFeePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1421,6 +1513,30 @@ export type SRCounty$hotelsArgs<ExtArgs extends runtime.Types.Extensions.Interna
   take?: number
   skip?: number
   distinct?: Prisma.SRHotelScalarFieldEnum | Prisma.SRHotelScalarFieldEnum[]
+}
+
+/**
+ * SRCounty.parkFees
+ */
+export type SRCounty$parkFeesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ParkFee
+   */
+  select?: Prisma.ParkFeeSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ParkFee
+   */
+  omit?: Prisma.ParkFeeOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ParkFeeInclude<ExtArgs> | null
+  where?: Prisma.ParkFeeWhereInput
+  orderBy?: Prisma.ParkFeeOrderByWithRelationInput | Prisma.ParkFeeOrderByWithRelationInput[]
+  cursor?: Prisma.ParkFeeWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ParkFeeScalarFieldEnum | Prisma.ParkFeeScalarFieldEnum[]
 }
 
 /**

@@ -80,7 +80,10 @@ export const ModelName = {
   ItineraryEmbed: 'ItineraryEmbed',
   SavedFlyer: 'SavedFlyer',
   Newsletter: 'Newsletter',
-  TourImage: 'TourImage'
+  TourImage: 'TourImage',
+  ParkFeeSeason: 'ParkFeeSeason',
+  ParkFee: 'ParkFee',
+  TransportFee: 'TransportFee'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -640,6 +643,50 @@ export const TourImageScalarFieldEnum = {
 } as const
 
 export type TourImageScalarFieldEnum = (typeof TourImageScalarFieldEnum)[keyof typeof TourImageScalarFieldEnum]
+
+
+export const ParkFeeSeasonScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  startDate: 'startDate',
+  endDate: 'endDate',
+  notes: 'notes',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ParkFeeSeasonScalarFieldEnum = (typeof ParkFeeSeasonScalarFieldEnum)[keyof typeof ParkFeeSeasonScalarFieldEnum]
+
+
+export const ParkFeeScalarFieldEnum = {
+  id: 'id',
+  countyId: 'countyId',
+  name: 'name',
+  fee: 'fee',
+  currency: 'currency',
+  seasonId: 'seasonId',
+  notes: 'notes',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ParkFeeScalarFieldEnum = (typeof ParkFeeScalarFieldEnum)[keyof typeof ParkFeeScalarFieldEnum]
+
+
+export const TransportFeeScalarFieldEnum = {
+  id: 'id',
+  vehicleType: 'vehicleType',
+  sittingCapacity: 'sittingCapacity',
+  fee: 'fee',
+  currency: 'currency',
+  seasonId: 'seasonId',
+  route: 'route',
+  notes: 'notes',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type TransportFeeScalarFieldEnum = (typeof TransportFeeScalarFieldEnum)[keyof typeof TransportFeeScalarFieldEnum]
 
 
 export const SortOrder = {
