@@ -13,14 +13,28 @@ export async function GET(req: NextRequest) {
   const vehicleType = searchParams.get('vehicleType');
   const seasonId = searchParams.get('seasonId');
 
-  const transportFees = await prisma.transportFee.findMany({
-    where: {
-      ...(vehicleType ? { vehicleType: { contains: vehicleType, mode: 'insensitive' } } : {}),
-      ...(seasonId ? { seasonId } : {}),
-    },
-    orderBy: { createdAt: 'desc' },
-  });
-  return NextResponse.json(transportFees);
+  try {
+    const transportFees = await prisma.transportFee.findMany({
+      where: {
+        ...(vehicleType ? { vehicleType: { contains: vehicleType, mode: 'insensitive' } } : {}),
+        ...(seasonId ? { seasonId } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return NextResponse.json(transportFees);
+  } catch (e: any) {
+    const msg = e?.message ?? '';
+    const isTableMissing =
+      msg.includes('relation "transport_fees" does not exist') ||
+      msg.includes('transport_fees') && msg.includes('does not exist');
+    if (isTableMissing) {
+      return NextResponse.json(
+        { error: 'Database table "transport_fees" not found. Run `prisma db push` to create it.' },
+        { status: 500 }
+      );
+    }
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
 }
 
 // POST — create a new transport fee
@@ -50,6 +64,16 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json(transportFee, { status: 201 });
   } catch (e: any) {
+    const msg = e?.message ?? '';
+    const isTableMissing =
+      msg.includes('relation "transport_fees" does not exist') ||
+      msg.includes('transport_fees') && msg.includes('does not exist');
+    if (isTableMissing) {
+      return NextResponse.json(
+        { error: 'Database table "transport_fees" not found. Run `prisma db push` to create it.' },
+        { status: 500 }
+      );
+    }
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
