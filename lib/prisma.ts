@@ -1,20 +1,54 @@
 // lib/prisma.ts  — Prisma 7 client singleton using @prisma/adapter-pg
+// SSL is configured explicitly via env vars so it works with Supabase's
+// self-signed certificate without being overridden by sslmode in DATABASE_URL.
+//
+// Env vars:
+//   DIRECT_URL                   — Supabase Session connection string (port 5432, tried first)
+//   DATABASE_URL                 — Supabase Transaction connection string (port 6543, fallback)
+//   DATABASE_SSL_REJECT_UNAUTHORIZED — "true" | "false" (default: false)
+//   DATABASE_SSL_CA                — optional path to CA certificate file
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client';
+import { readFileSync } from 'fs';
+import { existsSync } from 'fs';
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
-function makeClient(): PrismaClient {
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error('DATABASE_URL is not set.');
+function buildSslConfig(): { rejectUnauthorized: boolean; ca?: string } | boolean {
+  const rejectUnauthorized =
+    process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== 'false';
 
-  // Limit the pool per serverless invocation so many concurrent
-  // Vercel functions don't exhaust Supabase's connection pool.
-  // max: 3 keeps each function lightweight while allowing a few concurrent queries.
-  // idleTimeoutMillis: close idle connections after 10s.
-  // connectionTimeoutMillis: fail fast (10s) instead of waiting 60s.
+  const caPath = process.env.DATABASE_SSL_CA;
+  let ca: string | undefined;
+  if (caPath && existsSync(caPath)) {
+    ca = readFileSync(caPath, 'utf-8');
+  }
+
+  // SSL is required by Supabase. If rejectUnauthorized is true but no CA
+  // is provided, connections will fail against self-signed certs.
+  if (!rejectUnauthorized || !ca) {
+    return { rejectUnauthorized: false, ...(ca ? { ca } : {}) };
+  }
+
+  return { rejectUnauthorized: true, ca };
+}
+
+function makeClient(): PrismaClient {
+  const url = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
+  if (!url) throw new Error('DIRECT_URL or DATABASE_URL is not set.');
+
+  // Strip sslmode from the URL — pg parses it as verify-full which rejects
+  // Supabase's self-signed cert. We manage SSL explicitly below.
+  const connectionString = url
+    .replace(/[?&]sslmode=[^&]*/, '')
+    .replace(/&$/, '')
+    .replace(/\?$/, '');
+
+  const ssl = buildSslConfig();
+
   const adapter = new PrismaPg({
-    connectionString: url,
+    connectionString,
+    ssl,
     max: 3,
     idleTimeoutMillis: 10000,
     connectionTimeoutMillis: 10000,
