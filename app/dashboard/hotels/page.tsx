@@ -21,6 +21,9 @@ interface Hotel {
   category: string | null;
   county: { name: string };
   description?: string | null;
+  childFreeAge?: number | null;
+  childChargeAge?: number | null;
+  extraBedRate?: number | null;
   images?: HotelImage[];
   _count?: { roomTypes: number };
 }
@@ -30,7 +33,7 @@ export default function HotelsPage() {
   const [counties, setCounties] = useState<County[]>([]);
   const [filter, setFilter] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ countyId: '', name: '', stars: '', category: 'Lodge', description: '' });
+  const [form, setForm] = useState({ countyId: '', name: '', stars: '', category: 'Lodge', description: '', childFreeAge: '', childChargeAge: '', extraBedRate: '' });
   const [saving, setSaving] = useState(false);
 
   // Image state per hotel
@@ -120,7 +123,14 @@ export default function HotelsPage() {
       const res = await fetch('/api/safari-rates/hotels', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, countyId: Number(form.countyId), stars: form.stars ? Number(form.stars) : null }),
+        body: JSON.stringify({
+          ...form,
+          countyId: Number(form.countyId),
+          stars: form.stars ? Number(form.stars) : null,
+          childFreeAge: form.childFreeAge ? Number(form.childFreeAge) : null,
+          childChargeAge: form.childChargeAge ? Number(form.childChargeAge) : null,
+          extraBedRate: form.extraBedRate ? Number(form.extraBedRate) : null,
+        }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: 'Failed to save hotel' }));
@@ -128,7 +138,7 @@ export default function HotelsPage() {
       }
       const created = await res.json();
       setShowForm(false);
-      setForm({ countyId: '', name: '', stars: '', category: 'Lodge', description: '' });
+      setForm({ countyId: '', name: '', stars: '', category: 'Lodge', description: '', childFreeAge: '', childChargeAge: '', extraBedRate: '' });
       await load();
     } catch (err: any) {
       alert(err.message);
@@ -451,6 +461,24 @@ export default function HotelsPage() {
                 placeholder="Describe the hotel, its facilities, location highlights…"
               />
             </div>
+            <div className="col-span-2">
+              <label className="label">Child Policy &amp; Extra Bed</label>
+              <p className="text-xs text-gray-400 mt-0.5">Children below Free Age stay free; Free Age → Charge Age pay child rate; above Charge Age = adult.</p>
+              <div className="grid grid-cols-3 gap-3 mt-1">
+                <div>
+                  <label className="label text-xs block mb-1">Child Free Age</label>
+                  <input type="number" min={0} value={form.childFreeAge} onChange={e => setForm(f => ({ ...f, childFreeAge: e.target.value }))} placeholder="e.g. 5" className="input text-sm" />
+                </div>
+                <div>
+                  <label className="label text-xs block mb-1">Child Charge Age</label>
+                  <input type="number" min={0} value={form.childChargeAge} onChange={e => setForm(f => ({ ...f, childChargeAge: e.target.value }))} placeholder="e.g. 12" className="input text-sm" />
+                </div>
+                <div>
+                  <label className="label text-xs block mb-1">Extra Bed Rate</label>
+                  <input type="number" min={0} step="0.01" value={form.extraBedRate} onChange={e => setForm(f => ({ ...f, extraBedRate: e.target.value }))} placeholder="0.00" className="input text-sm font-mono" />
+                </div>
+              </div>
+            </div>
           </div>
           <div className="flex gap-3">
             <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving…' : 'Save Hotel'}</button>
@@ -510,6 +538,11 @@ export default function HotelsPage() {
                   {h.category || '—'} · {h.stars ? '★'.repeat(h.stars) : '—'}
                 </p>
                 <p className="text-xs text-gray-600 mt-0.5">{h.county.name}</p>
+                {(h.childFreeAge != null || h.childChargeAge != null || h.extraBedRate != null) && (
+                  <p className="text-xs text-orange-600 mt-0.5">
+                    Child: &lt;{h.childFreeAge ?? '—'} free · {h.childFreeAge ?? '—'}–{h.childChargeAge ?? '—'} child · {h.childChargeAge ?? '—'}+ adult{h.extraBedRate != null ? ` · Extra bed: {h.extraBedRate}` : ''}
+                  </p>
+                )}
                 {h.description && (
                   <p className="text-sm text-gray-700 mt-1 line-clamp-2">{h.description}</p>
                 )}

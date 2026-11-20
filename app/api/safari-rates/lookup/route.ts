@@ -21,31 +21,46 @@ export async function GET(req: NextRequest) {
     ratePerPersonSharing: true,
     singleRoomRate: true,
     childRate: true,
-    thirdAdultRate: true,   // ✅ ADD THIS
+    thirdAdultRate: true,
     currency: true,
     roomType: { select: { id: true, name: true, maxOccupancy: true } },
     season: { select: { id: true, name: true, startDate: true, endDate: true } },
   };
 
-  // 1. Try exact date match within a season
+  // 1. Try exact date match within a season.
+  // We match seasons separately first (avoids nested relation date-filter issues),
+  // then fetch prices for those seasons.
   if (dateStr) {
     const queryDate = new Date(dateStr);
     queryDate.setUTCHours(0, 0, 0, 0);
-    const prices = await prisma.sRRoomPrice.findMany({
+
+    const matchingSeasons = await prisma.sRSeason.findMany({
       where: {
-        boardBasis,
-        roomType: { hotelId: Number(hotelId) },
-        season: { startDate: { lte: queryDate }, endDate: { gte: queryDate } },
+        hotelId: Number(hotelId),
+        startDate: { lte: queryDate },
+        endDate: { gte: queryDate },
       },
-      select: priceSelect,
-      orderBy: { roomType: { name: 'asc' } },
+      select: { id: true },
     });
-    if (prices.length > 0) {
-      return NextResponse.json({ prices, matched: true, matchType: 'season' });
+
+    if (matchingSeasons.length > 0) {
+      const seasonIds = matchingSeasons.map((s) => s.id);
+      const prices = await prisma.sRRoomPrice.findMany({
+        where: {
+          boardBasis,
+          roomType: { hotelId: Number(hotelId) },
+          seasonId: { in: seasonIds },
+        },
+        select: priceSelect,
+        orderBy: { roomType: { name: 'asc' } },
+      });
+      if (prices.length > 0) {
+        return NextResponse.json({ prices, matched: true, matchType: 'season' });
+      }
     }
   }
 
-  // 2. Fallback: all prices
+  // 2. Fallback: all prices for this hotel + board basis
   const fallback = await prisma.sRRoomPrice.findMany({
     where: { boardBasis, roomType: { hotelId: Number(hotelId) } },
     select: priceSelect,

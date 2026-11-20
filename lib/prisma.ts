@@ -49,7 +49,7 @@ function makeClient(): PrismaClient {
   const adapter = new PrismaPg({
     connectionString,
     ssl,
-    max: 3,
+    max: 2,
     idleTimeoutMillis: 10000,
     connectionTimeoutMillis: 10000,
   } as any);
@@ -59,3 +59,33 @@ function makeClient(): PrismaClient {
 
 export const prisma = globalForPrisma.prisma ?? makeClient();
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+
+/**
+ * Run a Prisma operation with exponential backoff retries for transient
+ * Supabase session-pool exhaustion (EMAXCONNSESSION / connection timeouts).
+ * Useful under load when multiple requests compete for the shared pool.
+ */
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  { retries = 3, delayMs = 300 }: { retries?: number; delayMs?: number } = {}
+): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      lastErr = err;
+      const code = err?.code ?? err?.message ?? '';
+      const isPoolExhausted =
+        code === 'EMAXCONNSESSION' ||
+        String(err?.message).includes('max clients reached') ||
+        String(err?.message).includes('Connection terminated');
+      if (!isPoolExhausted || attempt === retries) throw err;
+      // Exponential backoff with jitter
+      await new Promise((resolve) =>
+        setTimeout(resolve, delayMs * (2 ** attempt) + Math.floor(Math.random() * 100))
+      );
+    }
+  }
+  throw lastErr;
+}

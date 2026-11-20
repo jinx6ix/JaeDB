@@ -117,7 +117,15 @@ export async function POST(req: NextRequest) {
   if (existing) return NextResponse.json({ error: 'A hotel with this name already exists in this destination' }, { status: 409 });
 
   const hotel = await prisma.sRHotel.create({
-    data: { countyId: countyIdNum, name, stars: body.stars ? Number(body.stars) : null, category: body.category || null },
+    data: {
+      countyId: countyIdNum,
+      name,
+      stars: body.stars ? Number(body.stars) : null,
+      category: body.category || null,
+      childFreeAge: body.childFreeAge != null ? Number(body.childFreeAge) : null,
+      childChargeAge: body.childChargeAge != null ? Number(body.childChargeAge) : null,
+      extraBedRate: body.extraBedRate != null ? Number(body.extraBedRate) : null,
+    },
     include: { county: true },
   });
   return NextResponse.json(hotel, { status: 201 });
@@ -132,9 +140,15 @@ export async function PATCH(req: NextRequest) {
   const { id, description } = body;
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
+  const data: any = {};
+  if (description !== undefined) data.description = description || null;
+  if (body.childFreeAge !== undefined) data.childFreeAge = body.childFreeAge == null ? null : Number(body.childFreeAge);
+  if (body.childChargeAge !== undefined) data.childChargeAge = body.childChargeAge == null ? null : Number(body.childChargeAge);
+  if (body.extraBedRate !== undefined) data.extraBedRate = body.extraBedRate == null ? null : Number(body.extraBedRate);
+
   const hotel = await prisma.sRHotel.update({
     where: { id: Number(id) },
-    data: { description: description || null },
+    data,
     include: { county: true },
   });
   return NextResponse.json(hotel);

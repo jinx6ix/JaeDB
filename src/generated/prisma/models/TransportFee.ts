@@ -260,6 +260,7 @@ export type TransportFeeWhereInput = {
   notes?: Prisma.StringNullableFilter<"TransportFee"> | string | null
   createdAt?: Prisma.DateTimeFilter<"TransportFee"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"TransportFee"> | Date | string
+  season?: Prisma.XOR<Prisma.TransportFeeSeasonNullableScalarRelationFilter, Prisma.TransportFeeSeasonWhereInput> | null
 }
 
 export type TransportFeeOrderByWithRelationInput = {
@@ -273,6 +274,7 @@ export type TransportFeeOrderByWithRelationInput = {
   notes?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  season?: Prisma.TransportFeeSeasonOrderByWithRelationInput
 }
 
 export type TransportFeeWhereUniqueInput = Prisma.AtLeast<{
@@ -289,6 +291,7 @@ export type TransportFeeWhereUniqueInput = Prisma.AtLeast<{
   notes?: Prisma.StringNullableFilter<"TransportFee"> | string | null
   createdAt?: Prisma.DateTimeFilter<"TransportFee"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"TransportFee"> | Date | string
+  season?: Prisma.XOR<Prisma.TransportFeeSeasonNullableScalarRelationFilter, Prisma.TransportFeeSeasonWhereInput> | null
 }, "id">
 
 export type TransportFeeOrderByWithAggregationInput = {
@@ -331,11 +334,11 @@ export type TransportFeeCreateInput = {
   sittingCapacity: number
   fee: number
   currency?: string
-  seasonId: string
   route?: string | null
   notes?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  season?: Prisma.TransportFeeSeasonCreateNestedOneWithoutTransportFeesInput
 }
 
 export type TransportFeeUncheckedCreateInput = {
@@ -357,11 +360,11 @@ export type TransportFeeUpdateInput = {
   sittingCapacity?: Prisma.IntFieldUpdateOperationsInput | number
   fee?: Prisma.FloatFieldUpdateOperationsInput | number
   currency?: Prisma.StringFieldUpdateOperationsInput | string
-  seasonId?: Prisma.StringFieldUpdateOperationsInput | string
   route?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  season?: Prisma.TransportFeeSeasonUpdateOneWithoutTransportFeesNestedInput
 }
 
 export type TransportFeeUncheckedUpdateInput = {
@@ -396,7 +399,6 @@ export type TransportFeeUpdateManyMutationInput = {
   sittingCapacity?: Prisma.IntFieldUpdateOperationsInput | number
   fee?: Prisma.FloatFieldUpdateOperationsInput | number
   currency?: Prisma.StringFieldUpdateOperationsInput | string
-  seasonId?: Prisma.StringFieldUpdateOperationsInput | string
   route?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -414,6 +416,16 @@ export type TransportFeeUncheckedUpdateManyInput = {
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type TransportFeeListRelationFilter = {
+  every?: Prisma.TransportFeeWhereInput
+  some?: Prisma.TransportFeeWhereInput
+  none?: Prisma.TransportFeeWhereInput
+}
+
+export type TransportFeeOrderByRelationAggregateInput = {
+  _count?: Prisma.SortOrder
 }
 
 export type TransportFeeCountOrderByAggregateInput = {
@@ -465,6 +477,162 @@ export type TransportFeeSumOrderByAggregateInput = {
   fee?: Prisma.SortOrder
 }
 
+export type TransportFeeCreateNestedManyWithoutSeasonInput = {
+  create?: Prisma.XOR<Prisma.TransportFeeCreateWithoutSeasonInput, Prisma.TransportFeeUncheckedCreateWithoutSeasonInput> | Prisma.TransportFeeCreateWithoutSeasonInput[] | Prisma.TransportFeeUncheckedCreateWithoutSeasonInput[]
+  connectOrCreate?: Prisma.TransportFeeCreateOrConnectWithoutSeasonInput | Prisma.TransportFeeCreateOrConnectWithoutSeasonInput[]
+  createMany?: Prisma.TransportFeeCreateManySeasonInputEnvelope
+  connect?: Prisma.TransportFeeWhereUniqueInput | Prisma.TransportFeeWhereUniqueInput[]
+}
+
+export type TransportFeeUncheckedCreateNestedManyWithoutSeasonInput = {
+  create?: Prisma.XOR<Prisma.TransportFeeCreateWithoutSeasonInput, Prisma.TransportFeeUncheckedCreateWithoutSeasonInput> | Prisma.TransportFeeCreateWithoutSeasonInput[] | Prisma.TransportFeeUncheckedCreateWithoutSeasonInput[]
+  connectOrCreate?: Prisma.TransportFeeCreateOrConnectWithoutSeasonInput | Prisma.TransportFeeCreateOrConnectWithoutSeasonInput[]
+  createMany?: Prisma.TransportFeeCreateManySeasonInputEnvelope
+  connect?: Prisma.TransportFeeWhereUniqueInput | Prisma.TransportFeeWhereUniqueInput[]
+}
+
+export type TransportFeeUpdateManyWithoutSeasonNestedInput = {
+  create?: Prisma.XOR<Prisma.TransportFeeCreateWithoutSeasonInput, Prisma.TransportFeeUncheckedCreateWithoutSeasonInput> | Prisma.TransportFeeCreateWithoutSeasonInput[] | Prisma.TransportFeeUncheckedCreateWithoutSeasonInput[]
+  connectOrCreate?: Prisma.TransportFeeCreateOrConnectWithoutSeasonInput | Prisma.TransportFeeCreateOrConnectWithoutSeasonInput[]
+  upsert?: Prisma.TransportFeeUpsertWithWhereUniqueWithoutSeasonInput | Prisma.TransportFeeUpsertWithWhereUniqueWithoutSeasonInput[]
+  createMany?: Prisma.TransportFeeCreateManySeasonInputEnvelope
+  set?: Prisma.TransportFeeWhereUniqueInput | Prisma.TransportFeeWhereUniqueInput[]
+  disconnect?: Prisma.TransportFeeWhereUniqueInput | Prisma.TransportFeeWhereUniqueInput[]
+  delete?: Prisma.TransportFeeWhereUniqueInput | Prisma.TransportFeeWhereUniqueInput[]
+  connect?: Prisma.TransportFeeWhereUniqueInput | Prisma.TransportFeeWhereUniqueInput[]
+  update?: Prisma.TransportFeeUpdateWithWhereUniqueWithoutSeasonInput | Prisma.TransportFeeUpdateWithWhereUniqueWithoutSeasonInput[]
+  updateMany?: Prisma.TransportFeeUpdateManyWithWhereWithoutSeasonInput | Prisma.TransportFeeUpdateManyWithWhereWithoutSeasonInput[]
+  deleteMany?: Prisma.TransportFeeScalarWhereInput | Prisma.TransportFeeScalarWhereInput[]
+}
+
+export type TransportFeeUncheckedUpdateManyWithoutSeasonNestedInput = {
+  create?: Prisma.XOR<Prisma.TransportFeeCreateWithoutSeasonInput, Prisma.TransportFeeUncheckedCreateWithoutSeasonInput> | Prisma.TransportFeeCreateWithoutSeasonInput[] | Prisma.TransportFeeUncheckedCreateWithoutSeasonInput[]
+  connectOrCreate?: Prisma.TransportFeeCreateOrConnectWithoutSeasonInput | Prisma.TransportFeeCreateOrConnectWithoutSeasonInput[]
+  upsert?: Prisma.TransportFeeUpsertWithWhereUniqueWithoutSeasonInput | Prisma.TransportFeeUpsertWithWhereUniqueWithoutSeasonInput[]
+  createMany?: Prisma.TransportFeeCreateManySeasonInputEnvelope
+  set?: Prisma.TransportFeeWhereUniqueInput | Prisma.TransportFeeWhereUniqueInput[]
+  disconnect?: Prisma.TransportFeeWhereUniqueInput | Prisma.TransportFeeWhereUniqueInput[]
+  delete?: Prisma.TransportFeeWhereUniqueInput | Prisma.TransportFeeWhereUniqueInput[]
+  connect?: Prisma.TransportFeeWhereUniqueInput | Prisma.TransportFeeWhereUniqueInput[]
+  update?: Prisma.TransportFeeUpdateWithWhereUniqueWithoutSeasonInput | Prisma.TransportFeeUpdateWithWhereUniqueWithoutSeasonInput[]
+  updateMany?: Prisma.TransportFeeUpdateManyWithWhereWithoutSeasonInput | Prisma.TransportFeeUpdateManyWithWhereWithoutSeasonInput[]
+  deleteMany?: Prisma.TransportFeeScalarWhereInput | Prisma.TransportFeeScalarWhereInput[]
+}
+
+export type TransportFeeCreateWithoutSeasonInput = {
+  id?: string
+  vehicleType: string
+  sittingCapacity: number
+  fee: number
+  currency?: string
+  route?: string | null
+  notes?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type TransportFeeUncheckedCreateWithoutSeasonInput = {
+  id?: string
+  vehicleType: string
+  sittingCapacity: number
+  fee: number
+  currency?: string
+  route?: string | null
+  notes?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type TransportFeeCreateOrConnectWithoutSeasonInput = {
+  where: Prisma.TransportFeeWhereUniqueInput
+  create: Prisma.XOR<Prisma.TransportFeeCreateWithoutSeasonInput, Prisma.TransportFeeUncheckedCreateWithoutSeasonInput>
+}
+
+export type TransportFeeCreateManySeasonInputEnvelope = {
+  data: Prisma.TransportFeeCreateManySeasonInput | Prisma.TransportFeeCreateManySeasonInput[]
+  skipDuplicates?: boolean
+}
+
+export type TransportFeeUpsertWithWhereUniqueWithoutSeasonInput = {
+  where: Prisma.TransportFeeWhereUniqueInput
+  update: Prisma.XOR<Prisma.TransportFeeUpdateWithoutSeasonInput, Prisma.TransportFeeUncheckedUpdateWithoutSeasonInput>
+  create: Prisma.XOR<Prisma.TransportFeeCreateWithoutSeasonInput, Prisma.TransportFeeUncheckedCreateWithoutSeasonInput>
+}
+
+export type TransportFeeUpdateWithWhereUniqueWithoutSeasonInput = {
+  where: Prisma.TransportFeeWhereUniqueInput
+  data: Prisma.XOR<Prisma.TransportFeeUpdateWithoutSeasonInput, Prisma.TransportFeeUncheckedUpdateWithoutSeasonInput>
+}
+
+export type TransportFeeUpdateManyWithWhereWithoutSeasonInput = {
+  where: Prisma.TransportFeeScalarWhereInput
+  data: Prisma.XOR<Prisma.TransportFeeUpdateManyMutationInput, Prisma.TransportFeeUncheckedUpdateManyWithoutSeasonInput>
+}
+
+export type TransportFeeScalarWhereInput = {
+  AND?: Prisma.TransportFeeScalarWhereInput | Prisma.TransportFeeScalarWhereInput[]
+  OR?: Prisma.TransportFeeScalarWhereInput[]
+  NOT?: Prisma.TransportFeeScalarWhereInput | Prisma.TransportFeeScalarWhereInput[]
+  id?: Prisma.StringFilter<"TransportFee"> | string
+  vehicleType?: Prisma.StringFilter<"TransportFee"> | string
+  sittingCapacity?: Prisma.IntFilter<"TransportFee"> | number
+  fee?: Prisma.FloatFilter<"TransportFee"> | number
+  currency?: Prisma.StringFilter<"TransportFee"> | string
+  seasonId?: Prisma.StringFilter<"TransportFee"> | string
+  route?: Prisma.StringNullableFilter<"TransportFee"> | string | null
+  notes?: Prisma.StringNullableFilter<"TransportFee"> | string | null
+  createdAt?: Prisma.DateTimeFilter<"TransportFee"> | Date | string
+  updatedAt?: Prisma.DateTimeFilter<"TransportFee"> | Date | string
+}
+
+export type TransportFeeCreateManySeasonInput = {
+  id?: string
+  vehicleType: string
+  sittingCapacity: number
+  fee: number
+  currency?: string
+  route?: string | null
+  notes?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type TransportFeeUpdateWithoutSeasonInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  vehicleType?: Prisma.StringFieldUpdateOperationsInput | string
+  sittingCapacity?: Prisma.IntFieldUpdateOperationsInput | number
+  fee?: Prisma.FloatFieldUpdateOperationsInput | number
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
+  route?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type TransportFeeUncheckedUpdateWithoutSeasonInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  vehicleType?: Prisma.StringFieldUpdateOperationsInput | string
+  sittingCapacity?: Prisma.IntFieldUpdateOperationsInput | number
+  fee?: Prisma.FloatFieldUpdateOperationsInput | number
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
+  route?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type TransportFeeUncheckedUpdateManyWithoutSeasonInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  vehicleType?: Prisma.StringFieldUpdateOperationsInput | string
+  sittingCapacity?: Prisma.IntFieldUpdateOperationsInput | number
+  fee?: Prisma.FloatFieldUpdateOperationsInput | number
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
+  route?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
 
 
 export type TransportFeeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -478,6 +646,7 @@ export type TransportFeeSelect<ExtArgs extends runtime.Types.Extensions.Internal
   notes?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  season?: boolean | Prisma.TransportFee$seasonArgs<ExtArgs>
 }, ExtArgs["result"]["transportFee"]>
 
 export type TransportFeeSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -491,6 +660,7 @@ export type TransportFeeSelectCreateManyAndReturn<ExtArgs extends runtime.Types.
   notes?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  season?: boolean | Prisma.TransportFee$seasonArgs<ExtArgs>
 }, ExtArgs["result"]["transportFee"]>
 
 export type TransportFeeSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -504,6 +674,7 @@ export type TransportFeeSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.
   notes?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  season?: boolean | Prisma.TransportFee$seasonArgs<ExtArgs>
 }, ExtArgs["result"]["transportFee"]>
 
 export type TransportFeeSelectScalar = {
@@ -520,10 +691,21 @@ export type TransportFeeSelectScalar = {
 }
 
 export type TransportFeeOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "vehicleType" | "sittingCapacity" | "fee" | "currency" | "seasonId" | "route" | "notes" | "createdAt" | "updatedAt", ExtArgs["result"]["transportFee"]>
+export type TransportFeeInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  season?: boolean | Prisma.TransportFee$seasonArgs<ExtArgs>
+}
+export type TransportFeeIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  season?: boolean | Prisma.TransportFee$seasonArgs<ExtArgs>
+}
+export type TransportFeeIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  season?: boolean | Prisma.TransportFee$seasonArgs<ExtArgs>
+}
 
 export type $TransportFeePayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "TransportFee"
-  objects: {}
+  objects: {
+    season: Prisma.$TransportFeeSeasonPayload<ExtArgs> | null
+  }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     vehicleType: string
@@ -929,6 +1111,7 @@ readonly fields: TransportFeeFieldRefs;
  */
 export interface Prisma__TransportFeeClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
+  season<T extends Prisma.TransportFee$seasonArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.TransportFee$seasonArgs<ExtArgs>>): Prisma.Prisma__TransportFeeSeasonClient<runtime.Types.Result.GetResult<Prisma.$TransportFeeSeasonPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -985,6 +1168,10 @@ export type TransportFeeFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.
    */
   omit?: Prisma.TransportFeeOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.TransportFeeInclude<ExtArgs> | null
+  /**
    * Filter, which TransportFee to fetch.
    */
   where: Prisma.TransportFeeWhereUniqueInput
@@ -1003,6 +1190,10 @@ export type TransportFeeFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Exte
    */
   omit?: Prisma.TransportFeeOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.TransportFeeInclude<ExtArgs> | null
+  /**
    * Filter, which TransportFee to fetch.
    */
   where: Prisma.TransportFeeWhereUniqueInput
@@ -1020,6 +1211,10 @@ export type TransportFeeFindFirstArgs<ExtArgs extends runtime.Types.Extensions.I
    * Omit specific fields from the TransportFee
    */
   omit?: Prisma.TransportFeeOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.TransportFeeInclude<ExtArgs> | null
   /**
    * Filter, which TransportFee to fetch.
    */
@@ -1069,6 +1264,10 @@ export type TransportFeeFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Exten
    */
   omit?: Prisma.TransportFeeOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.TransportFeeInclude<ExtArgs> | null
+  /**
    * Filter, which TransportFee to fetch.
    */
   where?: Prisma.TransportFeeWhereInput
@@ -1116,6 +1315,10 @@ export type TransportFeeFindManyArgs<ExtArgs extends runtime.Types.Extensions.In
    * Omit specific fields from the TransportFee
    */
   omit?: Prisma.TransportFeeOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.TransportFeeInclude<ExtArgs> | null
   /**
    * Filter, which TransportFees to fetch.
    */
@@ -1165,6 +1368,10 @@ export type TransportFeeCreateArgs<ExtArgs extends runtime.Types.Extensions.Inte
    */
   omit?: Prisma.TransportFeeOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.TransportFeeInclude<ExtArgs> | null
+  /**
    * The data needed to create a TransportFee.
    */
   data: Prisma.XOR<Prisma.TransportFeeCreateInput, Prisma.TransportFeeUncheckedCreateInput>
@@ -1198,6 +1405,10 @@ export type TransportFeeCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Ex
    */
   data: Prisma.TransportFeeCreateManyInput | Prisma.TransportFeeCreateManyInput[]
   skipDuplicates?: boolean
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.TransportFeeIncludeCreateManyAndReturn<ExtArgs> | null
 }
 
 /**
@@ -1212,6 +1423,10 @@ export type TransportFeeUpdateArgs<ExtArgs extends runtime.Types.Extensions.Inte
    * Omit specific fields from the TransportFee
    */
   omit?: Prisma.TransportFeeOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.TransportFeeInclude<ExtArgs> | null
   /**
    * The data needed to update a TransportFee.
    */
@@ -1264,6 +1479,10 @@ export type TransportFeeUpdateManyAndReturnArgs<ExtArgs extends runtime.Types.Ex
    * Limit how many TransportFees to update.
    */
   limit?: number
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.TransportFeeIncludeUpdateManyAndReturn<ExtArgs> | null
 }
 
 /**
@@ -1278,6 +1497,10 @@ export type TransportFeeUpsertArgs<ExtArgs extends runtime.Types.Extensions.Inte
    * Omit specific fields from the TransportFee
    */
   omit?: Prisma.TransportFeeOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.TransportFeeInclude<ExtArgs> | null
   /**
    * The filter to search for the TransportFee to update in case it exists.
    */
@@ -1305,6 +1528,10 @@ export type TransportFeeDeleteArgs<ExtArgs extends runtime.Types.Extensions.Inte
    */
   omit?: Prisma.TransportFeeOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.TransportFeeInclude<ExtArgs> | null
+  /**
    * Filter which TransportFee to delete.
    */
   where: Prisma.TransportFeeWhereUniqueInput
@@ -1325,6 +1552,25 @@ export type TransportFeeDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.
 }
 
 /**
+ * TransportFee.season
+ */
+export type TransportFee$seasonArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the TransportFeeSeason
+   */
+  select?: Prisma.TransportFeeSeasonSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the TransportFeeSeason
+   */
+  omit?: Prisma.TransportFeeSeasonOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.TransportFeeSeasonInclude<ExtArgs> | null
+  where?: Prisma.TransportFeeSeasonWhereInput
+}
+
+/**
  * TransportFee without action
  */
 export type TransportFeeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1336,4 +1582,8 @@ export type TransportFeeDefaultArgs<ExtArgs extends runtime.Types.Extensions.Int
    * Omit specific fields from the TransportFee
    */
   omit?: Prisma.TransportFeeOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.TransportFeeInclude<ExtArgs> | null
 }

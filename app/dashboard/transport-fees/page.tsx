@@ -11,13 +11,18 @@ interface TransportFee {
   sittingCapacity: number;
   fee: number;
   currency: string;
-  seasonId: string;
+  seasonId: string | null;
   route?: string | null;
   notes?: string | null;
   createdAt: string;
 }
 
-interface Season { id: string; name: string; }
+interface TransportFeeSeason {
+  id: string;
+  name: string;
+  startDate: string | null;
+  endDate: string | null;
+}
 
 interface TransportFeeForm {
   vehicleType: string;
@@ -41,7 +46,7 @@ const DEFAULT_FORM: TransportFeeForm = {
 
 export default function TransportFeesPage() {
   const [transportFees, setTransportFees] = useState<TransportFee[]>([]);
-  const [seasons, setSeasons] = useState<Season[]>([]);
+  const [seasons, setSeasons] = useState<TransportFeeSeason[]>([]);
   const [filter, setFilter] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<TransportFeeForm>(DEFAULT_FORM);
@@ -53,12 +58,15 @@ export default function TransportFeesPage() {
   const setFormField = (k: keyof TransportFeeForm, v: string) =>
     setForm((prev) => ({ ...prev, [k]: v }));
 
+  const setSeasonField = (k: keyof typeof seasonForm, v: string) =>
+    setSeasonForm((prev) => ({ ...prev, [k]: v }));
+
   // ---- load data ----
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch('/api/safari-rates/seasons');
+        const res = await fetch('/api/transport-fee-seasons');
         if (!res.ok) throw new Error('Failed to load seasons');
         const data = await res.json();
         if (!cancelled) setSeasons(Array.isArray(data) ? data : []);
@@ -85,7 +93,41 @@ export default function TransportFeesPage() {
     }
   }
 
-  // ---- save ----
+  async function saveSeason(e: React.FormEvent) {
+    e.preventDefault();
+    if (!seasonForm.name.trim()) { alert('Season name is required'); return; }
+    setSaving(true);
+    setError('');
+    try {
+      const res = await fetch('/api/transport-fee-seasons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: seasonForm.name.trim(),
+          startDate: seasonForm.startDate || null,
+          endDate: seasonForm.endDate || null,
+          notes: seasonForm.notes || null,
+        }),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || 'Failed to create season');
+      }
+      setShowSeasonForm(false);
+      setSeasonForm({ name: '', startDate: '', endDate: '', notes: '' });
+      // Reload seasons
+      const res2 = await fetch('/api/transport-fee-seasons');
+      if (res2.ok) {
+        const data = await res2.json();
+        setSeasons(Array.isArray(data) ? data : []);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to create season');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!form.vehicleType.trim()) { alert('Vehicle type is required'); return; }
@@ -181,7 +223,7 @@ export default function TransportFeesPage() {
       sittingCapacity: String(f.sittingCapacity),
       fee: String(f.fee),
       currency: f.currency,
-      seasonId: f.seasonId,
+      seasonId: f.seasonId || '',
       route: f.route || '',
       notes: f.notes || '',
     });
@@ -198,6 +240,8 @@ export default function TransportFeesPage() {
     );
   });
 
+  const seasonById = new Map(seasons.map((s) => [s.id, s.name]));
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -213,6 +257,35 @@ export default function TransportFeesPage() {
       </div>
       {error && (
         <div className="rounded-lg bg-red-50 border border-red-100 p-3 text-xs text-red-700">{error}</div>
+      )}
+
+      {/* Create Season form */}
+      {showSeasonForm && (
+        <form onSubmit={saveSeason} className="card space-y-4">
+          <h2 className="font-semibold text-gray-800">{editingId ? '✏️ Edit Season' : 'Add Transport Season'}</h2>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Season Name *</label>
+              <input required className="input" value={seasonForm.name} onChange={(e) => setSeasonField('name', e.target.value)} placeholder="e.g. Peak Season 2027" />
+            </div>
+            <div>
+              <label className="label">Start Date</label>
+              <input type="date" className="input" value={seasonForm.startDate} onChange={(e) => setSeasonField('startDate', e.target.value)} />
+            </div>
+            <div>
+              <label className="label">End Date</label>
+              <input type="date" className="input" value={seasonForm.endDate} onChange={(e) => setSeasonField('endDate', e.target.value)} />
+            </div>
+            <div className="col-span-2">
+              <label className="label">Notes</label>
+              <textarea className="input" rows={2} value={seasonForm.notes} onChange={(e) => setSeasonField('notes', e.target.value)} placeholder="Additional notes…" />
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving…' : 'Save Season'}</button>
+            <button type="button" onClick={() => { setShowSeasonForm(false); setSeasonForm({ name: '', startDate: '', endDate: '', notes: '' }); }} className="btn-secondary">Cancel</button>
+          </div>
+        </form>
       )}
 
       {/* Add / Edit form */}
@@ -243,7 +316,7 @@ export default function TransportFeesPage() {
             <div>
               <label className="label">Season *</label>
               <select required className="input" value={form.seasonId} onChange={(e) => setFormField('seasonId', e.target.value)}>
-                <option value="">— Select —</option>
+                <option value="">— Select season —</option>
                 {seasons.map((s) => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
@@ -259,9 +332,7 @@ export default function TransportFeesPage() {
             </div>
           </div>
           <div className="flex gap-3">
-            <button type="submit" disabled={saving} className="btn-primary">
-              {saving ? 'Saving…' : editingId ? 'Update' : 'Save'}
-            </button>
+            <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving…' : editingId ? 'Update' : 'Save'}</button>
             <button type="button" onClick={() => { setShowForm(false); setForm(DEFAULT_FORM); setEditingId(null); }} className="btn-secondary">Cancel</button>
           </div>
         </form>
@@ -284,7 +355,7 @@ export default function TransportFeesPage() {
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               {['Vehicle Type','Capacity','Fee','Currency','Season','Route','Notes'].map((h) => (
-                <th key={h} className="text-left px-4 py-3 font-medium text-gray-600">{h}</th>
+                <th key={h} className="px-4 py-3 font-medium text-gray-600">{h}</th>
               ))}
               <th className="px-4 py-3 text-right"></th>
             </tr>
@@ -293,25 +364,28 @@ export default function TransportFeesPage() {
             {filtered.length === 0 && (
               <tr><td colSpan={7} className="text-center text-gray-400 py-10">No transport fees found.</td></tr>
             )}
-            {filtered.map((f) => (
-              <tr key={f.id} className="hover:bg-gray-50">
-                <td className="px-4 py-2 font-medium text-gray-800">{f.vehicleType}</td>
-                <td className="px-4 py-2 text-center">{f.sittingCapacity}</td>
-                <td className="px-4 py-2 font-mono">{f.fee.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                <td className="px-4 py-2 text-gray-500">{f.currency}</td>
-                <td className="px-4 py-2 text-gray-600">{f.seasonId}</td>
-                <td className="px-4 py-2 text-gray-600 truncate max-w-[200px]">{f.route || '—'}</td>
-                <td className="px-4 py-2 text-gray-600 truncate max-w-[200px]">{f.notes || '—'}</td>
-                <td className="px-4 py-2 text-right text-xs">
-                  <button onClick={() => editTransportFee(f)} className="text-orange-500 hover:underline mr-2">Edit</button>
-                  {deletingId === f.id ? (
-                    <button disabled className="text-gray-400">…</button>
-                  ) : (
-                    <button onClick={() => deleteTransportFee(f.id)} className="text-red-500 hover:text-red-700 underline">Delete</button>
-                  )}
-                </td>
-              </tr>
-            ))}
+            {filtered.map((f) => {
+              const seasonName = seasonById.get(f.seasonId || '') || (f.seasonId || '—');
+              return (
+                <tr key={f.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-2 font-medium text-gray-800">{f.vehicleType}</td>
+                  <td className="px-4 py-2 text-center">{f.sittingCapacity}</td>
+                  <td className="px-4 py-2 font-mono">{f.fee.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                  <td className="px-4 py-2 text-gray-500">{f.currency}</td>
+                  <td className="px-4 py-2 text-gray-600">{seasonName}</td>
+                  <td className="px-4 py-2 text-gray-600 truncate max-w-[200px]">{f.route || '—'}</td>
+                  <td className="px-4 py-2 text-gray-600 truncate max-w-[200px]">{f.notes || '—'}</td>
+                  <td className="px-4 py-2 text-right text-xs">
+                    <button onClick={() => editTransportFee(f)} className="text-orange-500 hover:underline mr-2">Edit</button>
+                    {deletingId === f.id ? (
+                      <button disabled className="text-gray-400">…</button>
+                    ) : (
+                      <button onClick={() => deleteTransportFee(f.id)} className="text-red-500 hover:text-red-700 underline">Delete</button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

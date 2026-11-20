@@ -202,6 +202,11 @@ export type ParkFeeSeason = Prisma.ParkFeeSeasonModel
  */
 export type ParkFee = Prisma.ParkFeeModel
 /**
+ * Model TransportFeeSeason
+ * 
+ */
+export type TransportFeeSeason = Prisma.TransportFeeSeasonModel
+/**
  * Model TransportFee
  * 
  */

@@ -31,6 +31,9 @@ export async function PATCH(
     data.name = trimmed;
   }
   if (description !== undefined) data.description = description || null;
+  if (body.childFreeAge !== undefined) data.childFreeAge = body.childFreeAge == null ? null : Number(body.childFreeAge);
+  if (body.childChargeAge !== undefined) data.childChargeAge = body.childChargeAge == null ? null : Number(body.childChargeAge);
+  if (body.extraBedRate !== undefined) data.extraBedRate = body.extraBedRate == null ? null : Number(body.extraBedRate);
 
   const hotel = await prisma.sRHotel.update({
     where: { id: Number(id) },

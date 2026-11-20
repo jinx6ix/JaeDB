@@ -17,7 +17,7 @@ interface Booking {
   numAdults?: number | null;
   numChildren?: number | null;
 }
-interface Hotel { id: number; name: string; stars?: number|null; county: { id: number; name: string }; }
+interface Hotel { id: number; name: string; stars?: number|null; county: { id: number; name: string }; childFreeAge?: number|null; childChargeAge?: number|null; extraBedRate?: number|null; }
 interface RoomPrice { id: number; ratePerPersonSharing?: number|null; singleRoomRate?: number|null; childRate?: number|null; thirdAdultRate?: number|null; currency: string; roomType: { id: number; name: string; maxOccupancy: number }; season: { id: number; name: string; startDate: string; endDate: string }; }
 interface Destination { id: number; name: string; }
 interface Props { tours: Tour[]; rateCards: (RateCard & { tourPackage: Tour })[]; clients?: Client[]; agents?: Agent[]; bookings?: Booking[]; hotels?: Hotel[]; destinations?: Destination[]; initialCostSheet?: any; }
@@ -35,6 +35,8 @@ interface DayRow {
   /** Per-day daily extras (spreadsheet "Extras" column) — added directly to base PPS. */
   extrasTotal: number;
   transportTotal: number;
+  vehicleId: string|null;
+  rateType: 'single' | 'pps' | 'mixed' | null;
   hasFlight: boolean;
   flightAdultPP: number;
   flightChildPP: number;
@@ -45,6 +47,8 @@ interface DayRow {
   ratesLoading: boolean;
   /** true when the lookup matched a season for this day's date; false when fallback was used. */
   ratesMatched: boolean;
+  /** Number of extra beds for this day (charged at hotel extraBedRate). */
+  extraBeds: number;
 }
 
 const BOARD_BASIS = [
@@ -52,6 +56,12 @@ const BOARD_BASIS = [
   { code: 'HB', label: 'Half Board' },
   { code: 'BB', label: 'Bed & Breakfast' },
   { code: 'RO', label: 'Room Only' },
+];
+
+const RATE_TYPE_OPTIONS: { value: 'single' | 'pps' | 'mixed'; label: string }[] = [
+  { value: 'single', label: 'Single' },
+  { value: 'pps', label: 'P.P.S' },
+  { value: 'mixed', label: 'Mixed' },
 ];
 
 function emptyRow(): DayRow {
@@ -67,6 +77,8 @@ function emptyRow(): DayRow {
     parkFeeChildTotal: 0,
     extrasTotal: 0,
     transportTotal: 0,
+    vehicleId: null,
+    rateType: null,
     hasFlight: false,
     flightAdultPP: 0,
     flightChildPP: 0,
@@ -76,6 +88,7 @@ function emptyRow(): DayRow {
     availableRates: [],
     ratesLoading: false,
     ratesMatched: false,
+    extraBeds: 0,
   };
 }
 
@@ -127,6 +140,8 @@ export default function RateCalculator({
   // Core settings
   const [numAdults, setNumAdults] = useState(0);
   const [numChildren, setNumChildren] = useState(0);
+  /** Per-child ages for age-based child pricing (one entry per child). */
+  const [childrenAges, setChildrenAges] = useState<number[]>([]);
   const [numDays, setNumDays] = useState(1);
   const [numNights, setNumNights] = useState(0);
   const [currency, setCurrency] = useState('USD');
@@ -134,6 +149,42 @@ export default function RateCalculator({
   const [startDate, setStartDate] = useState('');
   const [globalMarkup, setGlobalMarkup] = useState(10);
   const [notes, setNotes] = useState('');
+
+  // Global selections — chosen before the day-to-day table.
+  // Flow: Destination → Hotel → Room Type → Vehicle.
+  // These values pre-fill the day editor modal and serve as defaults for each day row.
+  const [globalVehicleId, setGlobalVehicleId] = useState<string>('');
+
+  // Day editor modal state
+  const [editingDay, setEditingDay] = useState<number | null>(null);
+  const [modalDestId, setModalDestId] = useState<number | null>(null);
+  const [modalHotelId, setModalHotelId] = useState<string>('');
+  const [modalRoomTypeId, setModalRoomTypeId] = useState<string>('');
+  const [modalVehicleId, setModalVehicleId] = useState<string>('');
+  const [modalExtraBeds, setModalExtraBeds] = useState(0);
+  const [modalRateType, setModalRateType] = useState<'single' | 'pps' | 'mixed' | null>(null);
+  // Park fees available for the selected destination (county).
+  const [modalParkFees, setModalParkFees] = useState<{ id: string; name: string; fee: number; currency: string }[]>([]);
+  const [modalParkFeeAdult, setModalParkFeeAdult] = useState(0);
+  const [modalParkFeeChild, setModalParkFeeChild] = useState(0);
+  const [modalTransportTotal, setModalTransportTotal] = useState(0);
+  const [modalExtrasTotal, setModalExtrasTotal] = useState(0);
+  const [modalHasFlight, setModalHasFlight] = useState(false);
+  const [modalFlightAdultPP, setModalFlightAdultPP] = useState(0);
+  const [modalFlightChildPP, setModalFlightChildPP] = useState(0);
+  const [modalIsTriple, setModalIsTriple] = useState(false);
+  const [modalTripleRate, setModalTripleRate] = useState(0);
+  const [modalAdultAccomTotal, setModalAdultAccomTotal] = useState(0);
+  const [modalChildAccomTotal, setModalChildAccomTotal] = useState(0);
+  const [modalSingleRoomRate, setModalSingleRoomRate] = useState(0);
+  const [modalThirdPersonRate, setModalThirdPersonRate] = useState(0);
+  const [modalHotels, setModalHotels] = useState<Hotel[]>([]);
+  const [modalRoomTypes, setModalRoomTypes] = useState<{ id: string; roomTypeId: number; name: string; maxOccupancy: number; ratePerPersonSharing: number|null|undefined; singleRoomRate: number|null|undefined; childRate: number|null|undefined; thirdAdultRate: number|null|undefined }[]>([]);
+  const [modalPrices, setModalPrices] = useState<RoomPrice[]>([]);
+  const [transportFees, setTransportFees] = useState<{ id: string; vehicleType: string; sittingCapacity: number; fee: number; currency: string; seasonId: string | null; route: string | null }[]>([]);
+  const [transportFeeSeasons, setTransportFeeSeasons] = useState<{ id: string; name: string; startDate: string | null; endDate: string | null }[]>([]);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalFallback, setModalFallback] = useState<{ type: 'season' | 'occupancy' | null; message: string } | null>(null);
 
   // Day rows
   const [dayRows, setDayRows] = useState<DayRow[]>([emptyRow()]);
@@ -206,9 +257,21 @@ export default function RateCalculator({
   useEffect(() => {
     setDayRows((prev) => {
       if (prev.length === numDays) return prev;
-      return Array.from({ length: numDays }, (_, i) => prev[i] || emptyRow());
+      return Array.from({ length: numDays }, (_, i) => {
+        const existing = prev[i];
+        if (existing) return existing;
+        // New rows inherit the global vehicle selection. Destination/hotel/room type
+        // are chosen per-day inside the day editor modal.
+        return {
+          ...emptyRow(),
+          vehicleId: globalVehicleId || null,
+          rateType: null,
+          transportTotal: calculateModalTransport(globalVehicleId).costPerDay,
+        };
+      });
     });
-  }, [numDays]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [numDays, globalVehicleId, numAdults]);
 
   // Auto-fill from booking
   useEffect(() => {
@@ -252,6 +315,14 @@ export default function RateCalculator({
     }
   }, [numChildren]);
 
+  // Keep childrenAges in sync with numChildren count.
+  useEffect(() => {
+    setChildrenAges(prev => {
+      if (prev.length === numChildren) return prev;
+      return Array.from({ length: numChildren }, (_, i) => prev[i] ?? 0);
+    });
+  }, [numChildren]);
+
   const fetchCostSheets = useCallback(async () => {
     if (!clientId && !bookingId) {
       setCostSheetsList([]);
@@ -281,6 +352,7 @@ export default function RateCalculator({
       setTourId(sheet.booking?.tourPackageId || '');
       setNumAdults(sheet.numAdults || 0);
       setNumChildren(sheet.numChildren || 0);
+      try { setChildrenAges(JSON.parse(sheet.childrenAges || '[]')); } catch { setChildrenAges([]); }
       setNumDays(sheet.days || 1);
       setBoardBasis(sheet.boardBasis || 'FB');
       setCurrency(sheet.currency || 'USD');
@@ -319,6 +391,8 @@ export default function RateCalculator({
         tripleRate: row.tripleRate ?? 0,
         selectedRateId: row.selectedRateId ?? null,
         singleRoomRate: row.singleRoomRate ?? 0,
+        extraBeds: row.extraBeds ?? 0,
+        rateType: row.rateType ?? null,
       }));
       setDayRows(newRows);
     } catch (err) {
@@ -362,7 +436,10 @@ export default function RateCalculator({
 
   function dayDate(i: number) {
     if (!startDate) return undefined;
-    return new Date(new Date(startDate).getTime() + i * 86400000).toISOString().split('T')[0];
+    // Parse as UTC midnight to avoid timezone offset shifting the date
+    const d = new Date(startDate + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + i);
+    return d.toISOString().split('T')[0];
   }
 
   function onHotelChange(i: number, hotelId: string) {
@@ -400,6 +477,338 @@ export default function RateCalculator({
     });
   }
 
+  // ── Day editor modal handlers ──
+  function openDayEditor(i: number) {
+    const row = dayRows[i];
+    setEditingDay(i);
+    setModalDestId(row.destinationId);
+    setModalHotelId(row.hotelId);
+    setModalRoomTypeId(row.selectedRateId?.toString() || '');
+    setModalExtraBeds(row.extraBeds ?? 0);
+    setModalParkFeeAdult(row.parkFeeAdultTotal ?? 0);
+    setModalParkFeeChild(row.parkFeeChildTotal ?? 0);
+    setModalTransportTotal(row.transportTotal ?? 0);
+    setModalExtrasTotal(row.extrasTotal ?? 0);
+    setModalHasFlight(row.hasFlight ?? false);
+    setModalFlightAdultPP(row.flightAdultPP ?? 0);
+    setModalFlightChildPP(row.flightChildPP ?? 0);
+    setModalIsTriple(row.isTriple ?? false);
+    setModalTripleRate(row.tripleRate ?? 0);
+    setModalAdultAccomTotal(row.adultAccomTotal ?? 0);
+    setModalChildAccomTotal(row.childAccomTotal ?? 0);
+    setModalSingleRoomRate(row.singleRoomRate ?? 0);
+    setModalThirdPersonRate(row.thirdPersonRate ?? 0);
+    setModalVehicleId('');
+    setModalRateType(row.rateType ?? null);
+    setModalHotels([]);
+    setModalRoomTypes([]);
+    setModalPrices([]);
+    setModalDestId(row.destinationId ?? null);
+    if (row.hotelId) {
+      const hotel = localHotels.find((h) => String(h.id) === row.hotelId);
+      if (!hotel) return;
+      const destId = row.destinationId ?? hotel.county.id;
+      setModalDestId(destId);
+      setModalHotels(localHotels.filter((h) => h.county.id === destId));
+      onModalHotelChange(row.hotelId, destId, i);
+    }
+  }
+
+  function closeDayEditor() {
+    setEditingDay(null);
+    setModalDestId(null);
+    setModalHotelId('');
+    setModalRoomTypeId('');
+    setModalVehicleId('');
+    setModalExtraBeds(0);
+    setModalParkFeeAdult(0);
+    setModalParkFeeChild(0);
+    setModalParkFees([]);
+    setModalTransportTotal(0);
+    setModalExtrasTotal(0);
+    setModalHasFlight(false);
+    setModalFlightAdultPP(0);
+    setModalFlightChildPP(0);
+    setModalIsTriple(false);
+    setModalTripleRate(0);
+    setModalAdultAccomTotal(0);
+    setModalChildAccomTotal(0);
+    setModalSingleRoomRate(0);
+    setModalThirdPersonRate(0);
+    setModalHotels([]);
+    setModalRoomTypes([]);
+    setModalPrices([]);
+  }
+
+  function onModalDestChange(destId: number | null) {
+    setModalDestId(destId);
+    setModalHotelId('');
+    setModalRoomTypeId('');
+    setModalRoomTypes([]);
+    setModalPrices([]);
+    if (destId) {
+      setModalHotels(localHotels.filter((h) => h.county.id === destId));
+    } else {
+      setModalHotels([]);
+    }
+  }
+
+  async function onModalHotelChange(hotelId: string, destId?: number | null, dayIndex: number | null = editingDay) {
+    setModalHotelId(hotelId);
+    setModalRoomTypeId('');
+    setModalRoomTypes([]);
+    setModalPrices([]);
+    setModalFallback(null);
+    if (!hotelId || dayIndex == null) return;
+    // destId is passed explicitly when called from openDayEditor because React
+    // state updates (setModalDestId just before) are not yet visible here.
+    const effectiveDestId = destId ?? modalDestId;
+    if (!effectiveDestId) {
+      setModalFallback({
+        type: 'occupancy',
+        message: 'Please select a Destination before choosing a hotel.',
+      });
+      return;
+    }
+    const row = dayRows[dayIndex];
+    setModalLoading(true);
+    try {
+      // Step 3 Room Type: load available room types for the hotel.
+      const rtRes = await fetch(`/api/safari-rates/room-types?hotelId=${hotelId}`);
+      if (!rtRes.ok) throw new Error(`HTTP ${rtRes.status}`);
+      const rtData = await rtRes.json();
+      const roomTypes: any[] = Array.isArray(rtData) ? rtData : [];
+
+      // Also pre-load rates for this hotel + board basis + date (if start date set)
+      // so Step 4 can auto-fill from the selected room type without another API call.
+      let prices: RoomPrice[] = [];
+      if (startDate) {
+        const dateStr = new Date(startDate + 'T00:00:00Z').toISOString().split('T')[0];
+        const lpRes = await fetch(
+          `/api/safari-rates/lookup?hotelId=${hotelId}&destinationId=${effectiveDestId}&boardBasis=${boardBasis}&date=${dateStr}`
+        );
+        if (lpRes.ok) {
+          const lpData = await lpRes.json();
+          prices = Array.isArray(lpData.prices) ? lpData.prices : [];
+          if (lpData.matched === false) {
+            setModalFallback({
+              type: 'season',
+              message: `No rate season covers ${dateStr} for this hotel and board basis — showing all available rates. Rates will load once you add them for this season.`,
+            });
+          } else {
+            setModalFallback(null);
+          }
+        }
+      }
+      setModalPrices(prices);
+
+      // Pre-load park fees for the hotel's county so Step 7 auto-fills.
+      try {
+        const pfRes = await fetch(`/api/park-fees?countyId=${effectiveDestId}`);
+        if (pfRes.ok) {
+          const pfData = await pfRes.json();
+          const parkFees: any[] = Array.isArray(pfData) ? pfData : [];
+          setModalParkFees(
+            parkFees.map((f: any) => ({
+              id: f.id,
+              name: f.name,
+              fee: Number(f.fee || 0),
+              currency: f.currency || 'USD',
+            }))
+          );
+          const adultFee = parkFees.find((f) => f.name?.toLowerCase().includes('adult'));
+          const childFee = parkFees.find((f) => f.name?.toLowerCase().includes('child'));
+          setModalParkFeeAdult(adultFee ? Number(adultFee.fee) : 0);
+          setModalParkFeeChild(childFee ? Number(childFee.fee) : 0);
+        } else {
+          setModalParkFees([]);
+          setModalParkFeeAdult(0);
+          setModalParkFeeChild(0);
+        }
+      } catch {
+        setModalParkFees([]);
+        setModalParkFeeAdult(0);
+        setModalParkFeeChild(0);
+      }
+
+      const modalRoomTypeList = roomTypes.map((rt: any) => {
+        const matchingPrice = prices.find((p) => p.roomType?.id === rt.id);
+        return {
+          id: String(rt.id),
+          roomTypeId: rt.id,
+          name: rt.name,
+          maxOccupancy: rt.maxOccupancy ?? 2,
+          ratePerPersonSharing: matchingPrice?.ratePerPersonSharing ?? null,
+          singleRoomRate: matchingPrice?.singleRoomRate ?? null,
+          childRate: matchingPrice?.childRate ?? null,
+          thirdAdultRate: matchingPrice?.thirdAdultRate ?? null,
+        };
+      });
+      const seen = new Set<number>();
+      setModalRoomTypes(
+        modalRoomTypeList.filter((r) => {
+          if (seen.has(r.roomTypeId)) return false;
+          seen.add(r.roomTypeId);
+          return true;
+        })
+      );
+    } catch (err: any) {
+      setModalFallback({
+        type: 'season',
+        message: `Failed to load room types: ${err.message || 'Network error'}.`,
+      });
+      setModalPrices([]);
+      setModalRoomTypes([]);
+    } finally {
+      setModalLoading(false);
+    }
+  }
+
+  async function onModalRoomTypeChange(roomTypeId: string) {
+    setModalRoomTypeId(roomTypeId);
+    if (!roomTypeId) return;
+    // Determine default rate type based on number of persons:
+    // 1 person → single only; even number → pps only; odd > 1 → mixed (user selects)
+    const numPersons = numAdults + numChildren;
+    if (numPersons === 1) {
+      setModalRateType('single');
+      setModalAdultAccomTotal(0);
+    } else if (numPersons % 2 === 0) {
+      setModalRateType('pps');
+      setModalSingleRoomRate(0);
+      setModalThirdPersonRate(0);
+    } else if (numPersons > 0) {
+      setModalRateType('mixed');
+    } else {
+      setModalRateType(null);
+    }
+    // Use the rate data already embedded in the room type option (pre-loaded
+    // in onModalHotelChange). Falls back to modalPrices lookup if needed.
+    const selected = modalRoomTypes.find((rt) => rt.id === roomTypeId);
+    if (selected) {
+      setModalAdultAccomTotal(selected.ratePerPersonSharing || 0);
+      setModalSingleRoomRate(selected.singleRoomRate || 0);
+      setModalChildAccomTotal(selected.childRate || 0);
+      setModalThirdPersonRate(selected.thirdAdultRate || 0);
+      setModalIsTriple(!!selected.thirdAdultRate && (selected.ratePerPersonSharing ?? 0) > 0);
+    } else {
+      setModalAdultAccomTotal(0);
+      setModalSingleRoomRate(0);
+      setModalChildAccomTotal(0);
+      setModalThirdPersonRate(0);
+      setModalIsTriple(false);
+    }
+  }
+
+  function onModalVehicleChange(vehicleId: string) {
+    setModalVehicleId(vehicleId);
+  }
+
+  /** Calculate transport cost based on vehicle capacity and transport fee from DB.
+   * vehiclesNeeded = ceil(totalPax / seats).
+   * Both seats and fee per vehicle come ONLY from transport_fees table
+   * (matched by vehicle type + season). No data from vehicles table is used.
+   */
+  function calculateModalTransport(vehicleType: string): { vehiclesNeeded: number; costPerDay: number; vehicleName: string } {
+    const transportFee = transportFees.find((tf) => tf.vehicleType === vehicleType);
+    if (!transportFee) return { vehiclesNeeded: 0, costPerDay: 0, vehicleName: vehicleType };
+    const totalPax = numAdults + numChildren;
+    const seats = transportFee.sittingCapacity || 1;
+    const vehiclesNeeded = Math.ceil(totalPax / seats);
+    const feePerVehicle = transportFee.fee ?? 0;
+    const costPerDay = vehiclesNeeded * feePerVehicle;
+    return { vehiclesNeeded, costPerDay, vehicleName: transportFee.vehicleType };
+  }
+
+  function getModalSelectedPrice(): RoomPrice | undefined {
+    if (!modalRoomTypeId) return undefined;
+    return modalPrices.find((p: RoomPrice) => String(p.id) === modalRoomTypeId);
+  }
+
+  /** Get the active transport fee season ID for a given date. */
+  function getActiveTransportSeasonId(dateStr: string): string | null {
+    const targetDate = new Date(dateStr + 'T00:00:00Z');
+    const season = transportFeeSeasons.find((s) => {
+      if (!s.startDate || !s.endDate) return false;
+      const sStart = new Date(s.startDate + 'T00:00:00Z');
+      const sEnd = new Date(s.endDate + 'T00:00:00Z');
+      return sStart <= targetDate && sEnd >= targetDate;
+    });
+    return season?.id ?? null;
+  }
+
+  /** Calculate accommodation total based on traveller count rules:
+   * 1 → single room rate; even → double per-sharing × adults; odd > 1 → double/triple.
+   */
+  function calculateModalAccommodation(price: RoomPrice | undefined): number {
+    if (!price) return modalAdultAccomTotal || 0;
+    const numAdultsCount = numAdults;
+
+    if (numAdultsCount === 1) {
+      return price.singleRoomRate || 0;
+    }
+    if (numAdultsCount % 2 === 0) {
+      return (price.ratePerPersonSharing || 0) * numAdultsCount;
+    }
+    if (price.roomType.maxOccupancy >= 3 && price.thirdAdultRate && price.ratePerPersonSharing) {
+      return (price.ratePerPersonSharing * 2 + price.thirdAdultRate) * Math.ceil(numAdultsCount / 3);
+    }
+    return (price.ratePerPersonSharing || 0) * numAdultsCount;
+  }
+
+  function onModalSave() {
+    if (editingDay == null) return;
+    const price = getModalSelectedPrice();
+    const accomTotal = calculateModalAccommodation(price);
+    const hotel = localHotels.find((h) => String(h.id) === modalHotelId);
+    const childTotal = numChildren > 0 && childrenAges.length > 0
+      ? childrenAges.reduce((sum, age) => sum + getChildCost(age, hotel, price), 0)
+      : modalChildAccomTotal;
+    const transport = calculateModalTransport(modalVehicleId);
+    const finalTransport = modalTransportTotal > 0 ? modalTransportTotal : transport.costPerDay;
+
+    updateRow(editingDay, {
+      destinationId: modalDestId ?? null,
+      hotelId: modalHotelId || '',
+      hotelName: hotel?.name || '',
+      adultAccomTotal: modalAdultAccomTotal > 0 ? modalAdultAccomTotal : (numAdults > 0 ? accomTotal / numAdults : 0),
+      childAccomTotal: childTotal,
+      singleRoomRate: numAdults === 1 && price ? price.singleRoomRate || 0 : modalSingleRoomRate,
+      thirdPersonRate: modalThirdPersonRate,
+      isTriple: modalIsTriple,
+      tripleRate: modalTripleRate,
+      selectedRateId: price?.id ?? null,
+      parkFeeAdultTotal: modalParkFeeAdult,
+      parkFeeChildTotal: modalParkFeeChild,
+      transportTotal: finalTransport,
+      extraBeds: modalExtraBeds,
+      extrasTotal: modalExtrasTotal,
+      hasFlight: modalHasFlight,
+      flightAdultPP: modalFlightAdultPP,
+      flightChildPP: modalFlightChildPP,
+      rateType: modalRateType,
+    });
+    closeDayEditor();
+  }
+
+  /** Age-based child cost applying the hotel's child policy:
+   * below childFreeAge → free; childFreeAge→childChargeAge → childRate; childChargeAge+ → adult PPS.
+   */
+  function getChildCost(age: number, hotel: Hotel | undefined, rate: RoomPrice | undefined): number {
+    if (!rate) return 0;
+    const hasPolicy = hotel?.childFreeAge != null || hotel?.childChargeAge != null;
+    if (!hasPolicy) return rate.childRate ?? 0;
+    if (hotel.childFreeAge != null && age < hotel.childFreeAge) return 0;
+    if (hotel.childChargeAge != null && age < hotel.childChargeAge) return rate.childRate ?? 0;
+    return rate.ratePerPersonSharing ?? 0;
+  }
+
+  /** Extra bed cost for this day row (hotel extraBedRate × number of extra beds). */
+  function getExtraBedCost(row: DayRow): number {
+    const hotel = localHotels.find((h) => String(h.id) === row.hotelId);
+    return (hotel?.extraBedRate ?? 0) * (row.extraBeds ?? 0);
+  }
+
   useEffect(() => {
     if (!startDate) return;
     dayRows.forEach((row, i) => {
@@ -408,27 +817,35 @@ export default function RateCalculator({
   }, [startDate, boardBasis]);
 
   const refreshData = async () => {
-    const [h, d, c, b] = await Promise.all([
-      fetch('/api/safari-rates/hotels').then(r => r.json()),
-      fetch('/api/safari-rates/destinations').then(r => r.json()),
-      fetch('/api/clients').then(r => r.json()),
-      fetch('/api/bookings?all=1').then(r => r.json()),
+    // Fetch each endpoint independently so one failure doesn't crash the whole refresh.
+    // Sequential-ish (Promise.allSettled) reduces connection-pool pressure vs firing 5 parallel writes.
+    const results = await Promise.allSettled([
+      fetch('/api/safari-rates/hotels'),
+      fetch('/api/safari-rates/destinations'),
+      fetch('/api/clients'),
+      fetch('/api/bookings?all=1'),
+      fetch('/api/transport-fees'),
+      fetch('/api/park-fee-seasons'),
     ]);
+    const safeJson = async (p: PromiseSettledResult<Response>) => {
+      if (p.status !== 'fulfilled') return null;
+      const r = p.value;
+      if (!r.ok) return null;
+      try { return await r.json(); } catch { return null; }
+    };
+    const [h, d, c, b, tf, pfs] = await Promise.all(results.map(safeJson));
     setLocalHotels(Array.isArray(h) ? h : []);
     setLocalDests(Array.isArray(d) ? d : []);
     setLocalClients(Array.isArray(c) ? c : []);
     setLocalBookings(Array.isArray(b) ? b : []);
+    setTransportFees(Array.isArray(tf) ? tf : []);
+    setTransportFeeSeasons(Array.isArray(pfs) ? pfs : []);
   };
   useEffect(() => {
+    // Fetch once on mount. Focus/visibility re-fetches are intentional user actions
+    // (Refresh button) to avoid exhausting the Supabase connection pool.
     refreshData();
-    const onFocus = () => refreshData();
-    const onVisible = () => { if (document.visibilityState === 'visible') refreshData(); };
-    window.addEventListener('focus', onFocus);
-    document.addEventListener('visibilitychange', onVisible);
-    return () => {
-      window.removeEventListener('focus', onFocus);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
+    return () => {};
   }, []);
 
   const createClient = async (name: string) => {
@@ -517,11 +934,28 @@ export default function RateCalculator({
     if (row.isTriple) {
       return row.tripleRate;
     }
-    if (numAdults === 1 && row.singleRoomRate > 0) {
+    const numPersons = numAdults + numChildren;
+    const rateType = row.rateType ?? modalRateType;
+    if (rateType === 'single' && row.singleRoomRate > 0) {
       return row.singleRoomRate;
     }
-    if (numAdults > 1 && row.singleRoomRate > 0) {
-      return (row.adultAccomTotal || 0) * (numAdults - 1) + row.singleRoomRate;
+    if (rateType === 'pps' && row.adultAccomTotal > 0) {
+      return row.adultAccomTotal * numPersons;
+    }
+    if (rateType === 'mixed' && numPersons > 0) {
+      let total = 0;
+      if (row.singleRoomRate > 0) {
+        total += row.singleRoomRate;
+      }
+      const remaining = numPersons - (row.singleRoomRate > 0 ? 1 : 0);
+      if (remaining > 0 && row.adultAccomTotal > 0) {
+        total += row.adultAccomTotal * remaining;
+      }
+      return total;
+    }
+    // Fallback: original logic
+    if (numAdults === 1 && row.singleRoomRate > 0) {
+      return row.singleRoomRate;
     }
     return (row.adultAccomTotal || 0) * numAdults;
   }
@@ -532,7 +966,7 @@ export default function RateCalculator({
   const transportGroupTotal = dayRows.reduce((s, r) => s + r.transportTotal, 0);
   const dailyExtrasTotal = dayRows.reduce((s, r) => s + (r.extrasTotal || 0), 0);
   const flightGroupTotal = dayRows.reduce((s, r) => s + (r.hasFlight ? r.flightAdultPP * numAdults + r.flightChildPP * numChildren : 0), 0);
-  const extrasGroupTotal = extraItems.reduce((s, e) => s + e.cost, 0) + fileHandling + ecoBottle + evacInsurance + (maasaiVillage ? maasaiCostTotal : 0) + (arrivalTransfer ? arrivalTotal : 0) + (departureTransfer ? departureTotal : 0);
+  const extrasGroupTotal = dayRows.reduce((s, r) => s + (r.extrasTotal || 0), 0);
   const flightAndExtrasGroupTotal = flightGroupTotal + extrasGroupTotal;
 
   // ── Pure per-person PPS calculation (spreadsheet methodology) ──
@@ -589,6 +1023,8 @@ export default function RateCalculator({
       isTriple: r.isTriple,
       tripleRate: r.tripleRate,
       selectedRateId: r.selectedRateId,
+      extraBeds: r.extraBeds,
+      rateType: r.rateType ?? null,
     })));
     const extrasJson = JSON.stringify(extraItems.filter(e => e.cost > 0));
     // New spreadsheet methodology:
@@ -610,6 +1046,7 @@ export default function RateCalculator({
       days: numDays,
       numAdults,
       numChildren,
+      childrenAges,
       numPax,
       boardBasis,
       currency,
@@ -921,29 +1358,67 @@ export default function RateCalculator({
           <div><label className="label text-xs">Markup %</label><input type="number" min={0} max={100} value={globalMarkup} onChange={e => setGlobalMarkup(Number(e.target.value))} className="input" /></div>
         </div>
 
-        {/* Section 3: Day‑by‑day table */}
+        {/* Section 2.5: Global Transport (vehicle) selection */}
+        {/* Vehicle chosen once here; applied as default to each new day row. */}
+        <div className="bg-white rounded-xl border border-orange-100 p-4 mb-5">
+          <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-3">🚗 Global Transport (Vehicle)</p>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div className="flex-1">
+              <label className="label text-xs">Vehicle</label>
+              <select
+                className="input w-full"
+                value={globalVehicleId}
+                onChange={e => setGlobalVehicleId(e.target.value)}
+              >
+                <option value="">— No vehicle —</option>
+                {transportFees.map(tf => (
+                  <option key={tf.id} value={tf.id}>{tf.vehicleType}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {globalVehicleId && (
+            <div className="mt-3 flex items-center gap-4 text-xs text-gray-500">
+              <span>Transport per day:</span>
+              <span>
+                {currency} {(calculateModalTransport(globalVehicleId).costPerDay).toFixed(2)}
+              </span>
+              <span>Vehicles needed:</span>
+              <span>{calculateModalTransport(globalVehicleId).vehiclesNeeded}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Section 3: Day‑by‑day table (read‑only, click to edit) */}
         <div className="mb-5">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold text-gray-700 text-sm">🏕 Properties & Costs — Day by Day</h3>
-            <p className="text-xs text-gray-400">Accommodation = per person · Park/Transport = group total · ✈️ = flight per person</p>
+            <p className="text-xs text-gray-400">Click any day row to edit destination, hotel, room type, children, transport & extras.</p>
           </div>
           <div className="overflow-x-auto rounded-xl border border-orange-100">
             <table className="w-full text-xs">
               <thead className="bg-orange-100">
                 <tr>
-                  <th className="px-2 py-2 text-left font-semibold text-gray-600 w-14">Day</th>
+                  <th className="px-2 py-2 text-left font-semibold text-gray-600 w-14 cursor-pointer" onClick={() => {}}>Day</th>
                   <th className="px-2 py-2 text-left font-semibold text-gray-600 w-28">Destination</th>
                   <th className="px-2 py-2 text-left font-semibold text-gray-600">Hotel / Accommodation</th>
-                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Accom (per adult)</th>
+                  {dayRows.some(r => r.rateType === 'pps') && (
+                    <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Accom (per adult)</th>
+                  )}
                   {numChildren > 0 && <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Accom (per child)</th>}
-                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Single Room</th>
-                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">3rd Person</th>
+                  {dayRows.some(r => r.rateType === 'single' || r.rateType === 'mixed') && (
+                    <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Single Room</th>
+                  )}
+                  {dayRows.some(r => r.rateType === 'mixed') && (
+                    <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">3rd Person</th>
+                  )}
                   <th className="px-2 py-2 text-center font-semibold text-gray-600 w-20">Triple?</th>
                   {dayRows.some(r => r.isTriple) && (
                     <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Triple Rate (per room)</th>
                   )}
-                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Park Fees (group total)</th>
-                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Transport (group total)</th>
+                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Park Fees (group)</th>
+                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Transport (group)</th>
+                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-24">Extra Beds</th>
                   <th className="px-2 py-2 text-center font-semibold text-gray-600 w-28">Daily Extras</th>
                   <th className="px-2 py-2 text-center font-semibold text-gray-600 w-20">✈️</th>
                   {dayRows.some(r => r.hasFlight) && (
@@ -953,6 +1428,7 @@ export default function RateCalculator({
                     </>
                   )}
                   <th className="px-2 py-2 text-right font-semibold text-gray-600 w-28">Day Total</th>
+                  <th className="px-2 py-2 text-center font-semibold text-gray-600 w-20">Edit</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-orange-50">
@@ -961,140 +1437,56 @@ export default function RateCalculator({
                   const flightAdultDayTotal = row.hasFlight ? row.flightAdultPP * numAdults : 0;
                   const flightChildDayTotal = row.hasFlight ? row.flightChildPP * numChildren : 0;
                   const accomGroup = getAccommodationGroupTotal(row);
-                  const dayTotalBase = (getAccommodationGroupTotal(row) / numAdults) + row.parkFeeAdultTotal + row.parkFeeChildTotal + (row.transportTotal / numAdults) + (row.extrasTotal || 0) + flightAdultDayTotal + flightChildDayTotal;
-                  const selectedRate = getSelectedRate(row);
-                  const tripleRateDefault = (selectedRate?.thirdAdultRate && selectedRate?.ratePerPersonSharing)
-                    ? (selectedRate.ratePerPersonSharing * 2 + selectedRate.thirdAdultRate)
-                    : (row.adultAccomTotal > 0 && row.thirdPersonRate > 0)
-                      ? (row.adultAccomTotal * 2 + row.thirdPersonRate)
-                      : row.tripleRate;
+                  const dayTotalBase = accomGroup + row.parkFeeAdultTotal + row.parkFeeChildTotal + row.transportTotal + (row.extrasTotal || 0) + getExtraBedCost(row) + flightAdultDayTotal + flightChildDayTotal;
+                  const hotelObj = localHotels.find((h) => String(h.id) === row.hotelId);
+                  const destObj = localDests.find((d) => d.id === row.destinationId);
                   return (
-                    <tr key={i} className="hover:bg-orange-50/40">
+                    <tr key={i} className="hover:bg-orange-50/40 cursor-pointer border-b border-orange-20" onClick={() => openDayEditor(i)}>
                       <td className="px-2 py-2">
                         <span className="bg-orange-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">{i+1}</span>
                         {dayDate && <p className="text-gray-400 text-xs mt-0.5 whitespace-nowrap">{new Date(dayDate).toLocaleDateString('en-KE',{day:'numeric',month:'short'})}</p>}
                       </td>
-                      <td className="px-2 py-2">
-                        <select value={row.destinationId ?? ''} onChange={e => updateRow(i, { destinationId: e.target.value ? Number(e.target.value) : null, hotelId: '', hotelName: '', availableRates: [] })} className="input py-1 text-xs w-full">
-                          <option value="">— Select destination —</option>
-                          {localDests.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                        </select>
-                      </td>
-                      <td className="px-2 py-2 min-w-[180px]">
-                        <select className="input py-1 text-xs w-full" value={row.hotelId} onChange={e => onHotelChange(i, e.target.value)}>
-                          <option value="">— Select hotel —</option>
-                          {localHotels.filter(h => !row.destinationId || h.county.id === row.destinationId).map(h => (
-                            <option key={h.id} value={h.id}>{h.name} · {h.county.name}{h.stars ? ` ${'★'.repeat(h.stars)}` : ''}</option>
-                          ))}
-                        </select>
-{row.ratesLoading && <p className="text-orange-400 text-xs mt-1 flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin"/>Loading rates…</p>}
-                        {!row.ratesLoading && row.availableRates.length > 0 && (
-                          <select className="input py-1 text-xs w-full mt-1 border-orange-200 bg-orange-50" onChange={e => onRoomPriceSelect(i, e.target.value)} value={row.selectedRateId || ''}>
-                            <option value="">↑ Pick rate → auto‑fills totals</option>
-                            {row.availableRates.map(p => (
-                              <option key={p.id} value={p.id}>
-                                {p.roomType.name}: {p.ratePerPersonSharing ?? '?'}/adult · {p.childRate ?? 0}/child {p.thirdAdultRate ? `· triple: ${p.thirdAdultRate}` : ''} ({p.season?.name})
-                              </option>
-                            ))}
-                          </select>
+                      <td className="px-2 py-2">{destObj?.name || row.destinationId ? '—' : 'Not set'}</td>
+                      <td className="px-2 py-2 min-w-[180px] truncate">{row.hotelName || 'Not set'}{hotelObj ? ` (${hotelObj.stars ? '★'.repeat(hotelObj.stars) : ''})` : ''}</td>
+                      <td className="px-2 py-2 text-center">
+                        {row.rateType === 'single' ? (
+                          currency + fmt2(row.singleRoomRate || 0)
+                        ) : (
+                          currency + fmt2(row.adultAccomTotal || 0)
                         )}
-                        {!row.ratesLoading && row.availableRates.length === 0 && row.hotelId && startDate && (
-                          <p className="text-red-400 text-xs mt-1">No rates found for {dayDate}.</p>
-                        )}
-                        {!row.ratesMatched && row.availableRates.length > 0 && startDate && (
-                          <p className="text-yellow-600 text-xs mt-1">⚠ No rate covers {dayDate} — showing <em>all</em> seasons. Verify before saving.</p>
-                        )}
-                        {!row.hotelId && <input value={row.hotelName} onChange={e => updateRow(i, { hotelName: e.target.value })} className="input py-1 text-xs w-full mt-1" placeholder="Or type manually"/>}
                       </td>
-                      <td className="px-2 py-2 text-center">
-                        <input
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          value={row.adultAccomTotal || ''}
-                          onChange={e => updateRow(i, { adultAccomTotal: Number(e.target.value) })}
-                          className="input py-1 text-xs font-mono text-center w-full"
-                          placeholder="0"
-                        />
-                        <span className="text-gray-400 text-xs block">per adult</span>
-                      </td>
-                      {numChildren > 0 && <td className="px-2 py-2"><input type="number" min={0} step="0.01" value={row.childAccomTotal || ''} onChange={e => updateRow(i, { childAccomTotal: Number(e.target.value) })} className="input py-1 text-xs font-mono text-center w-full" placeholder="0"/><span className="text-gray-400 text-xs block text-center">per child</span></td>}
-                      <td className="px-2 py-2 text-center">
-                        <input
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          value={row.singleRoomRate || ''}
-                          onChange={e => updateRow(i, { singleRoomRate: Number(e.target.value) })}
-                          className="input py-1 text-xs font-mono text-center w-full"
-                          placeholder="0"
-                        />
-                        <span className="text-gray-400 text-xs block">single room</span>
-                      </td>
-                      <td className="px-2 py-2 text-center">
-                        <input
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          value={row.thirdPersonRate || ''}
-                          onChange={e => {
-                            const newThirdPersonRate = Number(e.target.value);
-                            let tripleRate = row.tripleRate;
-                            if (row.isTriple && row.adultAccomTotal > 0) {
-                              tripleRate = (row.adultAccomTotal * 2) + newThirdPersonRate;
-                            }
-                            updateRow(i, { thirdPersonRate: newThirdPersonRate, tripleRate });
-                          }}
-                          className="input py-1 text-xs font-mono text-center w-full"
-                          placeholder="0"
-                        />
-                        <span className="text-gray-400 text-xs block">3rd person</span>
-                      </td>
-                      <td className="px-2 py-2 text-center">
-                        <input
-                          type="checkbox"
-                          checked={row.isTriple}
-                          onChange={e => {
-                            const newTriple = e.target.checked;
-                            let tripleRate = row.tripleRate;
-                            if (newTriple && tripleRate === 0) {
-                              if (selectedRate?.thirdAdultRate && selectedRate.ratePerPersonSharing) {
-                                tripleRate = (selectedRate.ratePerPersonSharing * 2) + selectedRate.thirdAdultRate;
-                              } else if (row.adultAccomTotal > 0 && row.thirdPersonRate > 0) {
-                                tripleRate = (row.adultAccomTotal * 2) + row.thirdPersonRate;
-                              }
-                            }
-                            updateRow(i, { isTriple: newTriple, tripleRate: newTriple ? tripleRate : 0 });
-                          }}
-                          className="w-4 h-4"
-                        />
-                        <span className="text-xs text-gray-400 block">Triple room</span>
-                      </td>
-                      {row.isTriple && (
+                      {numChildren > 0 && (
                         <td className="px-2 py-2 text-center">
-                          <input
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={row.tripleRate || ''}
-                            onChange={e => updateRow(i, { tripleRate: Number(e.target.value) })}
-                            className="input py-1 text-xs font-mono text-center w-full"
-                            placeholder="0"
-                          />
-                          <span className="text-gray-400 text-xs block">total for triple room</span>
+                          {currency + fmt2(row.childAccomTotal || 0)}
                         </td>
                       )}
-                      <td className="px-2 py-2"><input type="number" min={0} step="0.01" value={row.parkFeeAdultTotal || ''} onChange={e => updateRow(i, { parkFeeAdultTotal: Number(e.target.value) })} className="input py-1 text-xs font-mono text-center w-full" placeholder="0"/></td>
-                      <td className="px-2 py-2"><input type="number" min={0} step="0.01" value={row.transportTotal || ''} onChange={e => updateRow(i, { transportTotal: Number(e.target.value) })} className="input py-1 text-xs font-mono text-center w-full" placeholder="0"/></td>
-                      <td className="px-2 py-2"><input type="number" min={0} step="0.01" value={row.extrasTotal || ''} onChange={e => updateRow(i, { extrasTotal: Number(e.target.value) })} className="input py-1 text-xs font-mono text-center w-full" placeholder="0"/></td>
-                      <td className="px-2 py-2 text-center"><input type="checkbox" checked={row.hasFlight} onChange={e => updateRow(i, { hasFlight: e.target.checked })} className="w-4 h-4"/></td>
+                      {row.rateType === 'single' ? (
+                        <td className="px-2 py-2 text-center">
+                          {currency + fmt2(row.singleRoomRate || 0)}
+                        </td>
+                      ) : null}
+                      {row.rateType === 'mixed' ? (
+                        <td className="px-2 py-2 text-center">
+                          {currency + fmt2(row.thirdPersonRate || 0)}
+                        </td>
+                      ) : null}
+                      <td className="px-2 py-2 text-center">{row.isTriple ? 'Yes' : 'No'}</td>
+                      {row.isTriple && (
+                        <td className="px-2 py-2 text-center">{currency} {fmt2(row.tripleRate || 0)}</td>
+                      )}
+                      <td className="px-2 py-2 text-center">{currency} {fmt2(row.parkFeeAdultTotal + row.parkFeeChildTotal)}</td>
+                      <td className="px-2 py-2 text-center">{currency} {fmt2(row.transportTotal || 0)}</td>
+                      <td className="px-2 py-2 text-center">{row.extraBeds || 0}</td>
+                      <td className="px-2 py-2 text-center">{currency} {fmt2(row.extrasTotal || 0)}</td>
+                      <td className="px-2 py-2 text-center">{row.hasFlight ? '✈️' : '—'}</td>
                       {row.hasFlight && (
                         <>
-                          <td className="px-2 py-2"><input type="number" min={0} step="0.01" value={row.flightAdultPP || ''} onChange={e => updateRow(i, { flightAdultPP: Number(e.target.value) })} className="input py-1 text-xs font-mono text-center w-full" placeholder="0"/>{row.flightAdultPP > 0 && <p className="text-gray-400 text-xs text-center mt-0.5">={fmt2(flightAdultDayTotal)} total</p>}</td>
-                          <td className="px-2 py-2"><input type="number" min={0} step="0.01" value={row.flightChildPP || ''} onChange={e => updateRow(i, { flightChildPP: Number(e.target.value) })} className="input py-1 text-xs font-mono text-center w-full" placeholder="0"/>{numChildren > 0 && row.flightChildPP > 0 && <p className="text-gray-400 text-xs text-center mt-0.5">={fmt2(flightChildDayTotal)} total</p>}</td>
+                          <td className="px-2 py-2 text-center">{currency} {fmt2(flightAdultDayTotal)}</td>
+                          <td className="px-2 py-2 text-center">{currency} {fmt2(flightChildDayTotal)}</td>
                         </>
                       )}
                       <td className="px-2 py-2 text-right"><p className="font-mono font-bold text-gray-800">{currency} {fmt2(dayTotalBase)}</p><p className="text-gray-400 text-xs">{numPax > 0 ? fmt2(dayTotalBase / numPax) : '0'}/pax</p></td>
+                      <td className="px-2 py-2 text-center"><button onClick={(e) => { e.stopPropagation(); openDayEditor(i); }} className="text-xs text-orange-600 hover:underline px-2">✎</button></td>
                     </tr>
                   );
                 })}
@@ -1102,6 +1494,396 @@ export default function RateCalculator({
             </table>
           </div>
         </div>
+
+        {/* Day Editor Modal */}
+        {editingDay !== null && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={closeDayEditor} />
+            <div className="relative z-10 bg-white rounded-2xl shadow-2xl w-full max-w-4xl p-6 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-800">Edit Day {editingDay + 1}</h3>
+                <button type="button" onClick={closeDayEditor} className="text-gray-500 hover:text-gray-700">✕</button>
+              </div>
+
+              <div className="space-y-5">
+                {/* Step 1: Destination */}
+                <div className="border-b border-gray-100 pb-2">
+                  <label className="label text-xs block mb-1">1. Destination</label>
+                  <select
+                    className="input w-full"
+                    value={modalDestId ?? ''}
+                    onChange={e => onModalDestChange(e.target.value ? Number(e.target.value) : null)}
+                  >
+                    <option value="">— Select destination —</option>
+                    {localDests.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </select>
+                </div>
+
+                {/* Step 2: Hotel */}
+                <div className="border-b border-gray-100 pb-2">
+                  <label className="label text-xs block mb-1">2. Hotel</label>
+                  <select
+                    className="input w-full"
+                    value={modalHotelId}
+                    onChange={e => onModalHotelChange(e.target.value)}
+                    disabled={!modalDestId}
+                  >
+                    <option value="">— Select hotel —</option>
+                    {modalHotels.map(h => (
+                      <option key={h.id} value={h.id}>{h.name} · {h.county.name}{h.stars ? ` ${'★'.repeat(h.stars)}` : ''}</option>
+                    ))}
+                  </select>
+                  {!modalDestId && <p className="text-xs text-gray-400 mt-1">Select a destination first</p>}
+                </div>
+
+                {/* Step 3: Room Type */}
+                <div className="border-b border-gray-100 pb-2">
+                  <label className="label text-xs block mb-1">3. Room Type</label>
+                  {modalLoading && <p className="text-xs text-orange-500">Loading room types…</p>}
+                  {!modalLoading && modalFallback && (
+                    <p className="text-xs text-yellow-600 mt-0.5 mb-2">{modalFallback.message}</p>
+                  )}
+                  {!modalLoading && modalRoomTypes.length > 0 && (
+                    <select
+                      className="input w-full"
+                      value={modalRoomTypeId}
+                      onChange={e => onModalRoomTypeChange(e.target.value)}
+                    >
+                      <option value="">— Select room type —</option>
+                      {modalRoomTypes.map(rt => (
+                        <option key={rt.id} value={rt.id}>
+                          {rt.name} (max {rt.maxOccupancy}) · PPS: {currency} {rt.ratePerPersonSharing?.toFixed(0) ?? '—'} · Single: {currency} {rt.singleRoomRate?.toFixed(0) ?? '—'} · Child: {currency} {rt.childRate?.toFixed(0) ?? '—'} · 3rd Adult: {currency} {rt.thirdAdultRate?.toFixed(0) ?? '—'}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                {/* Step 4: Accommodation Rates */}
+                <div className="border-b border-gray-100 pb-2">
+                  <label className="label text-xs block mb-1">4. Accommodation Rates</label>
+                  {numAdults + numChildren === 0 && (
+                    <p className="text-xs text-gray-400 mb-2">Enter Adults/Children above first.</p>
+                  )}
+                  {numAdults + numChildren > 0 && (
+                    <>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {numAdults + numChildren === 1 ? (
+                          // Single traveller → only Single Room Rate
+                          <div>
+                            <label className="label text-xs block mb-1">Single Room Rate</label>
+                            <input
+                              type="number" min={0} step="0.01"
+                              value={modalSingleRoomRate}
+                              onChange={e => setModalSingleRoomRate(Number(e.target.value))}
+                              className="input w-full font-mono text-sm" placeholder="0"
+                            />
+                          </div>
+                        ) : numAdults + numChildren === 2 ? (
+                          // Two persons → only Per Person Sharing
+                          <div>
+                            <label className="label text-xs block mb-1">Adult Accom (per person)</label>
+                            <input
+                              type="number" min={0} step="0.01"
+                              value={modalAdultAccomTotal}
+                              onChange={e => setModalAdultAccomTotal(Number(e.target.value))}
+                              className="input w-full font-mono text-sm" placeholder="0"
+                            />
+                          </div>
+                        ) : (
+                          // 3+ persons → rate type selector + relevant fields
+                          <>
+                            <div className="flex items-end gap-2">
+                              <label className="label text-xs block">Rate Type</label>
+                              <div className="flex gap-1">
+                                {RATE_TYPE_OPTIONS.map((rt) => (
+                                  <button
+                                    key={rt.value}
+                                    type="button"
+                                    onClick={() => setModalRateType(rt.value)}
+                                    className={`px-2 py-1 text-xs border rounded ${
+                                      modalRateType === rt.value
+                                        ? 'bg-orange-100 text-orange-700 border-orange-500 font-medium'
+                                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    {rt.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            {modalRateType === 'single' && (
+                              <div>
+                                <label className="label text-xs block mb-1">Single Room Rate</label>
+                                <input
+                                  type="number" min={0} step="0.01"
+                                  value={modalSingleRoomRate}
+                                  onChange={e => setModalSingleRoomRate(Number(e.target.value))}
+                                  className="input w-full font-mono text-sm" placeholder="0"
+                                />
+                              </div>
+                            )}
+                            {modalRateType === 'pps' && (
+                              <div>
+                                <label className="label text-xs block mb-1">Adult Accom (per person)</label>
+                                <input
+                                  type="number" min={0} step="0.01"
+                                  value={modalAdultAccomTotal}
+                                  onChange={e => setModalAdultAccomTotal(Number(e.target.value))}
+                                  className="input w-full font-mono text-sm" placeholder="0"
+                                />
+                              </div>
+                            )}
+                            {modalRateType === 'mixed' && (
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <div>
+                                  <label className="label text-xs block mb-1">Single Room Rate</label>
+                                  <input
+                                    type="number" min={0} step="0.01"
+                                    value={modalSingleRoomRate}
+                                    onChange={e => setModalSingleRoomRate(Number(e.target.value))}
+                                    className="input w-full font-mono text-sm" placeholder="0"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="label text-xs block mb-1">Adult Accom (per person)</label>
+                                  <input
+                                    type="number" min={0} step="0.01"
+                                    value={modalAdultAccomTotal}
+                                    onChange={e => setModalAdultAccomTotal(Number(e.target.value))}
+                                    className="input w-full font-mono text-sm" placeholder="0"
+                                  />
+                                </div>
+                                {numChildren > 0 && (
+                                  <div>
+                                    <label className="label text-xs block mb-1">Child Accom (per child)</label>
+                                    <input
+                                      type="number" min={0} step="0.01"
+                                      value={modalChildAccomTotal}
+                                      onChange={e => setModalChildAccomTotal(Number(e.target.value))}
+                                      className="input w-full font-mono text-sm" placeholder="0"
+                                    />
+                                  </div>
+                                )}
+                                <div>
+                                  <label className="label text-xs block mb-1">3rd Person Rate</label>
+                                  <input
+                                    type="number" min={0} step="0.01"
+                                    value={modalThirdPersonRate}
+                                    onChange={e => setModalThirdPersonRate(Number(e.target.value))}
+                                    className="input w-full font-mono text-sm" placeholder="0"
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                      {modalRateType === 'mixed' && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={modalIsTriple}
+                            onChange={e => setModalIsTriple(e.target.checked)}
+                            className="rounded"
+                          />
+                          <label className="text-xs font-medium text-gray-700 cursor-pointer">Triple Room</label>
+                          {modalIsTriple && (
+                            <div className="ml-4">
+                              <label className="label text-xs block mb-1">Triple Rate (per room)</label>
+                              <input
+                                type="number" min={0} step="0.01"
+                                value={modalTripleRate}
+                                onChange={e => setModalTripleRate(Number(e.target.value))}
+                                className="input w-32 font-mono text-sm" placeholder="0"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {/* Step 5: Children Ages */}
+                {numChildren > 0 && (
+                  <div className="border-b border-gray-100 pb-2">
+                    <label className="label text-xs block mb-1">5. Child Ages</label>
+                    <p className="text-xs text-gray-400 mt-0.5 mb-2">Enter each child's age for age-based pricing.</p>
+                    <div className="flex gap-2 flex-wrap">
+                      {childrenAges.map((age, idx) => (
+                        <input
+                          key={idx}
+                          type="number"
+                          min={0}
+                          max={18}
+                          value={age}
+                          onChange={e => {
+                            const next = [...childrenAges];
+                            next[idx] = Number(e.target.value) || 0;
+                            setChildrenAges(next);
+                          }}
+                          className="input text-sm w-16"
+                          placeholder="Age"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 6: Extra Beds */}
+                {numAdults + numChildren > 1 && (
+                  <div className="border-b border-gray-100 pb-2">
+                    <label className="label text-xs block mb-1">6. Extra Beds</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={modalExtraBeds}
+                      onChange={e => setModalExtraBeds(Number(e.target.value))}
+                      className="input w-24 font-mono text-sm" placeholder="0"
+                    />
+                    {modalHotelId && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        Rate: {currency} {fmt2(localHotels.find((h) => String(h.id) === modalHotelId)?.extraBedRate ?? 0)} / bed
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Step 7: Park Fees */}
+                <div className="border-b border-gray-100 pb-2">
+                  <label className="label text-xs block mb-1">7. Park Fees (group total)</label>
+                  {modalParkFees.length === 0 && (
+                    <p className="text-xs text-gray-400 mb-2">No park fees for this destination.</p>
+                  )}
+                  {modalParkFees.length > 0 && (
+                    <div className="space-y-2">
+                      {modalParkFees.map((pf) => {
+                        const isAdult = pf.name?.toLowerCase().includes('adult');
+                        const isChild = pf.name?.toLowerCase().includes('child');
+                        const isSelected = isAdult
+                          ? modalParkFeeAdult === pf.fee
+                          : isChild
+                            ? modalParkFeeChild === pf.fee
+                            : false;
+                        return (
+                          <div key={pf.id} className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                const val = e.target.checked ? pf.fee : 0;
+                                if (isAdult) setModalParkFeeAdult(val);
+                                else if (isChild) setModalParkFeeChild(val);
+                              }}
+                              className="rounded"
+                            />
+                            <label className="text-xs text-gray-700 cursor-pointer">
+                              {pf.name} — {currency} {pf.fee?.toFixed(0)}
+                            </label>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Step 8: Transport */}
+                <div className="border-b border-gray-100 pb-2">
+                  <label className="label text-xs block mb-1">8. Transport</label>
+                  <div>
+                    <label className="label text-xs block mb-1">Vehicle</label>
+                    <select
+                      className="input w-full"
+                      value={modalVehicleId}
+                      onChange={e => onModalVehicleChange(e.target.value)}
+                    >
+                      <option value="">— No vehicle —</option>
+                      {transportFees.map(tf => (
+                        <option key={tf.id} value={tf.id}>{tf.vehicleType}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {modalVehicleId && (
+                    <div className="mt-2">
+                      <p className="text-xs text-gray-500 mb-1">
+                        Pax: {numPax} · Vehicles needed: {calculateModalTransport(modalVehicleId).vehiclesNeeded} ·
+                        Calc. cost/day: {currency} {fmt2(calculateModalTransport(modalVehicleId).costPerDay)}
+                      </p>
+                    </div>
+                  )}
+                  <div className="mt-2">
+                    <label className="label text-xs block mb-1">Transport Total (override)</label>
+                    <input
+                      type="number" min={0} step="0.01"
+                      value={modalTransportTotal}
+                      onChange={e => setModalTransportTotal(Number(e.target.value))}
+                      className="input w-full font-mono text-sm" placeholder="0"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">Leave 0 to use vehicle-calculated cost.</p>
+                  </div>
+                </div>
+
+                {/* Step 9: Daily Extras */}
+                <div className="border-b border-gray-100 pb-2">
+                  <label className="label text-xs block mb-1">9. Daily Extras</label>
+                  <input
+                    type="number" min={0} step="0.01"
+                    value={modalExtrasTotal}
+                    onChange={e => setModalExtrasTotal(Number(e.target.value))}
+                    className="input w-full font-mono text-sm" placeholder="0"
+                  />
+                </div>
+
+                {/* Step 10: Flight */}
+                <div className="border-b border-gray-100 pb-2">
+                  <label className="label text-xs block mb-1">10. Flight</label>
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      type="checkbox"
+                      checked={modalHasFlight}
+                      onChange={e => setModalHasFlight(e.target.checked)}
+                      className="rounded"
+                    />
+                    <label className="text-xs font-medium text-gray-700 cursor-pointer">Has Flight</label>
+                  </div>
+                  {modalHasFlight && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="label text-xs block mb-1">Flight (per adult)</label>
+                        <input
+                          type="number" min={0} step="0.01"
+                          value={modalFlightAdultPP}
+                          onChange={e => setModalFlightAdultPP(Number(e.target.value))}
+                          className="input w-full font-mono text-sm" placeholder="0"
+                        />
+                      </div>
+                      {numChildren > 0 && (
+                        <div>
+                          <label className="label text-xs block mb-1">Flight (per child)</label>
+                          <input
+                            type="number" min={0} step="0.01"
+                            value={modalFlightChildPP}
+                            onChange={e => setModalFlightChildPP(Number(e.target.value))}
+                            className="input w-full font-mono text-sm" placeholder="0"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end pt-4 border-t border-gray-100">
+                <button type="button" onClick={closeDayEditor} className="btn-secondary text-sm px-4">Cancel</button>
+                <button type="button" onClick={onModalSave} disabled={!modalHotelId} className="btn-primary text-sm px-4">
+                  {modalLoading ? 'Saving…' : 'Save Day'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Extras sections */}
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-5">

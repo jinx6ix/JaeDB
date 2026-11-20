@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
         boardBasis:       body.boardBasis        || 'FB',
         currency:         body.currency          || 'USD',
         dayRows:          body.dayRows,          // ✅ NO extra stringify
+        childrenAges:     body.childrenAges      ? JSON.stringify(body.childrenAges) : null,
         fileHandlingFee:  Number(body.fileHandlingFee)  || 0,
         ecoBottle:        Number(body.ecoBottle)        || 0,
         evacInsurance:    Number(body.evacInsurance)    || 0,

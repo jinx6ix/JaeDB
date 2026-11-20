@@ -30,12 +30,18 @@ export type SRHotelAvgAggregateOutputType = {
   id: number | null
   countyId: number | null
   stars: number | null
+  childFreeAge: number | null
+  childChargeAge: number | null
+  extraBedRate: number | null
 }
 
 export type SRHotelSumAggregateOutputType = {
   id: number | null
   countyId: number | null
   stars: number | null
+  childFreeAge: number | null
+  childChargeAge: number | null
+  extraBedRate: number | null
 }
 
 export type SRHotelMinAggregateOutputType = {
@@ -48,6 +54,9 @@ export type SRHotelMinAggregateOutputType = {
   contactPhone: string | null
   notes: string | null
   description: string | null
+  childFreeAge: number | null
+  childChargeAge: number | null
+  extraBedRate: number | null
   createdAt: Date | null
 }
 
@@ -61,6 +70,9 @@ export type SRHotelMaxAggregateOutputType = {
   contactPhone: string | null
   notes: string | null
   description: string | null
+  childFreeAge: number | null
+  childChargeAge: number | null
+  extraBedRate: number | null
   createdAt: Date | null
 }
 
@@ -74,6 +86,9 @@ export type SRHotelCountAggregateOutputType = {
   contactPhone: number
   notes: number
   description: number
+  childFreeAge: number
+  childChargeAge: number
+  extraBedRate: number
   createdAt: number
   _all: number
 }
@@ -83,12 +98,18 @@ export type SRHotelAvgAggregateInputType = {
   id?: true
   countyId?: true
   stars?: true
+  childFreeAge?: true
+  childChargeAge?: true
+  extraBedRate?: true
 }
 
 export type SRHotelSumAggregateInputType = {
   id?: true
   countyId?: true
   stars?: true
+  childFreeAge?: true
+  childChargeAge?: true
+  extraBedRate?: true
 }
 
 export type SRHotelMinAggregateInputType = {
@@ -101,6 +122,9 @@ export type SRHotelMinAggregateInputType = {
   contactPhone?: true
   notes?: true
   description?: true
+  childFreeAge?: true
+  childChargeAge?: true
+  extraBedRate?: true
   createdAt?: true
 }
 
@@ -114,6 +138,9 @@ export type SRHotelMaxAggregateInputType = {
   contactPhone?: true
   notes?: true
   description?: true
+  childFreeAge?: true
+  childChargeAge?: true
+  extraBedRate?: true
   createdAt?: true
 }
 
@@ -127,6 +154,9 @@ export type SRHotelCountAggregateInputType = {
   contactPhone?: true
   notes?: true
   description?: true
+  childFreeAge?: true
+  childChargeAge?: true
+  extraBedRate?: true
   createdAt?: true
   _all?: true
 }
@@ -227,6 +257,9 @@ export type SRHotelGroupByOutputType = {
   contactPhone: string | null
   notes: string | null
   description: string | null
+  childFreeAge: number | null
+  childChargeAge: number | null
+  extraBedRate: number | null
   createdAt: Date
   _count: SRHotelCountAggregateOutputType | null
   _avg: SRHotelAvgAggregateOutputType | null
@@ -263,6 +296,9 @@ export type SRHotelWhereInput = {
   contactPhone?: Prisma.StringNullableFilter<"SRHotel"> | string | null
   notes?: Prisma.StringNullableFilter<"SRHotel"> | string | null
   description?: Prisma.StringNullableFilter<"SRHotel"> | string | null
+  childFreeAge?: Prisma.IntNullableFilter<"SRHotel"> | number | null
+  childChargeAge?: Prisma.IntNullableFilter<"SRHotel"> | number | null
+  extraBedRate?: Prisma.FloatNullableFilter<"SRHotel"> | number | null
   createdAt?: Prisma.DateTimeFilter<"SRHotel"> | Date | string
   images?: Prisma.SRHotelImageListRelationFilter
   county?: Prisma.XOR<Prisma.SRCountyScalarRelationFilter, Prisma.SRCountyWhereInput>
@@ -280,6 +316,9 @@ export type SRHotelOrderByWithRelationInput = {
   contactPhone?: Prisma.SortOrderInput | Prisma.SortOrder
   notes?: Prisma.SortOrderInput | Prisma.SortOrder
   description?: Prisma.SortOrderInput | Prisma.SortOrder
+  childFreeAge?: Prisma.SortOrderInput | Prisma.SortOrder
+  childChargeAge?: Prisma.SortOrderInput | Prisma.SortOrder
+  extraBedRate?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   images?: Prisma.SRHotelImageOrderByRelationAggregateInput
   county?: Prisma.SRCountyOrderByWithRelationInput
@@ -301,6 +340,9 @@ export type SRHotelWhereUniqueInput = Prisma.AtLeast<{
   contactPhone?: Prisma.StringNullableFilter<"SRHotel"> | string | null
   notes?: Prisma.StringNullableFilter<"SRHotel"> | string | null
   description?: Prisma.StringNullableFilter<"SRHotel"> | string | null
+  childFreeAge?: Prisma.IntNullableFilter<"SRHotel"> | number | null
+  childChargeAge?: Prisma.IntNullableFilter<"SRHotel"> | number | null
+  extraBedRate?: Prisma.FloatNullableFilter<"SRHotel"> | number | null
   createdAt?: Prisma.DateTimeFilter<"SRHotel"> | Date | string
   images?: Prisma.SRHotelImageListRelationFilter
   county?: Prisma.XOR<Prisma.SRCountyScalarRelationFilter, Prisma.SRCountyWhereInput>
@@ -318,6 +360,9 @@ export type SRHotelOrderByWithAggregationInput = {
   contactPhone?: Prisma.SortOrderInput | Prisma.SortOrder
   notes?: Prisma.SortOrderInput | Prisma.SortOrder
   description?: Prisma.SortOrderInput | Prisma.SortOrder
+  childFreeAge?: Prisma.SortOrderInput | Prisma.SortOrder
+  childChargeAge?: Prisma.SortOrderInput | Prisma.SortOrder
+  extraBedRate?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.SRHotelCountOrderByAggregateInput
   _avg?: Prisma.SRHotelAvgOrderByAggregateInput
@@ -339,6 +384,9 @@ export type SRHotelScalarWhereWithAggregatesInput = {
   contactPhone?: Prisma.StringNullableWithAggregatesFilter<"SRHotel"> | string | null
   notes?: Prisma.StringNullableWithAggregatesFilter<"SRHotel"> | string | null
   description?: Prisma.StringNullableWithAggregatesFilter<"SRHotel"> | string | null
+  childFreeAge?: Prisma.IntNullableWithAggregatesFilter<"SRHotel"> | number | null
+  childChargeAge?: Prisma.IntNullableWithAggregatesFilter<"SRHotel"> | number | null
+  extraBedRate?: Prisma.FloatNullableWithAggregatesFilter<"SRHotel"> | number | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"SRHotel"> | Date | string
 }
 
@@ -350,6 +398,9 @@ export type SRHotelCreateInput = {
   contactPhone?: string | null
   notes?: string | null
   description?: string | null
+  childFreeAge?: number | null
+  childChargeAge?: number | null
+  extraBedRate?: number | null
   createdAt?: Date | string
   images?: Prisma.SRHotelImageCreateNestedManyWithoutHotelInput
   county: Prisma.SRCountyCreateNestedOneWithoutHotelsInput
@@ -367,6 +418,9 @@ export type SRHotelUncheckedCreateInput = {
   contactPhone?: string | null
   notes?: string | null
   description?: string | null
+  childFreeAge?: number | null
+  childChargeAge?: number | null
+  extraBedRate?: number | null
   createdAt?: Date | string
   images?: Prisma.SRHotelImageUncheckedCreateNestedManyWithoutHotelInput
   roomTypes?: Prisma.SRRoomTypeUncheckedCreateNestedManyWithoutHotelInput
@@ -381,6 +435,9 @@ export type SRHotelUpdateInput = {
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  childFreeAge?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  childChargeAge?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  extraBedRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   images?: Prisma.SRHotelImageUpdateManyWithoutHotelNestedInput
   county?: Prisma.SRCountyUpdateOneRequiredWithoutHotelsNestedInput
@@ -398,6 +455,9 @@ export type SRHotelUncheckedUpdateInput = {
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  childFreeAge?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  childChargeAge?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  extraBedRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   images?: Prisma.SRHotelImageUncheckedUpdateManyWithoutHotelNestedInput
   roomTypes?: Prisma.SRRoomTypeUncheckedUpdateManyWithoutHotelNestedInput
@@ -414,6 +474,9 @@ export type SRHotelCreateManyInput = {
   contactPhone?: string | null
   notes?: string | null
   description?: string | null
+  childFreeAge?: number | null
+  childChargeAge?: number | null
+  extraBedRate?: number | null
   createdAt?: Date | string
 }
 
@@ -425,6 +488,9 @@ export type SRHotelUpdateManyMutationInput = {
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  childFreeAge?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  childChargeAge?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  extraBedRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -438,6 +504,9 @@ export type SRHotelUncheckedUpdateManyInput = {
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  childFreeAge?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  childChargeAge?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  extraBedRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -466,6 +535,9 @@ export type SRHotelCountOrderByAggregateInput = {
   contactPhone?: Prisma.SortOrder
   notes?: Prisma.SortOrder
   description?: Prisma.SortOrder
+  childFreeAge?: Prisma.SortOrder
+  childChargeAge?: Prisma.SortOrder
+  extraBedRate?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -473,6 +545,9 @@ export type SRHotelAvgOrderByAggregateInput = {
   id?: Prisma.SortOrder
   countyId?: Prisma.SortOrder
   stars?: Prisma.SortOrder
+  childFreeAge?: Prisma.SortOrder
+  childChargeAge?: Prisma.SortOrder
+  extraBedRate?: Prisma.SortOrder
 }
 
 export type SRHotelMaxOrderByAggregateInput = {
@@ -485,6 +560,9 @@ export type SRHotelMaxOrderByAggregateInput = {
   contactPhone?: Prisma.SortOrder
   notes?: Prisma.SortOrder
   description?: Prisma.SortOrder
+  childFreeAge?: Prisma.SortOrder
+  childChargeAge?: Prisma.SortOrder
+  extraBedRate?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -498,6 +576,9 @@ export type SRHotelMinOrderByAggregateInput = {
   contactPhone?: Prisma.SortOrder
   notes?: Prisma.SortOrder
   description?: Prisma.SortOrder
+  childFreeAge?: Prisma.SortOrder
+  childChargeAge?: Prisma.SortOrder
+  extraBedRate?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -505,6 +586,9 @@ export type SRHotelSumOrderByAggregateInput = {
   id?: Prisma.SortOrder
   countyId?: Prisma.SortOrder
   stars?: Prisma.SortOrder
+  childFreeAge?: Prisma.SortOrder
+  childChargeAge?: Prisma.SortOrder
+  extraBedRate?: Prisma.SortOrder
 }
 
 export type SRHotelScalarRelationFilter = {
@@ -604,6 +688,9 @@ export type SRHotelCreateWithoutCountyInput = {
   contactPhone?: string | null
   notes?: string | null
   description?: string | null
+  childFreeAge?: number | null
+  childChargeAge?: number | null
+  extraBedRate?: number | null
   createdAt?: Date | string
   images?: Prisma.SRHotelImageCreateNestedManyWithoutHotelInput
   roomTypes?: Prisma.SRRoomTypeCreateNestedManyWithoutHotelInput
@@ -619,6 +706,9 @@ export type SRHotelUncheckedCreateWithoutCountyInput = {
   contactPhone?: string | null
   notes?: string | null
   description?: string | null
+  childFreeAge?: number | null
+  childChargeAge?: number | null
+  extraBedRate?: number | null
   createdAt?: Date | string
   images?: Prisma.SRHotelImageUncheckedCreateNestedManyWithoutHotelInput
   roomTypes?: Prisma.SRRoomTypeUncheckedCreateNestedManyWithoutHotelInput
@@ -664,6 +754,9 @@ export type SRHotelScalarWhereInput = {
   contactPhone?: Prisma.StringNullableFilter<"SRHotel"> | string | null
   notes?: Prisma.StringNullableFilter<"SRHotel"> | string | null
   description?: Prisma.StringNullableFilter<"SRHotel"> | string | null
+  childFreeAge?: Prisma.IntNullableFilter<"SRHotel"> | number | null
+  childChargeAge?: Prisma.IntNullableFilter<"SRHotel"> | number | null
+  extraBedRate?: Prisma.FloatNullableFilter<"SRHotel"> | number | null
   createdAt?: Prisma.DateTimeFilter<"SRHotel"> | Date | string
 }
 
@@ -675,6 +768,9 @@ export type SRHotelCreateWithoutImagesInput = {
   contactPhone?: string | null
   notes?: string | null
   description?: string | null
+  childFreeAge?: number | null
+  childChargeAge?: number | null
+  extraBedRate?: number | null
   createdAt?: Date | string
   county: Prisma.SRCountyCreateNestedOneWithoutHotelsInput
   roomTypes?: Prisma.SRRoomTypeCreateNestedManyWithoutHotelInput
@@ -691,6 +787,9 @@ export type SRHotelUncheckedCreateWithoutImagesInput = {
   contactPhone?: string | null
   notes?: string | null
   description?: string | null
+  childFreeAge?: number | null
+  childChargeAge?: number | null
+  extraBedRate?: number | null
   createdAt?: Date | string
   roomTypes?: Prisma.SRRoomTypeUncheckedCreateNestedManyWithoutHotelInput
   seasons?: Prisma.SRSeasonUncheckedCreateNestedManyWithoutHotelInput
@@ -720,6 +819,9 @@ export type SRHotelUpdateWithoutImagesInput = {
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  childFreeAge?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  childChargeAge?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  extraBedRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   county?: Prisma.SRCountyUpdateOneRequiredWithoutHotelsNestedInput
   roomTypes?: Prisma.SRRoomTypeUpdateManyWithoutHotelNestedInput
@@ -736,6 +838,9 @@ export type SRHotelUncheckedUpdateWithoutImagesInput = {
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  childFreeAge?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  childChargeAge?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  extraBedRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   roomTypes?: Prisma.SRRoomTypeUncheckedUpdateManyWithoutHotelNestedInput
   seasons?: Prisma.SRSeasonUncheckedUpdateManyWithoutHotelNestedInput
@@ -749,6 +854,9 @@ export type SRHotelCreateWithoutRoomTypesInput = {
   contactPhone?: string | null
   notes?: string | null
   description?: string | null
+  childFreeAge?: number | null
+  childChargeAge?: number | null
+  extraBedRate?: number | null
   createdAt?: Date | string
   images?: Prisma.SRHotelImageCreateNestedManyWithoutHotelInput
   county: Prisma.SRCountyCreateNestedOneWithoutHotelsInput
@@ -765,6 +873,9 @@ export type SRHotelUncheckedCreateWithoutRoomTypesInput = {
   contactPhone?: string | null
   notes?: string | null
   description?: string | null
+  childFreeAge?: number | null
+  childChargeAge?: number | null
+  extraBedRate?: number | null
   createdAt?: Date | string
   images?: Prisma.SRHotelImageUncheckedCreateNestedManyWithoutHotelInput
   seasons?: Prisma.SRSeasonUncheckedCreateNestedManyWithoutHotelInput
@@ -794,6 +905,9 @@ export type SRHotelUpdateWithoutRoomTypesInput = {
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  childFreeAge?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  childChargeAge?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  extraBedRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   images?: Prisma.SRHotelImageUpdateManyWithoutHotelNestedInput
   county?: Prisma.SRCountyUpdateOneRequiredWithoutHotelsNestedInput
@@ -810,6 +924,9 @@ export type SRHotelUncheckedUpdateWithoutRoomTypesInput = {
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  childFreeAge?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  childChargeAge?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  extraBedRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   images?: Prisma.SRHotelImageUncheckedUpdateManyWithoutHotelNestedInput
   seasons?: Prisma.SRSeasonUncheckedUpdateManyWithoutHotelNestedInput
@@ -823,6 +940,9 @@ export type SRHotelCreateWithoutSeasonsInput = {
   contactPhone?: string | null
   notes?: string | null
   description?: string | null
+  childFreeAge?: number | null
+  childChargeAge?: number | null
+  extraBedRate?: number | null
   createdAt?: Date | string
   images?: Prisma.SRHotelImageCreateNestedManyWithoutHotelInput
   county: Prisma.SRCountyCreateNestedOneWithoutHotelsInput
@@ -839,6 +959,9 @@ export type SRHotelUncheckedCreateWithoutSeasonsInput = {
   contactPhone?: string | null
   notes?: string | null
   description?: string | null
+  childFreeAge?: number | null
+  childChargeAge?: number | null
+  extraBedRate?: number | null
   createdAt?: Date | string
   images?: Prisma.SRHotelImageUncheckedCreateNestedManyWithoutHotelInput
   roomTypes?: Prisma.SRRoomTypeUncheckedCreateNestedManyWithoutHotelInput
@@ -868,6 +991,9 @@ export type SRHotelUpdateWithoutSeasonsInput = {
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  childFreeAge?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  childChargeAge?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  extraBedRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   images?: Prisma.SRHotelImageUpdateManyWithoutHotelNestedInput
   county?: Prisma.SRCountyUpdateOneRequiredWithoutHotelsNestedInput
@@ -884,6 +1010,9 @@ export type SRHotelUncheckedUpdateWithoutSeasonsInput = {
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  childFreeAge?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  childChargeAge?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  extraBedRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   images?: Prisma.SRHotelImageUncheckedUpdateManyWithoutHotelNestedInput
   roomTypes?: Prisma.SRRoomTypeUncheckedUpdateManyWithoutHotelNestedInput
@@ -898,6 +1027,9 @@ export type SRHotelCreateManyCountyInput = {
   contactPhone?: string | null
   notes?: string | null
   description?: string | null
+  childFreeAge?: number | null
+  childChargeAge?: number | null
+  extraBedRate?: number | null
   createdAt?: Date | string
 }
 
@@ -909,6 +1041,9 @@ export type SRHotelUpdateWithoutCountyInput = {
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  childFreeAge?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  childChargeAge?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  extraBedRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   images?: Prisma.SRHotelImageUpdateManyWithoutHotelNestedInput
   roomTypes?: Prisma.SRRoomTypeUpdateManyWithoutHotelNestedInput
@@ -924,6 +1059,9 @@ export type SRHotelUncheckedUpdateWithoutCountyInput = {
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  childFreeAge?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  childChargeAge?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  extraBedRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   images?: Prisma.SRHotelImageUncheckedUpdateManyWithoutHotelNestedInput
   roomTypes?: Prisma.SRRoomTypeUncheckedUpdateManyWithoutHotelNestedInput
@@ -939,6 +1077,9 @@ export type SRHotelUncheckedUpdateManyWithoutCountyInput = {
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  childFreeAge?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  childChargeAge?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  extraBedRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -1001,6 +1142,9 @@ export type SRHotelSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   contactPhone?: boolean
   notes?: boolean
   description?: boolean
+  childFreeAge?: boolean
+  childChargeAge?: boolean
+  extraBedRate?: boolean
   createdAt?: boolean
   images?: boolean | Prisma.SRHotel$imagesArgs<ExtArgs>
   county?: boolean | Prisma.SRCountyDefaultArgs<ExtArgs>
@@ -1019,6 +1163,9 @@ export type SRHotelSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   contactPhone?: boolean
   notes?: boolean
   description?: boolean
+  childFreeAge?: boolean
+  childChargeAge?: boolean
+  extraBedRate?: boolean
   createdAt?: boolean
   county?: boolean | Prisma.SRCountyDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["sRHotel"]>
@@ -1033,6 +1180,9 @@ export type SRHotelSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   contactPhone?: boolean
   notes?: boolean
   description?: boolean
+  childFreeAge?: boolean
+  childChargeAge?: boolean
+  extraBedRate?: boolean
   createdAt?: boolean
   county?: boolean | Prisma.SRCountyDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["sRHotel"]>
@@ -1047,10 +1197,13 @@ export type SRHotelSelectScalar = {
   contactPhone?: boolean
   notes?: boolean
   description?: boolean
+  childFreeAge?: boolean
+  childChargeAge?: boolean
+  extraBedRate?: boolean
   createdAt?: boolean
 }
 
-export type SRHotelOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "countyId" | "name" | "stars" | "category" | "contactEmail" | "contactPhone" | "notes" | "description" | "createdAt", ExtArgs["result"]["sRHotel"]>
+export type SRHotelOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "countyId" | "name" | "stars" | "category" | "contactEmail" | "contactPhone" | "notes" | "description" | "childFreeAge" | "childChargeAge" | "extraBedRate" | "createdAt", ExtArgs["result"]["sRHotel"]>
 export type SRHotelInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   images?: boolean | Prisma.SRHotel$imagesArgs<ExtArgs>
   county?: boolean | Prisma.SRCountyDefaultArgs<ExtArgs>
@@ -1083,6 +1236,9 @@ export type $SRHotelPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     contactPhone: string | null
     notes: string | null
     description: string | null
+    childFreeAge: number | null
+    childChargeAge: number | null
+    extraBedRate: number | null
     createdAt: Date
   }, ExtArgs["result"]["sRHotel"]>
   composites: {}
@@ -1520,6 +1676,9 @@ export interface SRHotelFieldRefs {
   readonly contactPhone: Prisma.FieldRef<"SRHotel", 'String'>
   readonly notes: Prisma.FieldRef<"SRHotel", 'String'>
   readonly description: Prisma.FieldRef<"SRHotel", 'String'>
+  readonly childFreeAge: Prisma.FieldRef<"SRHotel", 'Int'>
+  readonly childChargeAge: Prisma.FieldRef<"SRHotel", 'Int'>
+  readonly extraBedRate: Prisma.FieldRef<"SRHotel", 'Float'>
   readonly createdAt: Prisma.FieldRef<"SRHotel", 'DateTime'>
 }
     

@@ -83,6 +83,7 @@ export const ModelName = {
   TourImage: 'TourImage',
   ParkFeeSeason: 'ParkFeeSeason',
   ParkFee: 'ParkFee',
+  TransportFeeSeason: 'TransportFeeSeason',
   TransportFee: 'TransportFee'
 } as const
 
@@ -443,6 +444,7 @@ export const CostSheetScalarFieldEnum = {
   maasaiVillage: 'maasaiVillage',
   numAdults: 'numAdults',
   numChildren: 'numChildren',
+  childrenAges: 'childrenAges',
   perAdultCost: 'perAdultCost',
   perChildCost: 'perChildCost',
   isOutdated: 'isOutdated'
@@ -471,6 +473,9 @@ export const SRHotelScalarFieldEnum = {
   contactPhone: 'contactPhone',
   notes: 'notes',
   description: 'description',
+  childFreeAge: 'childFreeAge',
+  childChargeAge: 'childChargeAge',
+  extraBedRate: 'extraBedRate',
   createdAt: 'createdAt'
 } as const
 
@@ -671,6 +676,19 @@ export const ParkFeeScalarFieldEnum = {
 } as const
 
 export type ParkFeeScalarFieldEnum = (typeof ParkFeeScalarFieldEnum)[keyof typeof ParkFeeScalarFieldEnum]
+
+
+export const TransportFeeSeasonScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  startDate: 'startDate',
+  endDate: 'endDate',
+  notes: 'notes',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type TransportFeeSeasonScalarFieldEnum = (typeof TransportFeeSeasonScalarFieldEnum)[keyof typeof TransportFeeSeasonScalarFieldEnum]
 
 
 export const TransportFeeScalarFieldEnum = {

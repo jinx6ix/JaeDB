@@ -416,6 +416,7 @@ export const ModelName = {
   TourImage: 'TourImage',
   ParkFeeSeason: 'ParkFeeSeason',
   ParkFee: 'ParkFee',
+  TransportFeeSeason: 'TransportFeeSeason',
   TransportFee: 'TransportFee'
 } as const
 
@@ -432,7 +433,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "agent" | "client" | "destination" | "destinationImage" | "tourPackage" | "tourDay" | "rateCard" | "property" | "vehicle" | "booking" | "itinerary" | "itineraryDay" | "itineraryImage" | "voucher" | "invoice" | "costSheet" | "sRCounty" | "sRHotel" | "sRHotelImage" | "sRRoomType" | "sRSeason" | "sRRoomPrice" | "log" | "agentRun" | "agentMessage" | "itineraryEmbed" | "savedFlyer" | "newsletter" | "tourImage" | "parkFeeSeason" | "parkFee" | "transportFee"
+    modelProps: "user" | "agent" | "client" | "destination" | "destinationImage" | "tourPackage" | "tourDay" | "rateCard" | "property" | "vehicle" | "booking" | "itinerary" | "itineraryDay" | "itineraryImage" | "voucher" | "invoice" | "costSheet" | "sRCounty" | "sRHotel" | "sRHotelImage" | "sRRoomType" | "sRSeason" | "sRRoomPrice" | "log" | "agentRun" | "agentMessage" | "itineraryEmbed" | "savedFlyer" | "newsletter" | "tourImage" | "parkFeeSeason" | "parkFee" | "transportFeeSeason" | "transportFee"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2804,6 +2805,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    TransportFeeSeason: {
+      payload: Prisma.$TransportFeeSeasonPayload<ExtArgs>
+      fields: Prisma.TransportFeeSeasonFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.TransportFeeSeasonFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TransportFeeSeasonPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.TransportFeeSeasonFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TransportFeeSeasonPayload>
+        }
+        findFirst: {
+          args: Prisma.TransportFeeSeasonFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TransportFeeSeasonPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.TransportFeeSeasonFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TransportFeeSeasonPayload>
+        }
+        findMany: {
+          args: Prisma.TransportFeeSeasonFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TransportFeeSeasonPayload>[]
+        }
+        create: {
+          args: Prisma.TransportFeeSeasonCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TransportFeeSeasonPayload>
+        }
+        createMany: {
+          args: Prisma.TransportFeeSeasonCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.TransportFeeSeasonCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TransportFeeSeasonPayload>[]
+        }
+        delete: {
+          args: Prisma.TransportFeeSeasonDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TransportFeeSeasonPayload>
+        }
+        update: {
+          args: Prisma.TransportFeeSeasonUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TransportFeeSeasonPayload>
+        }
+        deleteMany: {
+          args: Prisma.TransportFeeSeasonDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.TransportFeeSeasonUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.TransportFeeSeasonUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TransportFeeSeasonPayload>[]
+        }
+        upsert: {
+          args: Prisma.TransportFeeSeasonUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TransportFeeSeasonPayload>
+        }
+        aggregate: {
+          args: Prisma.TransportFeeSeasonAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateTransportFeeSeason>
+        }
+        groupBy: {
+          args: Prisma.TransportFeeSeasonGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.TransportFeeSeasonGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.TransportFeeSeasonCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.TransportFeeSeasonCountAggregateOutputType> | number
+        }
+      }
+    }
     TransportFee: {
       payload: Prisma.$TransportFeePayload<ExtArgs>
       fields: Prisma.TransportFeeFieldRefs
@@ -3258,6 +3333,7 @@ export const CostSheetScalarFieldEnum = {
   maasaiVillage: 'maasaiVillage',
   numAdults: 'numAdults',
   numChildren: 'numChildren',
+  childrenAges: 'childrenAges',
   perAdultCost: 'perAdultCost',
   perChildCost: 'perChildCost',
   isOutdated: 'isOutdated'
@@ -3286,6 +3362,9 @@ export const SRHotelScalarFieldEnum = {
   contactPhone: 'contactPhone',
   notes: 'notes',
   description: 'description',
+  childFreeAge: 'childFreeAge',
+  childChargeAge: 'childChargeAge',
+  extraBedRate: 'extraBedRate',
   createdAt: 'createdAt'
 } as const
 
@@ -3486,6 +3565,19 @@ export const ParkFeeScalarFieldEnum = {
 } as const
 
 export type ParkFeeScalarFieldEnum = (typeof ParkFeeScalarFieldEnum)[keyof typeof ParkFeeScalarFieldEnum]
+
+
+export const TransportFeeSeasonScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  startDate: 'startDate',
+  endDate: 'endDate',
+  notes: 'notes',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type TransportFeeSeasonScalarFieldEnum = (typeof TransportFeeSeasonScalarFieldEnum)[keyof typeof TransportFeeSeasonScalarFieldEnum]
 
 
 export const TransportFeeScalarFieldEnum = {
@@ -3769,6 +3861,7 @@ export type GlobalOmitConfig = {
   tourImage?: Prisma.TourImageOmit
   parkFeeSeason?: Prisma.ParkFeeSeasonOmit
   parkFee?: Prisma.ParkFeeOmit
+  transportFeeSeason?: Prisma.TransportFeeSeasonOmit
   transportFee?: Prisma.TransportFeeOmit
 }
 
