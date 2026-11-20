@@ -58,9 +58,6 @@ export default function TransportFeesPage() {
   const setFormField = (k: keyof TransportFeeForm, v: string) =>
     setForm((prev) => ({ ...prev, [k]: v }));
 
-  const setSeasonField = (k: keyof typeof seasonForm, v: string) =>
-    setSeasonForm((prev) => ({ ...prev, [k]: v }));
-
   // ---- load data ----
   useEffect(() => {
     let cancelled = false;
@@ -90,41 +87,6 @@ export default function TransportFeesPage() {
     } catch (err: any) {
       setError(err.message || 'Failed to load transport fees');
       console.error('Transport fees load error:', err);
-    }
-  }
-
-  async function saveSeason(e: React.FormEvent) {
-    e.preventDefault();
-    if (!seasonForm.name.trim()) { alert('Season name is required'); return; }
-    setSaving(true);
-    setError('');
-    try {
-      const res = await fetch('/api/transport-fee-seasons', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: seasonForm.name.trim(),
-          startDate: seasonForm.startDate || null,
-          endDate: seasonForm.endDate || null,
-          notes: seasonForm.notes || null,
-        }),
-      });
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.error || 'Failed to create season');
-      }
-      setShowSeasonForm(false);
-      setSeasonForm({ name: '', startDate: '', endDate: '', notes: '' });
-      // Reload seasons
-      const res2 = await fetch('/api/transport-fee-seasons');
-      if (res2.ok) {
-        const data = await res2.json();
-        setSeasons(Array.isArray(data) ? data : []);
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to create season');
-    } finally {
-      setSaving(false);
     }
   }
 
@@ -257,35 +219,6 @@ export default function TransportFeesPage() {
       </div>
       {error && (
         <div className="rounded-lg bg-red-50 border border-red-100 p-3 text-xs text-red-700">{error}</div>
-      )}
-
-      {/* Create Season form */}
-      {showSeasonForm && (
-        <form onSubmit={saveSeason} className="card space-y-4">
-          <h2 className="font-semibold text-gray-800">{editingId ? '✏️ Edit Season' : 'Add Transport Season'}</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">Season Name *</label>
-              <input required className="input" value={seasonForm.name} onChange={(e) => setSeasonField('name', e.target.value)} placeholder="e.g. Peak Season 2027" />
-            </div>
-            <div>
-              <label className="label">Start Date</label>
-              <input type="date" className="input" value={seasonForm.startDate} onChange={(e) => setSeasonField('startDate', e.target.value)} />
-            </div>
-            <div>
-              <label className="label">End Date</label>
-              <input type="date" className="input" value={seasonForm.endDate} onChange={(e) => setSeasonField('endDate', e.target.value)} />
-            </div>
-            <div className="col-span-2">
-              <label className="label">Notes</label>
-              <textarea className="input" rows={2} value={seasonForm.notes} onChange={(e) => setSeasonField('notes', e.target.value)} placeholder="Additional notes…" />
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving…' : 'Save Season'}</button>
-            <button type="button" onClick={() => { setShowSeasonForm(false); setSeasonForm({ name: '', startDate: '', endDate: '', notes: '' }); }} className="btn-secondary">Cancel</button>
-          </div>
-        </form>
       )}
 
       {/* Add / Edit form */}
