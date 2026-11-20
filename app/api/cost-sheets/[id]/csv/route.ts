@@ -193,8 +193,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   rows.push(["", "", "", "", "", "", "", "", "", "", "", ""]);
 
   // Options based on different group sizes — each option calculates independently
-  // (transport group expense divided by that option's pax).
-  const groupSizes = [2, 4, 6, 8];
+  // Costing by Pax: if ≤8 show up to 8; if >8 show up to numPax
+  const maxPax = numPax <= 8 ? 8 : numPax;
+  const groupSizes: number[] = [];
+  for (let s = 2; s <= maxPax; s += 2) {
+    groupSizes.push(s);
+  }
+  // If numPax is odd and > 8, add it as an additional option
+  if (numPax > 8 && numPax % 2 !== 0) {
+    groupSizes.push(numPax);
+  }
   groupSizes.forEach(size => {
     const transportPerPaxForSize = size > 0 ? transportGroupTotal / size : 0;
     const groupSubtotal = accommodationPpsTotal + parkGroupTotal + transportPerPaxForSize + dailyExtrasTotal + extrasTotal + srsTotal;

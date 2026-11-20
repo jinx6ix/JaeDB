@@ -78,16 +78,27 @@ function fmt2(n: number): string {
 
 const PAX_CHOICES = [1, 2, 3, 4, 5, 6, 7, 8];
 
+function getPaxChoices(numPax: number): number[] {
+  const maxPax = numPax <= 8 ? 8 : numPax;
+  const choices: number[] = [];
+  for (let p = 1; p <= maxPax; p++) {
+    choices.push(p);
+  }
+  return choices;
+}
+
 // Compute per-pax "each person" grand totals using the verified spreadsheet
 // methodology: accommodation PPS summed directly (never divided by pax),
 // park fees (group expense), transport group expense divided by pax,
 // per-day extras + fixed extras, SRS (single adult only), then markup.
 // Mirrors calculateCostingFromSheet in the itinerary edit page.
-function computePerPaxCosting(editable: any): { pax: number; grandtotal: number }[] {
+function computePerPaxCosting(editable: any, numPax?: number): { pax: number; grandtotal: number }[] {
   const dayRows = editable.dayRows || [];
   const extras = editable.extras || [];
 
   const numAdults = Number(editable.numAdults) || 1;
+  const numChildren = Number(editable.numChildren) || 0;
+  const totalPax = numPax ?? (numAdults + numChildren);
   const markupPercent = Number(editable.markupPercent) || 10;
 
   // Accommodation PPS is per-person — sum directly, never divide by pax.
@@ -115,7 +126,8 @@ function computePerPaxCosting(editable: any): { pax: number; grandtotal: number 
     (editable.maasaiVillage ? (Number(editable.maasaiCost) || 0) : 0);
   extras.forEach((e: any) => { extrasTotal += Number(e.cost || 0); });
 
-  return PAX_CHOICES.map((pax) => {
+  const paxChoices = getPaxChoices(totalPax);
+  return paxChoices.map((pax) => {
     const transportPerPax = pax > 0 ? transportGroupTotal / pax : 0;
     const subtotal = accommodationPpsTotal + parkGroupTotal + transportPerPax + dailyExtrasTotal + extrasTotal + srsTotal;
     const markupAmount = subtotal * (markupPercent / 100);
@@ -132,6 +144,7 @@ export default function CostSheetDetailPage() {
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [selectedPax, setSelectedPax] = useState<number | null>(null);
   const [creatingInvoice, setCreatingInvoice] = useState(false);
   const [clientName, setClientName] = useState('');
   const [agentName, setAgentName] = useState('');
@@ -382,6 +395,9 @@ export default function CostSheetDetailPage() {
   const calcMarkup = calcSubtotal * (editable.markupPercent / 100);
   const calcGrandTotal = calcSubtotal + calcMarkup;
 
+  // Selected pax for Costing by Pax — defaults to actual booking pax
+  const selectedPaxOption = perPaxCosting.find((o) => o.pax === numPax);
+  const selectedGrandTotal = selectedPaxOption ? selectedPaxOption.grandtotal : calcGrandTotal;
   // Agent creation popup (used in editing flow)
   const AgentCreatePopup = () => (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -659,13 +675,17 @@ export default function CostSheetDetailPage() {
           {/* Costing by Pax (Each Person) — grand total per traveler count 1–8 */}
           <div className="border-t pt-4"><h3 className="text-sm font-bold text-gray-700 mb-3">Costing by Pax (Each Person)</h3>
             <div className="grid grid-cols-4 gap-3 text-center">
-              {perPaxCosting.map((opt) => {
-                const isCurrent = opt.pax === numPax;
+                          {perPaxCosting.map((opt) => {
+                const isSelected = opt.pax === numPax;
                 return (
-                  <div key={`pax-${opt.pax}`} className={`p-2 rounded-lg border ${isCurrent ? 'bg-orange-50 border-orange-300' : 'bg-gray-50 border-gray-200'}`}>
+                  <div
+                    key={`pax-${opt.pax}`}
+                    className={`p-2 rounded-lg border cursor-pointer ${isSelected ? 'bg-orange-50 border-orange-300' : 'bg-gray-50 border-gray-200 hover:border-orange-200'}`}
+                    onClick={() => setSelectedPax(opt.pax)}
+                  >
                     <div className="text-xs font-medium text-gray-600">{opt.pax} Person{opt.pax > 1 ? 's' : ''}</div>
                     <div className="font-bold text-sm font-mono text-orange-700">{currentCurrency} {fmt2(opt.grandtotal)}</div>
-                    {isCurrent && <span className="text-[10px] text-orange-600 mt-1 block">current</span>}
+                    {selectedPax === opt.pax && <span className="text-[10px] text-orange-600 mt-1 block">Selected</span>}
                   </div>
                 );
               })}
@@ -685,7 +705,7 @@ export default function CostSheetDetailPage() {
               <div className="flex justify-between text-xs text-gray-500"><span>Extras & Fees</span><span className="font-mono">{currentCurrency} {fmt2(extrasTotal)}</span></div>
               <div className="flex justify-between text-sm"><span>Subtotal (per adult)</span><span className="font-mono">{currentCurrency} {fmt2(calcSubtotal)}</span></div>
               <div className="flex justify-between text-sm text-orange-600"><span>Markup ({editable.markupPercent}%)</span><span className="font-mono">{currentCurrency} {fmt2(calcMarkup)}</span></div>
-              <div className="flex justify-between text-sm font-bold border-t pt-1"><span>Grand Total</span><span className="font-mono">{currentCurrency} {fmt2(calcGrandTotal)}</span></div>
+              <div className="flex justify-between text-sm font-bold border-t pt-1"><span>Grand Total</span><span className="font-mono">{currentCurrency} {fmt2(selectedGrandTotal)}</span></div>
             </div>
           </div></div>
 

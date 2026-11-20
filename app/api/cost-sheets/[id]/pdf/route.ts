@@ -252,7 +252,16 @@ function CostSheetPDF({ cs }: { cs: any }) {
   });
 
   const buildOptionsSection = () => {
-    const groupSizes = [2, 4, 6, 8];
+    // Costing by Pax: if ≤8 show up to 8; if >8 show up to numPax
+    const maxPax = numPax <= 8 ? 8 : numPax;
+    const groupSizes = [];
+    for (let s = 2; s <= maxPax; s += 2) {
+      groupSizes.push(s);
+    }
+    // If numPax is odd and > 8, add it as an additional option
+    if (numPax > 8 && numPax % 2 !== 0) {
+      groupSizes.push(numPax);
+    }
     const rows: any[] = [];
 
     groupSizes.forEach((size, gi) => {

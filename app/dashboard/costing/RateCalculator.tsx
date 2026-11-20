@@ -211,7 +211,8 @@ export default function RateCalculator({
 
   // Computed
   const numPax = numAdults + numChildren;
-  const maxDisplayPax = Math.min(numPax, 12);
+  // Costing by Pax: if ≤8 show up to 8; if >8 show up to numPax
+  const maxDisplayPax = numPax <= 8 ? 8 : numPax;
   const filteredClients = localClients.filter(c =>
     c.name.toLowerCase().includes(clientSearch.toLowerCase())
   );
@@ -229,17 +230,24 @@ export default function RateCalculator({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Options based on numPax
+  // Options based on numPax — Costing by Pax (Each Person)
+  // If ≤8: show even pax up to 8. If >8: show even pax up to numPax.
   useEffect(() => {
     if (numPax === 0) { setOptions([]); return; }
-    const newLength = maxDisplayPax;
+    // Build pax options: even numbers from 2 to maxDisplayPax
+    const paxOptions: number[] = [];
+    for (let p = 2; p <= maxDisplayPax; p += 2) {
+      paxOptions.push(p);
+    }
+    // If numPax is odd and > 8, add it as an additional option
+    if (numPax > 8 && numPax % 2 !== 0) {
+      paxOptions.push(numPax);
+    }
     setOptions(prev => {
-      if (prev.length === newLength && prev.every((opt, idx) => opt.pax === idx + 1)) return prev;
-      const newOptions = [];
-      for (let p = 1; p <= newLength; p++) {
+      const newOptions = paxOptions.map(p => {
         const existing = prev.find(opt => opt.pax === p);
-        newOptions.push({ pax: p, markup: existing?.markup ?? 10 });
-      }
+        return { pax: p, markup: existing?.markup ?? 10 };
+      });
       return newOptions;
     });
   }, [numPax, maxDisplayPax]);
