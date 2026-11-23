@@ -59,7 +59,7 @@ __pycache__/
 .env.*.local
 *.pem
 *.key
-*.crt
+# -- .crt
 
 # --- Compiled / minified assets ---
 *.min.js
