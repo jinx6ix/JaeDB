@@ -46,7 +46,7 @@ __pycache__/
 *.pid
 *.seed
 
-# --- Package manager & lock files (optional) ---
+# --- Package manager & lock files (optional) ------
 # Uncomment if you want to keep lock files in repo; otherwise ignore them:
 # package-lock.json
 # yarn.lock
