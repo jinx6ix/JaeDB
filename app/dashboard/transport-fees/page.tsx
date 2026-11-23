@@ -320,9 +320,9 @@ export default function TransportFeesPage() {
 
       {/* New season popup */}
       {newSeasonOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="New transport season">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setNewSeasonOpen(false); setNewSeasonName(''); setNewSeasonStart(''); setNewSeasonEnd(''); setNewSeasonNotes(''); setError(''); }} />
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-gray-200 p-6">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center" role="dialog" aria-modal="true" aria-label="New transport season">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setNewSeasonOpen(false); setNewSeasonName(''); setNewSeasonStart(''); setNewSeasonEnd(''); setNewSeasonNotes(''); setError(''); }} />
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl border-2 border-orange-500 p-6 relative z-[101]">
             <h2 className="font-semibold text-gray-900 mb-1">New Season</h2>
             <p className="text-xs text-gray-500 mb-4">Seasons are standalone — they belong to no hotel and can be reused across any transport fee.</p>
             <form onSubmit={createTransportSeason} className="space-y-3">
