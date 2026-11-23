@@ -1,0 +1,155 @@
+// app/api/safari-rates/hotels/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+
+export async function GET(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get('id');
+  const destinationId = searchParams.get('destinationId');
+  const dateStr = searchParams.get('date');
+  const boardBasis = searchParams.get('boardBasis');
+  const sort = searchParams.get('sort'); // 'price_asc' or 'price_desc'
+
+  // Single hotel fetch
+  if (id) {
+    const hotel = await prisma.sRHotel.findUnique({
+      where: { id: Number(id) },
+      include: { county: true, _count: { select: { roomTypes: true } }, images: true },
+    });
+    return NextResponse.json(hotel || {});
+  }
+
+  // If destinationId only (no date/boardBasis): list all hotels in that destination
+  // used by itinerary accommodation dropdown
+  if (destinationId && !dateStr && !boardBasis) {
+    const destinationIdNum = Number(destinationId);
+    const hotels = await prisma.sRHotel.findMany({
+      where: { countyId: destinationIdNum },
+      orderBy: [{ stars: 'desc' }, { name: 'asc' }],
+      include: { county: true, images: true },
+    });
+    return NextResponse.json(hotels);
+  }
+
+  // If no filters at all, return standard hotel list (original behavior)
+  if (!destinationId && !dateStr && !boardBasis) {
+    const hotels = await prisma.sRHotel.findMany({
+      orderBy: [{ county: { name: 'asc' } }, { stars: 'desc' }, { name: 'asc' }],
+      include: { county: true, _count: { select: { roomTypes: true } } },
+    });
+    return NextResponse.json(hotels);
+  }
+
+  // Validate required params for pricing
+  if (!destinationId || !dateStr || !boardBasis) {
+    return NextResponse.json({ error: 'Missing required parameters: destinationId, date, boardBasis' }, { status: 400 });
+  }
+
+  const targetDate = new Date(dateStr);
+  const destinationIdNum = Number(destinationId);
+
+  // Fetch all hotels in the destination
+  const hotels = await prisma.sRHotel.findMany({
+    where: { countyId: destinationIdNum },
+    include: { county: true, seasons: true, roomTypes: { include: { prices: true } } },
+  });
+
+  // For each hotel, find the applicable season and cheapest price
+  const hotelsWithMinRate = [];
+  for (const hotel of hotels) {
+    // Find season that contains the target date
+    const activeSeason = hotel.seasons.find(season => 
+      season.startDate <= targetDate && season.endDate >= targetDate
+    );
+    if (!activeSeason) continue; // no pricing for this date
+
+    // Find all prices for that season and board basis
+    const relevantPrices = [];
+    for (const roomType of hotel.roomTypes) {
+      const price = roomType.prices.find(p => 
+        p.seasonId === activeSeason.id && p.boardBasis === boardBasis
+      );
+      if (price && price.ratePerPersonSharing !== null && price.ratePerPersonSharing !== undefined) {
+        relevantPrices.push(price.ratePerPersonSharing);
+      }
+    }
+    if (relevantPrices.length === 0) continue;
+
+    const minRate = Math.min(...relevantPrices);
+    // Clone hotel data without nested relations (except county for display)
+    const hotelData = {
+      id: hotel.id,
+      name: hotel.name,
+      stars: hotel.stars,
+      category: hotel.category,
+      county: hotel.county,
+      minRate,
+    };
+    hotelsWithMinRate.push(hotelData);
+  }
+
+  // Sort by minRate
+  if (sort === 'price_asc') {
+    hotelsWithMinRate.sort((a, b) => a.minRate - b.minRate);
+  } else if (sort === 'price_desc') {
+    hotelsWithMinRate.sort((a, b) => b.minRate - a.minRate);
+  }
+
+  return NextResponse.json(hotelsWithMinRate);
+}
+
+// POST remains unchanged
+export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if ((session.user as any)?.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const body = await req.json();
+  const countyIdNum = Number(body.countyId);
+  const name = body.name?.trim();
+  if (!countyIdNum || !name) return NextResponse.json({ error: 'countyId and name are required' }, { status: 400 });
+
+  const existing = await prisma.sRHotel.findFirst({ where: { countyId: countyIdNum, name } });
+  if (existing) return NextResponse.json({ error: 'A hotel with this name already exists in this destination' }, { status: 409 });
+
+  const hotel = await prisma.sRHotel.create({
+    data: {
+      countyId: countyIdNum,
+      name,
+      stars: body.stars ? Number(body.stars) : null,
+      category: body.category || null,
+      childFreeAge: body.childFreeAge != null ? Number(body.childFreeAge) : null,
+      childChargeAge: body.childChargeAge != null ? Number(body.childChargeAge) : null,
+      extraBedRate: body.extraBedRate != null ? Number(body.extraBedRate) : null,
+    },
+    include: { county: true },
+  });
+  return NextResponse.json(hotel, { status: 201 });
+}
+
+export async function PATCH(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if ((session.user as any)?.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  const body = await req.json();
+  const { id, description } = body;
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+  const data: any = {};
+  if (description !== undefined) data.description = description || null;
+  if (body.childFreeAge !== undefined) data.childFreeAge = body.childFreeAge == null ? null : Number(body.childFreeAge);
+  if (body.childChargeAge !== undefined) data.childChargeAge = body.childChargeAge == null ? null : Number(body.childChargeAge);
+  if (body.extraBedRate !== undefined) data.extraBedRate = body.extraBedRate == null ? null : Number(body.extraBedRate);
+
+  const hotel = await prisma.sRHotel.update({
+    where: { id: Number(id) },
+    data,
+    include: { county: true },
+  });
+  return NextResponse.json(hotel);
+}

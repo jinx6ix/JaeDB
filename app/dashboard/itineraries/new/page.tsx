@@ -1,0 +1,978 @@
+'use client';
+import { useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import DayImagePicker from '@/components/DayImagePicker';
+
+interface TourDay {
+  dayNumber: number;
+  title: string;
+  destination: { name: string } | null;
+  accommodation: string | null;
+  mealPlan: string | null;
+  activities: string | null;
+}
+
+interface Booking {
+  id: string;
+  bookingRef: string;
+  startDate: string;
+  numAdults: number;
+  client: { name: string };
+  tourPackage: {
+    title: string;
+    durationDays: number;
+    days: TourDay[];
+  } | null;
+}
+
+interface Destination { id: number; name: string; }
+interface Hotel {
+  id: number;
+  name: string;
+  category?: string | null;
+  stars?: number | null;
+  county?: { id: number; name: string };
+  images?: { id: string; filename: string; mimeType: string; data: string }[];
+}
+
+interface DestinationImage {
+  id: string;
+  destinationId: number;
+  filename: string;
+  mimeType: string;
+  data: string;
+  caption?: string | null;
+}
+
+interface ItineraryImage {
+  id: string;
+  filename: string;
+  mimeType: string;
+  data: string;
+  caption?: string | null;
+  dayId?: string | null;
+}
+
+interface CostSheet {
+  id: string;
+  tourTitle: string;
+  bookingRef?: string | null;
+  days?: number;
+  currency?: string;
+  numAdults?: number;
+  markupPercent?: number;
+  dayRows?: string | any[];
+  extras?: string | any[];
+  fileHandlingFee?: number;
+  ecoBottle?: number;
+  evacInsurance?: number;
+  arrivalTransfer?: number;
+  departureTransfer?: number;
+  maasaiVillage?: boolean;
+  maasaiCost?: number;
+}
+
+interface DayData {
+  tempId: string;
+  dayNumber: number;
+  date: string;
+  destination: string;
+  destinationId?: number | null;
+  accommodation: string;
+  accommodationId?: number | null;
+  mealPlan: { breakfast: boolean; lunch: boolean; dinner: boolean; note: string };
+  activities: string;
+  notes: string;
+  previewDestImages?: any[];
+  previewHotelImages?: any[];
+}
+
+export default function NewItineraryPage() {
+  const router = useRouter();
+  const sp = useSearchParams();
+  const preBookingId = sp.get('bookingId') || '';
+
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [days, setDays] = useState<DayData[]>([]);
+  const [dayImages, setDayImages] = useState<Record<string, ItineraryImage[]>>({});
+  const [title, setTitle] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  // Destination / accommodation lookups
+  const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [destImagesById, setDestImagesById] = useState<Record<number, DestinationImage[]>>({});
+  const [hotels, setHotels] = useState<Hotel[]>([]);
+  const [hotelsByDest, setHotelsByDest] = useState<Record<number, Hotel[]>>({});
+  const [loadingHotels, setLoadingHotels] = useState<Record<number, boolean>>({});
+  // Refs hold the latest fetched images so computePreviews can read them
+  // immediately without waiting for a React state re-render (fixes first-click staleness).
+  const destImagesRef = useRef<Record<number, DestinationImage[]>>({});
+  const hotelImagesRef = useRef<Record<number, DestinationImage[]>>({});
+  const usedImgIds = useRef<Record<string, string[]>>({});
+  const [editingDayId, setEditingDayId] = useState<string | null>(null);
+  const [focusedField, setFocusedField] = useState<'dest' | 'acc' | null>(null);
+  const dropdownMouseDownRef = useRef(false);
+
+  // Cost sheet selection + per-pax costing
+  const [costSheets, setCostSheets] = useState<CostSheet[]>([]);
+  const [costingOptions, setCostingOptions] = useState<{ pax: number; grandtotal: number }[]>([]);
+  const PAX_CHOICES = [1, 2, 3, 4, 5, 6, 7, 8];
+  const [included, setIncluded] = useState('');
+  const [excluded, setExcluded] = useState('');
+  const [selectedCostSheetId, setSelectedCostSheetId] = useState<string | null>(null);
+
+  // Parse day rows stored on a cost sheet (JSON string or array)
+  function parseDayRows(raw: any): any[] {
+    if (!raw) return [];
+    let parsed = raw;
+    if (typeof parsed === 'string') {
+      try { parsed = JSON.parse(parsed); } catch { return []; }
+    }
+    return Array.isArray(parsed) ? parsed : [];
+  }
+
+  // Parse extras stored on a cost sheet (JSON string or array)
+  function parseExtras(raw: any): any[] {
+    if (!raw) return [];
+    let parsed = raw;
+    if (typeof parsed === 'string') {
+      try { parsed = JSON.parse(parsed); } catch { return []; }
+    }
+    return Array.isArray(parsed) ? parsed : [];
+  }
+
+  // Calculate per-pax grand totals from a cost sheet using the spreadsheet methodology
+  function calculateCostingFromSheet(sheet: any): { pax: number; grandtotal: number }[] {
+    const dayRows = parseDayRows(sheet.dayRows);
+    const extras = parseExtras(sheet.extras);
+
+    const numAdults = Number(sheet.numAdults) || 1;
+    const markupPercent = Number(sheet.markupPercent) || 10;
+
+    const accommodationPpsTotal = dayRows.reduce((sum, row) => sum + (Number(row.adultAccomTotal) || 0), 0);
+    const dailyExtrasTotal = dayRows.reduce((sum, row) => sum + (Number(row.extrasTotal) || 0), 0);
+
+    const srsTotal = numAdults === 1
+      ? dayRows.reduce((sum, row) => sum + (Number(row.singleRoomRate) || 0), 0)
+      : 0;
+
+    let parkGroupTotal = 0;
+    let transportGroupTotal = 0;
+    dayRows.forEach((row: any) => {
+      parkGroupTotal += Number(row.parkFeeAdultTotal || 0) + Number(row.parkFeeChildTotal || 0);
+      transportGroupTotal += Number(row.transportTotal || 0);
+    });
+
+    let extrasTotal =
+      (sheet.fileHandlingFee || 0) +
+      (sheet.ecoBottle || 0) +
+      (sheet.evacInsurance || 0) +
+      (sheet.arrivalTransfer || 0) +
+      (sheet.departureTransfer || 0) +
+      (sheet.maasaiVillage ? (sheet.maasaiCost || 0) : 0);
+    extras.forEach((e: any) => { extrasTotal += Number(e.cost) || 0; });
+
+    return PAX_CHOICES.map((pax) => {
+      const transportPerPax = pax > 0 ? transportGroupTotal / pax : 0;
+      const subtotal = accommodationPpsTotal + parkGroupTotal + transportPerPax + dailyExtrasTotal + extrasTotal + srsTotal;
+      const markupAmount = subtotal * (markupPercent / 100);
+      const grandtotal = subtotal + markupAmount;
+      return { pax, grandtotal };
+    });
+  }
+
+  function initializeCostingOptions() {
+    const defaults = PAX_CHOICES.map(pax => ({ pax, grandtotal: 0 }));
+    setCostingOptions(defaults);
+  }
+
+  function updateCosting(pax: number, grandtotal: number) {
+    setCostingOptions(prev => {
+      const existing = prev.find(o => o.pax === pax);
+      if (existing) {
+        return prev.map(o => o.pax === pax ? { pax, grandtotal } : o);
+      }
+      return [...prev, { pax, grandtotal }].sort((a, b) => a.pax - b.pax);
+    });
+  }
+
+  function removeCosting(pax: number) {
+    setCostingOptions(prev => prev.filter(o => o.pax !== pax));
+  }
+
+  useEffect(() => {
+    fetch('/api/bookings?withTour=1').then(r => r.json()).then((data: Booking[]) => {
+      setBookings(data);
+      if (preBookingId) {
+        const b = data.find((b: Booking) => b.id === preBookingId);
+        if (b) loadBooking(b);
+      }
+    });
+    fetch('/api/safari-rates/destinations').then(r => r.json()).then((data: Destination[]) => {
+      setDestinations(Array.isArray(data) ? data : []);
+    });
+    fetch('/api/safari-rates/hotels').then(r => r.json()).then((data: Hotel[]) => {
+      setHotels(Array.isArray(data) ? data : []);
+    });
+    fetch('/api/cost-sheets')
+      .then((r) => r.json())
+      .then((data: any) => {
+        const sheets = Array.isArray(data) ? data : data?.sheets || [];
+        setCostSheets(sheets);
+      })
+      .catch(() => setCostSheets([]));
+  }, [preBookingId]);
+
+  function generateTempId() {
+    return `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+  }
+
+  function loadBooking(b: Booking) {
+    setSelectedBooking(b);
+    setTitle(`${b.tourPackage?.title || 'Custom Tour'} — ${b.client.name}`);
+    const startDate = new Date(b.startDate);
+
+    if (b.tourPackage?.days?.length) {
+      setDays(b.tourPackage.days.map((d: TourDay, i: number) => {
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + i);
+        const mp = d.mealPlan ? JSON.parse(d.mealPlan) : {};
+        const acts = d.activities ? JSON.parse(d.activities) : [];
+        const tempId = generateTempId();
+        return {
+          tempId,
+          dayNumber: d.dayNumber,
+          date: date.toISOString().split('T')[0],
+          destination: d.destination?.name || d.title,
+          destinationId: null,
+          accommodation: d.accommodation || '',
+          accommodationId: null,
+          mealPlan: { breakfast: mp.breakfast || false, lunch: mp.lunch || false, dinner: mp.dinner || false, note: mp.note || '' },
+          activities: acts.map((a: any) => `${a.time}: ${a.description}`).join('\n'),
+          notes: '',
+        };
+      }));
+    } else {
+      const tempId = generateTempId();
+      setDays([{
+        tempId,
+        dayNumber: 1,
+        date: startDate.toISOString().split('T')[0],
+        destination: '',
+        destinationId: null,
+        accommodation: '',
+        accommodationId: null,
+        mealPlan: { breakfast: false, lunch: false, dinner: false, note: '' },
+        activities: '',
+        notes: '',
+      }]);
+    }
+  }
+
+  function addDay() {
+    const last = days[days.length - 1];
+    const lastDate = last ? new Date(last.date) : new Date();
+    lastDate.setDate(lastDate.getDate() + 1);
+    const maxDayNumber = days.length > 0 ? Math.max(...days.map(d => d.dayNumber)) : 0;
+    const tempId = generateTempId();
+    setDays([...days, {
+      tempId,
+      dayNumber: maxDayNumber + 1,
+      date: lastDate.toISOString().split('T')[0],
+      destination: '',
+      destinationId: null,
+      accommodation: '',
+      accommodationId: null,
+      mealPlan: { breakfast: false, lunch: false, dinner: false, note: '' },
+      activities: '',
+      notes: '',
+    }]);
+  }
+
+  function updateDay(tempId: string, field: string, value: any) {
+    setDays(prev => prev.map(d => d.tempId === tempId ? { ...d, [field]: value } : d));
+  }
+
+  function getDay(tempId: string) {
+    return days.find(d => d.tempId === tempId);
+  }
+
+  async function onDestinationChange(tempId: string, value: string) {
+    const day = getDay(tempId);
+    if (!day) return;
+    updateDay(tempId, 'destination', value);
+    updateDay(tempId, 'destinationId', null);
+    updateDay(tempId, 'accommodation', '');
+    updateDay(tempId, 'accommodationId', null);
+    updateDay(tempId, 'previewDestImages', []);
+    updateDay(tempId, 'previewHotelImages', []);
+
+    const dest = destinations.find(d => d.name === value);
+    if (!dest) return;
+    updateDay(tempId, 'destinationId', dest.id);
+
+    // Load destination images for random preview
+    let destImgs: DestinationImage[] = [];
+    try {
+      const res = await fetch(`/api/destinations/${dest.id}/images`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        destImgs = data;
+        setDestImagesById(p => ({ ...p, [dest.id]: data }));
+        destImagesRef.current = { ...destImagesRef.current, [dest.id]: data };
+      }
+    } catch (err) {
+      console.error('Failed to load destination images', err);
+    }
+
+    updateDay(tempId, 'previewDestImages', []);
+    updateDay(tempId, 'previewHotelImages', []);
+
+    // Load hotels for this destination (includes images)
+    if (hotelsByDest[dest.id]) {
+      computePreviews(tempId);
+      return;
+    }
+    setLoadingHotels(p => ({ ...p, [dest.id]: true }));
+    try {
+      const res = await fetch(`/api/safari-rates/hotels?destinationId=${dest.id}`);
+      const data = await res.json();
+      const destHotels = Array.isArray(data) ? data : [];
+      setHotelsByDest(p => ({ ...p, [dest.id]: destHotels }));
+      // Store any images that came back with the hotels
+      const imgMap: Record<number, DestinationImage[]> = {};
+      destHotels.forEach((h: Hotel) => {
+        if (h.images && h.images.length) imgMap[h.id] = h.images as DestinationImage[];
+      });
+      if (Object.keys(imgMap).length) {
+        hotelImagesRef.current = { ...hotelImagesRef.current, ...imgMap };
+      }
+      computePreviews(tempId);
+    } catch (err) {
+      console.error('Failed to load hotels for destination', err);
+    } finally {
+      setLoadingHotels(p => ({ ...p, [dest.id]: false }));
+    }
+  }
+
+  async function onAccommodationChange(tempId: string, hotelId: number) {
+    updateDay(tempId, 'accommodationId', hotelId);
+    const hotel = [...hotels, ...Object.values(hotelsByDest).flat()].find(h => h.id === hotelId);
+    if (!hotel) return;
+    updateDay(tempId, 'accommodation', hotel.name);
+
+    // If hotel has no images loaded yet, fetch them directly so they appear immediately
+    const existingImgs = hotelImagesRef.current[hotelId] || (hotel.images as DestinationImage[] | undefined) || [];
+    if (!existingImgs.length) {
+      try {
+        const res = await fetch(`/api/safari-rates/hotels/${hotelId}`);
+        const data = await res.json();
+        if (data && data.images) {
+          const imgs = data.images as DestinationImage[];
+          hotelImagesRef.current = { ...hotelImagesRef.current, [hotelId]: imgs };
+          // Also reflect in hotelsByDest so subsequent looks pick it up
+          Object.keys(hotelsByDest).forEach(destId => {
+            const idx = hotelsByDest[Number(destId)].findIndex(h => h.id === hotelId);
+            if (idx >= 0) {
+              setHotelsByDest(p => ({
+                ...p,
+                [Number(destId)]: p[Number(destId)].map((h: Hotel) =>
+                  h.id === hotelId ? { ...h, images: data.images as any } : h
+                ),
+              }));
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load hotel images', err);
+      }
+    }
+
+    computePreviews(tempId);
+  }
+
+  function updateMeal(tempId: string, meal: 'breakfast' | 'lunch' | 'dinner', value: boolean) {
+    setDays(prev => prev.map(d => d.tempId === tempId ? { ...d, mealPlan: { ...d.mealPlan, [meal]: value } } : d));
+  }
+
+  function removeDay(tempId: string) {
+    const dayToRemove = days.find(d => d.tempId === tempId);
+    if (!dayToRemove) return;
+    setDays(prev => prev.filter(d => d.tempId !== tempId));
+    setDayImages(prev => {
+      const newPrev = { ...prev };
+      delete newPrev[dayToRemove.dayNumber];
+      return newPrev;
+    });
+    delete usedImgIds.current[dayToRemove.dayNumber];
+    if (editingDayId === tempId) setEditingDayId(null);
+  }
+
+  /** Pick up to `count` unique random images from a list, excluding already-used ids. */
+  function pickRandomUnique<T extends { id: string }>(items: T[], count: number, excludeIds: string[]): T[] {
+    const pool = items.filter(i => !excludeIds.includes(i.id));
+    const shuffled = [...pool].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, count);
+  }
+
+  /** Compute destination + accommodation preview images for a day and stash on the day. */
+  function computePreviews(tempId: string) {
+    setDays(prev => prev.map(d => {
+      if (d.tempId !== tempId) return d;
+      const used: string[] = usedImgIds.current[d.dayNumber.toString()] || [];
+      const destImgs = d.destinationId ? (destImagesRef.current[d.destinationId] || destImagesById[d.destinationId] || []) : [];
+      const hotelImgs = d.accommodationId ? hotelImagesFor(d.accommodationId) : [];
+      const destPicks = pickRandomUnique(destImgs, 2, used);
+      const hotelPicks = pickRandomUnique(hotelImgs, 2, used);
+      const picked = [...destPicks, ...hotelPicks];
+      usedImgIds.current[d.dayNumber.toString()] = [...used, ...picked.map((i: any) => i.id)];
+      return {
+        ...d,
+        previewDestImages: destPicks,
+        previewHotelImages: hotelPicks,
+      };
+    }));
+  }
+
+  function hotelImagesFor(hotelId: number) {
+    const fromRef = hotelImagesRef.current[hotelId];
+    if (fromRef && fromRef.length) return fromRef;
+    return [...hotels, ...Object.values(hotelsByDest).flat()].find(h => h.id === hotelId)?.images || [];
+  }
+
+  const mealSummary = (mp: DayData['mealPlan']) => {
+    const on = (['breakfast', 'lunch', 'dinner'] as const).filter(m => mp[m]);
+    return on.length ? on.map(m => m.charAt(0).toUpperCase() + m.slice(1)).join(', ') : '—';
+  };
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim()) { setError('Please enter a title'); return; }
+    if (days.length === 0) { setError('Please add at least one day'); return; }
+    setSaving(true);
+    setError('');
+
+    const body = {
+      bookingId: selectedBooking?.id || null,
+      costSheetId: selectedCostSheetId,
+      costingOptions: JSON.stringify(costingOptions),
+      included: included || null,
+      excluded: excluded || null,
+      title,
+      days: days.map(d => ({
+        dayNumber: d.dayNumber,
+        date: d.date,
+        destination: d.destination,
+        accommodation: d.accommodation,
+        mealPlan: JSON.stringify(d.mealPlan),
+        activities: JSON.stringify(d.activities.split('\n').filter(Boolean).map(a => ({ description: a }))),
+        notes: d.notes,
+      })),
+    };
+
+    try {
+      const res = await fetch('/api/itineraries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const savedDays: any[] = data.days || [];
+        const imagePatchPromises: Promise<any>[] = [];
+
+        savedDays.forEach((savedDay: any) => {
+          const dayData = days.find(d => d.dayNumber === savedDay.dayNumber);
+          if (dayData) {
+            const imgs = dayImages[dayData.dayNumber] || [];
+            imgs.forEach(img => {
+              imagePatchPromises.push(
+                fetch(`/api/itinerary-images/${img.id}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ dayId: savedDay.id }),
+                })
+              );
+            });
+          }
+        });
+
+        await Promise.all(imagePatchPromises);
+        router.push(`/dashboard/itineraries/${data.id}`);
+      } else {
+        const d = await res.json();
+        setError(d.error || 'Failed to create itinerary');
+        setSaving(false);
+      }
+    } catch (err) {
+      console.error('Submit error:', err);
+      setError('Failed to create itinerary');
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="max-w-4xl space-y-5">
+      <div className="flex items-center gap-3">
+        <Link href="/dashboard/itineraries" className="text-gray-400 hover:text-gray-600 text-sm">← Itineraries</Link>
+        <h1 className="text-2xl font-bold text-gray-900">Generate Itinerary</h1>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && <div className="bg-red-50 text-red-700 border border-red-200 rounded-lg p-3 text-sm">{error}</div>}
+
+        <div className="card space-y-4">
+          <h2 className="font-semibold text-gray-800">Itinerary Setup</h2>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Booking (optional)</label>
+              <select
+                className="input"
+                value={selectedBooking?.id || ''}
+                onChange={e => {
+                  const b = bookings.find((b: Booking) => b.id === e.target.value);
+                  if (b) loadBooking(b);
+                }}
+              >
+                <option value="">— No booking (standalone itinerary) —</option>
+                {bookings.map((b: Booking) => (
+                  <option key={b.id} value={b.id}>{b.bookingRef} · {b.client.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">Itinerary Title *</label>
+              <input
+                className="input"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="01 DAY Trip Masai Mara…"
+              />
+            </div>
+          </div>
+          {selectedBooking?.tourPackage && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+              ✓ Auto-populated {selectedBooking.tourPackage.days.length} days from <strong>{selectedBooking.tourPackage.title}</strong>. You can edit below.
+            </div>
+          )}
+        </div>
+
+        {/* Cost Sheet selector */}
+        <div className="card">
+          <label className="label">Costing Sheet</label>
+          <select
+            className="input w-full text-sm"
+            value={selectedCostSheetId || ''}
+            onChange={e => {
+              const sheetId = e.target.value || null;
+              setSelectedCostSheetId(sheetId);
+              if (sheetId) {
+                const sheet = costSheets.find((s: any) => s.id === sheetId);
+                if (sheet) {
+                  const calculated = calculateCostingFromSheet(sheet);
+                  setCostingOptions(calculated);
+                }
+              } else {
+                initializeCostingOptions();
+              }
+            }}
+          >
+            <option value="">— No cost sheet (standalone itinerary) —</option>
+            {costSheets.map((sheet: any) => (
+              <option key={sheet.id} value={sheet.id}>
+                {sheet.tourTitle || 'Untitled'} · {sheet.days} day{sheet.days !== 1 ? 's' : ''} · {sheet.booking?.bookingRef || sheet.bookingRef || 'No ref'} · ${sheet.currency || 'USD'}
+              </option>
+            ))}
+          </select>
+          {costSheets.length === 0 && (
+            <p className="text-xs text-gray-400 mt-1">No cost sheets found. Create one first.</p>
+          )}
+        </div>
+
+        {/* Per-pax costing options */}
+        <div className="card">
+          <div className="grid grid-cols-3 gap-3">
+            {costingOptions.map((opt, idx) => {
+              const totalCost = opt.pax * (opt.grandtotal || 0);
+              return (
+                <div key={`opt-${opt.pax}`} className="flex flex-col items-center gap-1 p-2 bg-gray-50 rounded border border-gray-200">
+                  <label className="text-xs font-medium text-gray-600">No. of pax {opt.pax}</label>
+                  <input
+                    type="number"
+                    value={opt.grandtotal}
+                    onChange={e => updateCosting(opt.pax, Number(e.target.value) || 0)}
+                    className="input text-center text-sm font-bold text-orange-700 w-24"
+                    placeholder="0.00"
+                  />
+                  <div className="text-xs text-gray-500 font-mono">
+                    Per person sharing rate: ${(opt.grandtotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div className="text-xs font-bold text-green-700 font-mono">
+                    Total: ${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  {costingOptions.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeCosting(opt.pax)}
+                      className="text-xs text-red-500 hover:text-red-700 px-1"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+            {costingOptions.length < PAX_CHOICES.length && (
+              <button
+                type="button"
+                onClick={() => {
+                  const next = PAX_CHOICES.find(p => !costingOptions.some(o => o.pax === p));
+                  if (next) initializeCostingOptions();
+                }}
+                className="btn-secondary text-xs text-gray-500"
+              >
+                Add pax row
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Inclusions & Exclusions */}
+        <div className="card">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Included</label>
+              <textarea
+                className="input w-full text-sm"
+                value={included}
+                onChange={e => setIncluded(e.target.value)}
+                rows={4}
+                placeholder="One item per line:\nAccommodation\nPark fees\nTransport\nMeals"
+              />
+            </div>
+            <div>
+              <label className="label">Excluded</label>
+              <textarea
+                className="input w-full text-sm"
+                value={excluded}
+                onChange={e => setExcluded(e.target.value)}
+                rows={4}
+                placeholder="One item per line:\nInternational flights\nVisas\nTips"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Days table — click a day row to open its details popup */}
+        <div className="space-y-3">
+          <h2 className="font-semibold text-gray-800">Day by Day ({days.length} day{days.length !== 1 ? 's' : ''})</h2>
+
+          <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
+            <table className="w-full text-sm divide-y divide-gray-100">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600 w-14">Day</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600">Destination</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600">Accommodation</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600">Activities</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600 w-40">Meal Plan</th>
+                </tr>
+              </thead>
+              <tbody>
+                {days.map((day) => (
+                  <tr
+                    key={day.tempId}
+                    className="hover:bg-orange-50 cursor-pointer transition-colors"
+                    onClick={() => setEditingDayId(day.tempId)}
+                  >
+                    <td className="px-4 py-3 font-medium text-gray-800">
+                      <span className="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded">{day.dayNumber}</span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 truncate max-w-xs">
+                      {day.destination || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 truncate max-w-xs">
+                      {day.accommodation || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 truncate max-w-sm">
+                      {day.activities || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">
+                      <span className="text-xs text-gray-500">{mealSummary(day.mealPlan)}</span>
+                    </td>
+                  </tr>
+                ))}
+                {days.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500 text-sm">
+                      No days yet. Click "+ Add Day" below to get started.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Add Day button at bottom left, outside the day card */}
+          <div className="flex justify-start pt-2">
+            <button type="button" onClick={addDay} className="btn-secondary text-sm">
+              + Add Day
+            </button>
+          </div>
+        </div>
+
+        {/* Day details popup card */}
+        {editingDayId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setEditingDayId(null)}
+            />
+            <div className="relative z-10 bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+              <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-gray-50">
+                <div>
+                  <h2 className="font-semibold text-gray-800">Day {getDay(editingDayId)?.dayNumber}</h2>
+                  <p className="text-xs text-gray-500">
+                    {getDay(editingDayId)?.date && <span>Date: {new Date(getDay(editingDayId)!.date).toLocaleDateString()}</span>}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditingDayId(null)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-5 space-y-6">
+                <div className="space-y-3">
+                  <div>
+                    <label className="label text-xs block mb-1">Date *</label>
+                    <input
+                      type="date"
+                      value={getDay(editingDayId)?.date || ''}
+                      onChange={e => updateDay(editingDayId!, 'date', e.target.value)}
+                      className="input w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className="label text-xs block mb-1">Destination *</label>
+                    <div className="relative space-y-1">
+                      <input
+                        type="text"
+                        value={getDay(editingDayId)?.destination || ''}
+                        onChange={e => {
+                          updateDay(editingDayId!, 'destination', e.target.value);
+                          updateDay(editingDayId!, 'destinationId', null);
+                          updateDay(editingDayId!, 'accommodation', '');
+                          updateDay(editingDayId!, 'accommodationId', null);
+                          setFocusedField('dest');
+                        }}
+                        onFocus={() => setFocusedField('dest')}
+                        onBlur={() => {
+                          if (!dropdownMouseDownRef.current) setFocusedField(null);
+                        }}
+                        className="input text-sm"
+                        placeholder="Type destination…"
+                      />
+                      <div className="absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
+                        {focusedField === 'dest' &&
+                          destinations
+                            .filter(d => d.name.toLowerCase().includes((getDay(editingDayId)?.destination || '').toLowerCase()))
+                            .slice(0, 8)
+                            .map(d => (
+                              <div
+                                key={d.id}
+                                onMouseDown={() => { dropdownMouseDownRef.current = true; }}
+                                onClick={() => {
+                                  onDestinationChange(editingDayId!, d.name);
+                                  setFocusedField(null);
+                                  dropdownMouseDownRef.current = false;
+                                }}
+                                className="px-3 py-2 text-sm cursor-pointer hover:bg-orange-50 border-b border-gray-50 last:border-0"
+                              >
+                                {d.name}
+                              </div>
+                            ))}
+                        {focusedField === 'dest' &&
+                          (destinations.length === 0 || !destinations.some(d => d.name.toLowerCase().includes((getDay(editingDayId)?.destination || '').toLowerCase()))) ? (
+                            <div className="px-3 py-2 text-sm text-gray-400">No matching destinations</div>
+                          ) : null}
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="label text-xs block mb-1">Accommodation</label>
+                    <div className="relative space-y-1">
+                      <input
+                        type="text"
+                        value={getDay(editingDayId)?.accommodation || ''}
+                        onChange={e => {
+                          const val = e.target.value;
+                          updateDay(editingDayId!, 'accommodation', val);
+                          setFocusedField('acc');
+                          const num = Number(val);
+                          if (!isNaN(num) && hotels.some(h => h.id === num)) {
+                            onAccommodationChange(editingDayId!, num);
+                            setFocusedField(null);
+                          } else {
+                            updateDay(editingDayId!, 'accommodationId', null);
+                          }
+                        }}
+                        onFocus={() => setFocusedField('acc')}
+                        onBlur={() => {
+                          if (!dropdownMouseDownRef.current) setFocusedField(null);
+                        }}
+                        className="input text-sm"
+                        placeholder="Type accommodation…"
+                      />
+                      <div className="absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
+                        {focusedField === 'acc' && (() => {
+                          const day = getDay(editingDayId);
+                          if (!day) return null;
+                          // When destinationId is null (e.g. day loaded from a booking where only the
+                          // destination name was stored), fall back to searching all hotels so the
+                          // autocomplete still works without re-selecting the destination.
+                          const destHotels = day.destinationId
+                            ? (hotelsByDest[day.destinationId] ?? [])
+                            : hotels;
+                          const matches = destHotels.filter((h: Hotel) =>
+                            h.name.toLowerCase().includes((day.accommodation || '').toLowerCase())
+                          );
+                          return (
+                            <>
+                              {matches.slice(0, 8).map((h: Hotel) => (
+                                <div
+                                  key={h.id}
+                                  onMouseDown={() => { dropdownMouseDownRef.current = true; }}
+                                  onClick={() => {
+                                    onAccommodationChange(editingDayId!, h.id);
+                                    setFocusedField(null);
+                                    dropdownMouseDownRef.current = false;
+                                  }}
+                                  className="px-3 py-2 text-sm cursor-pointer hover:bg-orange-50 border-b border-gray-50 last:border-0"
+                                >
+                                  {h.name}
+                                </div>
+                              ))}
+                              {(matches.length === 0) && (
+                                <div className="px-3 py-2 text-sm text-gray-400">No matching hotels</div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {(getDay(editingDayId)?.destinationId || getDay(editingDayId)?.accommodationId) && (
+                  <div>
+                    <label className="label text-xs block mb-1">Destination &amp; Accommodation Images</label>
+                    <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto">
+                      {(() => {
+                        const day = getDay(editingDayId)!;
+                        const picks: any[] = [
+                          ...(day.previewDestImages || []).map(img => ({ ...img, source: 'Destination' })),
+                          ...(day.previewHotelImages || []).map(img => ({ ...img, source: 'Accommodation' })),
+                        ];
+                        return picks.map((img: any) => (
+                          <div key={img.id} className="relative rounded-lg overflow-hidden border border-gray-200 group">
+                            <img
+                              src={`data:${img.mimeType};base64,${img.data}`}
+                              alt={img.filename}
+                              className="w-full h-20 object-cover"
+                            />
+                            <div className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1 rounded">
+                              {img.source === 'Destination' ? '🏞 Destination' : '🏨 Accommodation'}
+                            </div>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="label text-xs block mb-1">Activities (one per line)</label>
+                  <textarea
+                    value={getDay(editingDayId)?.activities || ''}
+                    onChange={e => updateDay(editingDayId!, 'activities', e.target.value)}
+                    rows={3}
+                    className="input resize-none text-sm w-full"
+                    placeholder="Early Morning: Transfer from Nairobi&#10;Mid Morning: Full day game drive&#10;Afternoon: Return to Nairobi"
+                  />
+                </div>
+
+                <div>
+                  <label className="label text-xs block mb-1">Meals</label>
+                  <div className="flex items-center gap-4">
+                    {(['breakfast', 'lunch', 'dinner'] as const).map(m => (
+                      <label key={m} className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={getDay(editingDayId)?.mealPlan[m] || false}
+                          onChange={e => updateMeal(editingDayId!, m, e.target.checked)}
+                          className="rounded"
+                        />
+                        {m.charAt(0).toUpperCase() + m.slice(1)}
+                      </label>
+                    ))}
+                  </div>
+                  <div className="mt-2">
+                    <label className="label text-xs block mb-1">Meal note</label>
+                    <input
+                      value={getDay(editingDayId)?.mealPlan.note || ''}
+                      onChange={e => setDays(prev => prev.map(d =>
+                        d.tempId === editingDayId ? { ...d, mealPlan: { ...d.mealPlan, note: e.target.value } } : d
+                      ))}
+                      className="input w-48 text-xs"
+                      placeholder="e.g. Packed lunch"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="label text-xs block mb-1">Notes</label>
+                  <input
+                    value={getDay(editingDayId)?.notes || ''}
+                    onChange={e => updateDay(editingDayId!, 'notes', e.target.value)}
+                    className="input text-sm w-full"
+                    placeholder="Any special notes for this day…"
+                  />
+                </div>
+
+                <DayImagePicker
+                  attachedImages={dayImages[getDay(editingDayId)!.dayNumber] || []}
+                  onImagesChange={(imgs) => setDayImages(prev => ({ ...prev, [getDay(editingDayId)!.dayNumber]: imgs }))}
+                />
+              </div>
+
+              <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingDayId(null)}
+                  className="btn-secondary text-sm px-4"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button type="submit" disabled={saving} className="btn-primary">
+            {saving ? 'Saving…' : 'Save Itinerary'}
+          </button>
+          <Link href="/dashboard/itineraries" className="btn-secondary">Cancel</Link>
+        </div>
+      </form>
+    </div>
+  );
+}

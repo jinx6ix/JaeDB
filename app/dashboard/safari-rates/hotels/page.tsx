@@ -1,0 +1,426 @@
+'use client';
+import React from 'react';
+import Link from 'next/link';
+import { useState, useEffect } from 'react';
+import SearchInput from '@/components/SearchInput';
+
+interface County { id: number; name: string; region?: string | null; }
+interface RoomType { id: number; name: string; maxOccupancy: number; }
+interface Hotel  { id: number; name: string; stars: number|null; category: string|null; county: { name: string }; _count: { roomTypes: number }; }
+
+export default function HotelsPage() {
+  const [hotels, setHotels] = useState<Hotel[]>([]);
+  const [counties, setCounties] = useState<County[]>([]);
+  const [filter, setFilter] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ countyId:'', name:'', stars:'', category:'Lodge' });
+  const [saving, setSaving] = useState(false);
+  // Inline hotel name edit state (shown beside the name in the Hotel / Camp column)
+  const [editingNameHotelId, setEditingNameHotelId] = useState<number | null>(null);
+  const [editName, setEditName] = useState('');
+  const [savingName, setSavingName] = useState(false);
+  const [showDestForm, setShowDestForm] = useState(false);
+  const [destForm, setDestForm] = useState({ name: '', region: '' });
+  const [savingDest, setSavingDest] = useState(false);
+  // Room type management
+  const [expandedHotel, setExpandedHotel] = useState<number|null>(null);
+  const [hotelRooms, setHotelRooms] = useState<Record<number, RoomType[]>>({});
+  const [showRoomForm, setShowRoomForm] = useState<number|null>(null);
+  const [roomForm, setRoomForm] = useState({ name: '', maxOccupancy: '2' });
+  const [savingRoom, setSavingRoom] = useState(false);
+  // Room type edit state
+  const [editingRoomId, setEditingRoomId] = useState<number|null>(null);
+  const [editingRoomHotelId, setEditingRoomHotelId] = useState<number|null>(null);
+  const [editRoomForm, setEditRoomForm] = useState<{ name: string; maxOccupancy: string } | null>(null);
+
+  async function load() {
+    try {
+      const [hRes, cRes] = await Promise.all([
+        fetch('/api/safari-rates/hotels'),
+        fetch('/api/safari-rates/counties'),
+      ]);
+      if (!hRes.ok || !cRes.ok) throw new Error('Failed to load data');
+      const [h, c] = await Promise.all([hRes.json(), cRes.json()]);
+      setHotels(Array.isArray(h) ? h : []);
+      setCounties(Array.isArray(c) ? c : []);
+    } catch (err: any) {
+      alert('Failed to load: ' + err.message);
+      setHotels([]);
+      setCounties([]);
+    }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function loadRooms(hotelId: number) {
+    try {
+      const roomsRes = await fetch(`/api/safari-rates/room-types?hotelId=${hotelId}`);
+      const rooms = await roomsRes.json();
+      setHotelRooms(p => ({ ...p, [hotelId]: Array.isArray(rooms) ? rooms : [] }));
+    } catch (err) {
+      console.error('Failed to load rooms', err);
+    }
+  }
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.countyId) { alert('Please select a destination'); return; }
+    if (!form.name.trim()) { alert('Please enter a hotel name'); return; }
+    setSaving(true);
+    try {
+      const res = await fetch('/api/safari-rates/hotels', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ ...form, countyId: Number(form.countyId), stars: form.stars ? Number(form.stars) : null }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed to save hotel' }));
+        throw new Error(err.error || 'Failed to save hotel');
+      }
+      setShowForm(false);
+      setForm({countyId:'',name:'',stars:'',category:'Lodge'});
+      await load();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveHotelName(hotelId: number) {
+    const name = editName.trim();
+    if (!name) { alert('Please enter a hotel name'); return; }
+    setSavingName(true);
+    try {
+      const res = await fetch(`/api/safari-rates/hotels/${hotelId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed to update name' }));
+        throw new Error(err.error || 'Failed to update name');
+      }
+      const updated = await res.json();
+      setHotels(prev => prev.map(h => h.id === hotelId ? { ...h, name: updated.name } : h));
+      setEditingNameHotelId(null);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSavingName(false);
+    }
+  }
+
+  async function saveDestination(e: React.FormEvent) {
+    e.preventDefault();
+    if (!destForm.name.trim()) { alert('Destination name is required'); return; }
+    setSavingDest(true);
+    try {
+      const res = await fetch('/api/safari-rates/counties', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: destForm.name.trim(), region: destForm.region.trim() || null }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed to add destination' }));
+        throw new Error(err.error || err.message || 'Failed to add destination');
+      }
+      setShowDestForm(false);
+      setDestForm({ name: '', region: '' });
+      await load();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSavingDest(false);
+    }
+  }
+  async function saveRoom(e: React.FormEvent, hotelId: number) {
+    e.preventDefault();
+    if (!roomForm.name.trim()) {
+      alert("Room type name is required");
+      return;
+    }
+    setSavingRoom(true);
+    try {
+      const res = await fetch('/api/safari-rates/room-types', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hotelId,
+          name: roomForm.name,
+          maxOccupancy: Number(roomForm.maxOccupancy) || 2,
+        }),
+      });
+  
+      if (!res.ok) {
+        let errorMsg = `Server error: ${res.status}`;
+        try {
+          const errorData = await res.json();
+          errorMsg = errorData.error || errorMsg;
+        } catch (_) {}
+        throw new Error(errorMsg);
+      }
+  
+      // Success
+      setShowRoomForm(null);
+      setRoomForm({ name: '', maxOccupancy: '2' });
+      await loadRooms(hotelId);
+      await load(); // update room type count in the hotels table
+    } catch (err: any) {
+      console.error("Failed to add room type:", err);
+      alert(err.message); // shows "Room type already exists for this hotel" in case of 409
+    } finally {
+      setSavingRoom(false);
+    }
+  }
+
+  function startEditRoom(roomId: number, hotelId: number, name: string, maxOccupancy: number) {
+    setEditingRoomId(roomId);
+    setEditingRoomHotelId(hotelId);
+    setEditRoomForm({ name, maxOccupancy: String(maxOccupancy) });
+  }
+
+  function cancelEditRoom() {
+    setEditingRoomId(null);
+    setEditingRoomHotelId(null);
+    setEditRoomForm(null);
+  }
+
+  async function saveEditRoom(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editRoomForm || editingRoomId === null) return;
+    if (!editRoomForm.name.trim()) { alert('Room type name is required'); return; }
+    setSavingRoom(true);
+    try {
+      const res = await fetch('/api/safari-rates/room-types', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editingRoomId, name: editRoomForm.name.trim(), maxOccupancy: Number(editRoomForm.maxOccupancy) || 2 }),
+      });
+      if (!res.ok) throw new Error('Failed to update room type');
+      cancelEditRoom();
+      if (editingRoomHotelId !== null) await loadRooms(editingRoomHotelId);
+    } catch (err: any) { alert(err.message); }
+    finally { setSavingRoom(false); }
+  }
+
+  async function deleteRoom(roomId: number, hotelId: number) {
+    if (!confirm('Delete this room type?')) return;
+    try {
+      const res = await fetch(`/api/safari-rates/room-types?id=${roomId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete room type');
+      if (hotelId !== undefined) await loadRooms(hotelId);
+    } catch (err: any) { alert(err.message); }
+  }
+
+  async function toggleHotel(hotelId: number) {
+    if (expandedHotel === hotelId) { setExpandedHotel(null); return; }
+    setExpandedHotel(hotelId);
+    if (!hotelRooms[hotelId]) loadRooms(hotelId);
+  }
+
+  const filtered = hotels.filter(h =>
+    !filter || h.name.toLowerCase().includes(filter.toLowerCase()) || h.county.name.toLowerCase().includes(filter.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <Link href="/dashboard/safari-rates" className="text-gray-400 hover:text-gray-600 text-sm">← Safari Rates</Link>
+          <h1 className="text-2xl font-bold text-gray-900 mt-1">Hotels & Camps ({hotels.length})</h1>
+        </div>
+        <div className="flex gap-2">
+          <Link href="/dashboard/safari-rates/prices" className="btn-secondary text-sm">💰 Enter Prices</Link>
+          <button onClick={()=>setShowDestForm(!showDestForm)} className="btn-secondary text-sm">{showDestForm ? '✕ Cancel Destination' : '+ Add Destination'}</button>
+          <button onClick={()=>setShowForm(!showForm)} className="btn-primary">+ Add Hotel</button>
+        </div>
+      </div>
+
+      {showDestForm && (
+        <form onSubmit={saveDestination} className="card space-y-4">
+          <h2 className="font-semibold text-gray-800">Add Destination / Area</h2>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Destination Name *</label>
+              <input required className="input" value={destForm.name} onChange={e=>setDestForm(f=>({...f,name:e.target.value}))} placeholder="e.g. Maasai Mara" />
+            </div>
+            <div>
+              <label className="label">Region (optional)</label>
+              <input className="input" value={destForm.region} onChange={e=>setDestForm(f=>({...f,region:e.target.value}))} placeholder="e.g. Narok County" />
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button type="submit" disabled={savingDest} className="btn-primary">{savingDest?'Saving…':'Save Destination'}</button>
+            <button type="button" onClick={()=>setShowDestForm(false)} className="btn-secondary">Cancel</button>
+          </div>
+        </form>
+      )}
+
+      {showForm && (
+        <form onSubmit={save} className="card space-y-4">
+          <h2 className="font-semibold text-gray-800">Add Hotel / Camp</h2>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Destination *</label>
+              <div className="flex gap-2 items-center">
+                <select required className="input flex-1" value={form.countyId} onChange={e=>setForm(f=>({...f,countyId:e.target.value}))}>
+                  <option value="">— Select —</option>
+                  {counties.map(c=><option key={c.id} value={c.id}>{c.name}{c.region ? ` (${c.region})` : ''}</option>)}
+                </select>
+                <button type="button" onClick={() => { setShowDestForm(true); }} className="btn-secondary text-sm whitespace-nowrap">+ new</button>
+              </div>
+            </div>
+            <div>
+              <label className="label">Hotel / Camp Name *</label>
+              <input required className="input" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="e.g. Mara Serena Safari Lodge" />
+            </div>
+            <div>
+              <label className="label">Stars</label>
+              <select className="input" value={form.stars} onChange={e=>setForm(f=>({...f,stars:e.target.value}))}>
+                <option value="">—</option>
+                {[5,4,3,2,1].map(n=><option key={n} value={n}>{n} ★</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">Category</label>
+              <select className="input" value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}>
+                {['Lodge','Camp','Tented Camp','Hotel','Resort','Guesthouse'].map(c=><option key={c}>{c}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button type="submit" disabled={saving} className="btn-primary">{saving?'Saving…':'Save Hotel'}</button>
+            <button type="button" onClick={()=>setShowForm(false)} className="btn-secondary">Cancel</button>
+          </div>
+        </form>
+      )}
+
+      <div className="flex gap-2">
+        <SearchInput
+          value={filter}
+          onChange={setFilter}
+          placeholder="Filter by name or destination…"
+          widthClass="max-w-sm"
+        />
+      </div>
+
+      <div className="card p-0 overflow-hidden overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              {['Hotel / Camp','Category','Stars','Destination','Room Types'].map(h=>(
+                <th key={h} className="text-left px-4 py-3 font-medium text-gray-600">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {filtered.map(h => (
+              <React.Fragment key={h.id}>
+                <tr className="hover:bg-gray-50 cursor-pointer" onClick={() => toggleHotel(h.id)}>
+                  <td className="px-4 py-2.5 font-medium text-gray-800">
+                    {editingNameHotelId === h.id ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          required
+                          className="input text-sm py-1 border-orange-300 focus:border-orange-500"
+                          value={editName}
+                          onChange={e => setEditName(e.target.value)}
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => saveHotelName(h.id)}
+                          disabled={savingName}
+                          className="text-xs text-green-600 hover:text-green-800 underline px-1"
+                        >
+                          {savingName ? '…' : 'Save'}
+                        </button>
+                        <button
+                          onClick={() => { setEditName(h.name); setEditingNameHotelId(null); }}
+                          className="text-xs text-gray-500 hover:text-gray-800 underline px-1"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        {h.name}
+                        <button
+                          onClick={() => { setEditName(h.name); setEditingNameHotelId(h.id); }}
+                          className="text-orange-500 hover:text-orange-700 p-0.5"
+                          title="Edit name"
+                        >
+                          ✏️
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5 text-gray-500">{h.category||'—'}</td>
+                  <td className="px-4 py-2.5 text-yellow-500 text-sm">{h.stars?'★'.repeat(h.stars):'—'}</td>
+                  <td className="px-4 py-2.5 text-gray-600">{h.county.name}</td>
+                  <td className="px-4 py-2.5">
+                    <span className="text-orange-500 text-xs font-medium">{h._count.roomTypes} room types</span>
+                    <span className="text-gray-400 text-xs ml-2">{expandedHotel === h.id ? '▲' : '▼'}</span>
+                  </td>
+                </tr>
+                {expandedHotel === h.id && (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-3 bg-orange-50 border-b border-orange-100">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-semibold text-gray-700">Room Types — {h.name}</p>
+                        <button onClick={() => setShowRoomForm(h.id)} className="text-orange-500 text-xs hover:underline font-medium">+ Add Room Type</button>
+                      </div>
+                      {showRoomForm === h.id && (
+                        <form onSubmit={e => saveRoom(e, h.id)} className="flex gap-2 mb-3 items-end">
+                          <div>
+                            <label className="label text-xs">Room Type Name *</label>
+                            <input required className="input text-sm py-1.5" value={roomForm.name}
+                              onChange={e => setRoomForm(p => ({...p, name: e.target.value}))}
+                              placeholder="e.g. Standard Double" />
+                          </div>
+                          <div>
+                            <label className="label text-xs">Max Occupancy</label>
+                            <input type="number" min={1} className="input text-sm py-1.5 w-20" value={roomForm.maxOccupancy}
+                              onChange={e => setRoomForm(p => ({...p, maxOccupancy: e.target.value}))} />
+                          </div>
+                          <button type="submit" disabled={savingRoom} className="btn-primary text-sm py-1.5">{savingRoom ? '…' : 'Add'}</button>
+                          <button type="button" onClick={() => setShowRoomForm(null)} className="btn-secondary text-sm py-1.5">Cancel</button>
+                        </form>
+                      )}
+                      {hotelRooms[h.id]?.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {hotelRooms[h.id].map(r => {
+                            const isEditing = editingRoomId === r.id;
+                            if (isEditing) {
+                              return (
+                                <form key={r.id} onSubmit={saveEditRoom} className="flex items-center gap-1">
+                                  <input required className="input text-xs py-1 border-orange-300 focus:border-orange-500" value={editRoomForm?.name || r.name} onChange={e => setEditRoomForm(f => f ? { ...f, name: e.target.value } : null)} />
+                                  <input type="number" min={1} required className="input text-xs py-1 w-16 border-orange-300 focus:border-orange-500" value={editRoomForm?.maxOccupancy || String(r.maxOccupancy)} onChange={e => setEditRoomForm(f => f ? { ...f, maxOccupancy: e.target.value } : null)} />
+                                  <button type="submit" className="text-xs text-green-600 hover:text-green-800 underline px-1">Save</button>
+                                  <button type="button" onClick={cancelEditRoom} className="text-xs text-gray-500 hover:text-gray-800 underline px-1">Cancel</button>
+                                </form>
+                              );
+                            }
+                            return (
+                              <span key={r.id} className="bg-white border border-orange-200 text-xs text-gray-700 px-3 py-1 rounded-full flex items-center gap-1">
+                                {r.name} <span className="text-gray-400">· max {r.maxOccupancy}</span>
+                                <button onClick={() => startEditRoom(r.id, h.id, r.name, r.maxOccupancy)} className="text-orange-500 hover:text-orange-700 p-0.5" title="Edit">✏️</button>
+                                <button onClick={() => deleteRoom(r.id, h.id)} className="text-red-500 hover:text-red-700 p-0.5" title="Delete">🗑️</button>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400">No room types yet. Add one above.</p>
+                      )}
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

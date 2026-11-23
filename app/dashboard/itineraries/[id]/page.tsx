@@ -1,0 +1,480 @@
+// app/dashboard/itineraries/[id]/page.tsx
+import { prisma } from '@/lib/prisma';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import PdfDownload from '@/components/PdfDownload';
+import SendItineraryWhatsApp from '@/components/SendItineraryWhatsApp';
+import CopyItineraryButton from '@/components/CopyItineraryButton';
+
+export const dynamic = 'force-dynamic';
+
+type DestinationImage = {
+  id: string;
+  destinationId: number;
+  filename: string;
+  mimeType: string;
+  data: string;
+  caption?: string | null;
+  createdAt: Date;
+};
+
+type HotelImage = {
+  id: string;
+  hotelId: number;
+  filename: string;
+  mimeType: string;
+  data: string;
+  caption?: string | null;
+  createdAt: Date;
+};
+
+export default async function ItineraryDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const itinerary = await prisma.itinerary.findUnique({
+    where: { id },
+    include: {
+      booking: {
+        include: {
+          client: true,
+          tourPackage: true,
+        },
+      },
+      days: {
+        orderBy: { dayNumber: 'asc' },
+        include: { images: { orderBy: { createdAt: 'asc' } } },
+      },
+    },
+  });
+
+  if (!itinerary) notFound();
+
+  const b = itinerary.booking;
+
+  // Fetch all counties (destinations) with their images for matching by name
+  let counties: any[] = [];
+  try {
+    counties = await prisma.sRCounty.findMany({
+      include: { images: { orderBy: { createdAt: 'asc' } } },
+    });
+  } catch {
+    counties = [];
+  }
+
+  // Fetch all hotels with their images for matching by name
+  let hotels: any[] = [];
+  try {
+    hotels = await prisma.sRHotel.findMany({
+      include: { images: { orderBy: { createdAt: 'asc' } } },
+    });
+  } catch {
+    hotels = [];
+  }
+
+  // Build lookup maps by name (case-insensitive)
+  const countyByName = new Map(
+    counties.map(c => [c.name.toLowerCase(), c])
+  );
+  const hotelByName = new Map(
+    hotels.map(h => [h.name.toLowerCase(), h])
+  );
+
+  // Track which images have already been shown per destination / accommodation,
+  // so when the same destination or hotel appears on multiple days the images do not repeat.
+  const usedDestImgIds = new Set<string>();
+  const usedHotelImgIds = new Set<string>();
+
+  const getDestinationImages = (destinationName: string): DestinationImage[] => {
+    const county = countyByName.get(destinationName.toLowerCase());
+    const imgs = (county?.images || []) as any[];
+    return imgs
+      .filter((img: any) => !usedDestImgIds.has(img.id))
+      .map((img: any) => ({ ...img, source: 'destination' as const }));
+  };
+
+  const getHotelImages = (accommodationName: string): HotelImage[] => {
+    const hotel = hotelByName.get(accommodationName.toLowerCase());
+    const imgs = (hotel?.images || []) as any[];
+    return imgs
+      .filter((img: any) => !usedHotelImgIds.has(img.id))
+      .map((img: any) => ({ ...img, source: 'hotel' as const }));
+  };
+
+  // Mark images as used after rendering a day's gallery so later days with the same
+  // destination or accommodation skip them.
+  const markUsed = (imgs: any[]) => {
+    for (const img of imgs) {
+      if (img && img.id) {
+        if (img.source === 'destination') usedDestImgIds.add(img.id);
+        if (img.source === 'hotel') usedHotelImgIds.add(img.id);
+      }
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <style>{`
+        @page {
+          size: A4;
+          margin: 16mm 14mm;
+        }
+        .day-page {
+          break-inside: avoid;
+          break-after: page;
+        }
+        .day-page:last-child {
+          break-after: auto;
+        }
+        @media print {
+          .no-print { display: none !important; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+      `}</style>
+
+      {/* Header actions (screen only) */}
+      <div className="flex items-center justify-between no-print px-6 py-4 bg-white border-b border-gray-200">
+        <div className="flex items-center gap-3">
+          <Link href="/dashboard/itineraries" className="text-gray-400 hover:text-gray-600 text-sm">← Itineraries</Link>
+          <h1 className="text-2xl font-bold text-gray-900">{itinerary.title}</h1>
+        </div>
+        <div className="flex gap-2">
+          <Link href={`/dashboard/itineraries/${itinerary.id}/embed`} className="btn-secondary text-sm">🔗 Embed</Link>
+          <Link href={`/dashboard/itineraries/${itinerary.id}/edit`} className="btn-secondary">Edit</Link>
+          <CopyItineraryButton id={itinerary.id} title={itinerary.title} />
+          <PdfDownload itineraryId={itinerary.id} />
+          <SendItineraryWhatsApp
+            itineraryId={itinerary.id}
+            itineraryTitle={itinerary.title}
+            clientPhone={b?.client?.phone || null}
+            clientName={b?.client?.name || null}
+            bookingRef={b?.bookingRef || null}
+          />
+        </div>
+      </div>
+
+      {/* Itinerary document preview */}
+      <div className="bg-white border border-gray-200 shadow-sm overflow-hidden">
+        {/* Header */}
+        <div className="bg-[#1a1a2e] text-white px-8 py-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center font-bold">JT</div>
+              <div>
+                <p className="font-bold">Jae Travel Expeditions</p>
+                <p className="text-orange-400 text-sm">Proposal Ref: #{b?.bookingRef || 'Standalone'}</p>
+              </div>
+            </div>
+            <div className="text-right text-sm text-gray-300">
+              <p>Esteemed Guest</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Hero info bar */}
+        <div className="bg-orange-500 px-8 py-5">
+          <h2 className="text-2xl font-bold text-white">{itinerary.title}</h2>
+          <div className="flex gap-8 mt-2 text-orange-100 text-sm">
+            <span>Tour Length: <strong className="text-white">{itinerary.days.length} Day{itinerary.days.length !== 1 ? 's' : ''} / {Math.max(0, itinerary.days.length - 1)} Night{itinerary.days.length !== 2 ? 's' : ''}</strong></span>
+            {b && (
+              <>
+                <span>Travelers: <strong className="text-white">{b.numAdults}x {b.isResident ? 'Residents' : 'Non Residents'}</strong></span>
+                <span>Start: <strong className="text-white">{new Date(b.startDate).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })}</strong></span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Cover letter */}
+        {b && (
+          <div className="px-8 py-6 border-b border-gray-100">
+            <p className="font-semibold text-gray-800 mb-3">Dear {b.client?.name || 'Guest'},</p>
+            <p className="text-gray-600 text-sm leading-relaxed mb-2">
+              Thank you for giving us the opportunity to prepare this custom-made quote for your {itinerary.title}.
+            </p>
+            <p className="text-gray-600 text-sm leading-relaxed mb-2">
+              As you can see from our detailed proposal, your tour begins in Nairobi on {new Date(b.startDate).toLocaleDateString('en-KE', { dateStyle: 'long' })} and runs for {itinerary.days.length} day{itinerary.days.length !== 1 ? 's' : ''} and {Math.max(0, itinerary.days.length - 1)} night{itinerary.days.length !== 2 ? 's' : ''}.
+            </p>
+            <p className="text-gray-600 text-sm leading-relaxed">
+              Please let us know if you have any questions, or if you would like any further details.
+            </p>
+            <p className="text-gray-600 text-sm mt-3">Best regards,</p>
+          </div>
+        )}
+        {!b && (
+          <div className="px-8 py-6 border-b border-gray-100">
+            <p className="text-gray-600 text-sm leading-relaxed">
+              This is a standalone itinerary. Please contact us for more details about booking this tour.
+            </p>
+          </div>
+        )}
+
+        {/* Day-by-Day Summary Table */}
+        <div className="px-8 py-6 border-b border-gray-100">
+          <h3 className="font-bold text-gray-800 text-lg mb-4">Day by Day Summary</h3>
+          <div className="overflow-hidden rounded-lg border border-gray-200">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="text-left px-4 py-2.5 font-semibold text-gray-700">Day</th>
+                  <th className="text-left px-4 py-2.5 font-semibold text-gray-700">Destination</th>
+                  <th className="text-left px-4 py-2.5 font-semibold text-gray-700">Accommodation</th>
+                  <th className="text-left px-4 py-2.5 font-semibold text-gray-700">Meals</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {itinerary.days.map((day) => {
+                  const meals = day.mealPlan ? JSON.parse(day.mealPlan) : {};
+                  const mealsList = [
+                    meals.breakfast && 'Breakfast',
+                    meals.lunch && 'Lunch',
+                    meals.dinner && 'Dinner',
+                    meals.note && meals.note,
+                  ].filter(Boolean);
+                  return (
+                    <tr key={day.id}>
+                      <td className="px-4 py-3">
+                        <span className="bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded">{day.dayNumber}</span>
+                      </td>
+                      <td className="px-4 py-3 font-medium text-gray-800">{day.destination}</td>
+                      <td className="px-4 py-3 text-gray-600">{day.accommodation || 'No accommodation'}</td>
+                      <td className="px-4 py-3 text-gray-600 text-xs">{mealsList.join(' · ') || '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Detailed Day Pages */}
+        {itinerary.days.map((day) => {
+          const meals = day.mealPlan ? JSON.parse(day.mealPlan) : {};
+          const activities = day.activities ? JSON.parse(day.activities) : [];
+          const mealItems = [
+            meals.breakfast && '→ Breakfast',
+            meals.lunch && '→ Lunch',
+            meals.dinner && '→ Dinner',
+            meals.note && `→ ${meals.note}`,
+          ].filter(Boolean);
+
+          // Compute this day's images and mark them as used so later days with the
+          // same destination or accommodation don't repeat them.
+          const destImages = getDestinationImages(day.destination).slice(0, 3);
+          const hotelImages = day.accommodation ? getHotelImages(day.accommodation).slice(0, 3) : [];
+          const itineraryImgs = (day as any).images || [];
+          markUsed(destImages);
+          markUsed(hotelImages);
+
+          return (
+            <div key={day.id} className="day-page p-8 border-b border-gray-100 last:border-0 bg-white">
+              <div className="flex items-start gap-2 mb-4">
+                <span className="bg-orange-500 text-white text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap">{day.dayNumber}</span>
+                <h3 className="text-xl font-bold text-gray-800">{day.destination}</h3>
+              </div>
+
+              <div className="grid grid-cols-3 gap-6 mb-8">
+                <div className="col-span-2">
+                  {day.notes && <p className="text-gray-600 text-sm mb-4 leading-relaxed">{day.notes}</p>}
+                  {activities.length > 0 && (
+                    <div className="border border-orange-100 rounded-lg p-4 bg-orange-50">
+                      <p className="font-bold text-gray-800 text-sm mb-3">Activities</p>
+                      <div className="space-y-2">
+                        {activities.map((a: any, idx: number) => (
+                          <div key={idx} className="text-sm">
+                            {a.time && <span className="font-semibold text-orange-700">{a.time}: </span>}
+                            <span className="text-gray-700">→ {a.description}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-3">
+                  {day.accommodation && (
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-1">🏕️ Accommodation</p>
+                      <p className="text-sm text-gray-800">{day.accommodation}</p>
+                    </div>
+                  )}
+                  {mealItems.length > 0 && (
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-1">🍽️ Meals</p>
+                      {mealItems.map((m, i) => (
+                        <p key={i} className="text-sm text-gray-700">{m}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Day Gallery — destination, accommodation & itinerary images */}
+              {(destImages.length > 0 || hotelImages.length > 0 || itineraryImgs.length > 0) && (
+                <div className="mb-8">
+                  {destImages.length > 0 && (
+                    <div className="mb-6">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3">
+                        {day.destination} gallery
+                      </h4>
+                      <div className="grid gap-4 grid-cols-3">
+                        {destImages.slice(0, 3).map((img) => (
+                          <div key={img.id} className="rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-50">
+                            <img
+                              src={`data:${img.mimeType};base64,${img.data}`}
+                              alt={img.caption || img.filename}
+                              className="w-full object-cover"
+                              style={{ maxHeight: '260px' }}
+                            />
+                            {img.caption && (
+                              <p className="text-xs text-gray-500 text-center px-2 py-1.5 bg-gray-50">{img.caption}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {hotelImages.length > 0 && (
+                    <div className="mb-6">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3">
+                        {day.accommodation} gallery
+                      </h4>
+                      <div className="grid gap-4 grid-cols-3">
+                        {hotelImages.slice(0, 3).map((img) => (
+                          <div key={img.id} className="rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-50">
+                            <img
+                              src={`data:${img.mimeType};base64,${img.data}`}
+                              alt={img.caption || img.filename}
+                              className="w-full object-cover"
+                              style={{ maxHeight: '260px' }}
+                            />
+                            {img.caption && (
+                              <p className="text-xs text-gray-500 text-center px-2 py-1.5 bg-gray-50">{img.caption}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {itineraryImgs.length > 0 && (
+                    <div className="mb-6">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3">
+                        Day {day.dayNumber} images
+                      </h4>
+                      <div className={`grid gap-4 ${itineraryImgs.length === 1 ? 'grid-cols-1' : itineraryImgs.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                        {itineraryImgs.map((img: any) => (
+                          <div key={img.id} className="rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-50">
+                            <img
+                              src={`data:${img.mimeType};base64,${img.data}`}
+                              alt={img.caption || img.filename}
+                              className="w-full object-cover"
+                              style={{ maxHeight: '260px' }}
+                            />
+                            {img.caption && (
+                              <p className="text-xs text-gray-500 text-center px-2 py-1.5 bg-gray-50">{img.caption}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Inclusions & Exclusions */ }
+        {(itinerary.included || itinerary.excluded) && (
+          <div className="px-8 py-6 border-b border-gray-100">
+            <h3 className="font-bold text-gray-800 text-lg mb-4">Inclusions & Exclusions</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {itinerary.included && (
+                <div className="bg-green-50 border border-green-100 rounded-lg p-4">
+                  <p className="font-bold text-green-800 text-sm mb-3">✓ Included</p>
+                  <ul className="list-disc list-inside text-gray-700 text-sm space-y-1">
+                    {String(itinerary.included).split('\n').filter(Boolean).map((item, idx) => (
+                      <li key={`inc-${idx}`}>{item.trim()}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {itinerary.excluded && (
+                <div className="bg-red-50 border border-red-100 rounded-lg p-4">
+                  <p className="font-bold text-red-800 text-sm mb-3">✗ Excluded</p>
+                  <ul className="list-disc list-inside text-gray-700 text-sm space-y-1">
+                    {String(itinerary.excluded).split('\n').filter(Boolean).map((item, idx) => (
+                      <li key={`exc-${idx}`}>{item.trim()}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Costing by Pax */ }
+        {(function() {
+          const raw = itinerary.costingOptions;
+          if (!raw) return false;
+          let arr: any[] = [];
+          if (typeof raw === 'string') {
+            try { arr = JSON.parse(raw); } catch { return false; }
+          } else if (Array.isArray(raw)) {
+            arr = raw;
+          }
+          return arr.length > 0;
+        })() && (
+          <div className="px-8 py-6 border-b border-gray-100">
+            <h3 className="font-bold text-gray-800 text-lg mb-4">Costing by Pax</h3>
+            <p className="text-xs text-gray-500 mb-4">Per-person rate multiplied by number of travelers.</p>
+            <div className="overflow-hidden rounded-lg border border-gray-200">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="text-left px-4 py-2.5 font-semibold text-gray-700">No. of pax</th>
+                    <th className="text-right px-4 py-2.5 font-semibold text-gray-700">Per person sharing rate</th>
+                    <th className="text-right px-4 py-2.5 font-semibold text-gray-700">Total Cost</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {(function() {
+                    const opts: any[] = [];
+                    if (!itinerary.costingOptions) return [];
+                    if (typeof itinerary.costingOptions === 'string') {
+                      try { return JSON.parse(itinerary.costingOptions); } catch { return []; }
+                    }
+                    return Array.isArray(itinerary.costingOptions) ? itinerary.costingOptions : [];
+                  })().map((opt: any) => {
+                    const totalCost = opt.pax * (opt.grandtotal || 0);
+                    return (
+                      <tr key={opt.pax}>
+                        <td className="px-4 py-3">{opt.pax}</td>
+                        <td className="px-4 py-3 text-right font-mono text-gray-800">${(opt.grandtotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td className="px-4 py-3 text-right font-bold font-mono text-green-700">${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="px-8 py-6 bg-gray-50 border-t">
+          <div className="flex items-center justify-between text-sm text-gray-500">
+            <div>
+              <p className="font-semibold text-gray-700">Jae Travel Expeditions</p>
+              <p>Email: jaetravelexpeditions@gmail.com</p>
+              <p>Website: www.jaetravel.co.ke</p>
+            </div>
+            <div className="text-right text-xs text-gray-400 italic">
+              <p>"Live life with no excuses, travel with no regret"</p>
+              <p>— Oscar Wilde</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
