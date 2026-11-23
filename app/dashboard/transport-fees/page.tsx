@@ -55,6 +55,13 @@ export default function TransportFeesPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
+  const [newSeasonOpen, setNewSeasonOpen] = useState(false);
+  const [newSeasonName, setNewSeasonName] = useState('');
+  const [newSeasonStart, setNewSeasonStart] = useState('');
+  const [newSeasonEnd, setNewSeasonEnd] = useState('');
+  const [newSeasonNotes, setNewSeasonNotes] = useState('');
+  const [savingSeason, setSavingSeason] = useState(false);
+
   const setFormField = (k: keyof TransportFeeForm, v: string) =>
     setForm((prev) => ({ ...prev, [k]: v }));
 
@@ -87,6 +94,41 @@ export default function TransportFeesPage() {
     } catch (err: any) {
       setError(err.message || 'Failed to load transport fees');
       console.error('Transport fees load error:', err);
+    }
+  }
+
+  async function createTransportSeason(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newSeasonName.trim()) { alert('Season name is required'); return; }
+    setSavingSeason(true);
+    setError('');
+    try {
+      const res = await fetch('/api/transport-fee-seasons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newSeasonName.trim(),
+          startDate: newSeasonStart || null,
+          endDate: newSeasonEnd || null,
+          notes: newSeasonNotes || null,
+        }),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || 'Failed to create season');
+      }
+      const created = await res.json();
+      setSeasons((prev) => [created, ...prev]);
+      setFormField('seasonId', created.id);
+      setNewSeasonOpen(false);
+      setNewSeasonName('');
+      setNewSeasonStart('');
+      setNewSeasonEnd('');
+      setNewSeasonNotes('');
+    } catch (err: any) {
+      setError(err.message || 'Failed to create season');
+    } finally {
+      setSavingSeason(false);
     }
   }
 
@@ -246,14 +288,19 @@ export default function TransportFeesPage() {
                 <option>EUR</option>
               </select>
             </div>
-            <div>
-              <label className="label">Season *</label>
-              <select required className="input" value={form.seasonId} onChange={(e) => setFormField('seasonId', e.target.value)}>
-                <option value="">— Select season —</option>
-                {seasons.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <label className="label">Season *</label>
+                <select required className="input" value={form.seasonId} onChange={(e) => setFormField('seasonId', e.target.value)}>
+                  <option value="">— Select season —</option>
+                  {seasons.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+              <button type="button" onClick={() => setNewSeasonOpen(true)} className="btn-secondary text-xs px-3 py-1.5">
+                + Add Season
+              </button>
             </div>
             <div className="col-span-2">
               <label className="label">Route</label>
@@ -269,6 +316,41 @@ export default function TransportFeesPage() {
             <button type="button" onClick={() => { setShowForm(false); setForm(DEFAULT_FORM); setEditingId(null); }} className="btn-secondary">Cancel</button>
           </div>
         </form>
+      )}
+
+      {/* New season popup */}
+      {newSeasonOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="New transport season">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setNewSeasonOpen(false); setNewSeasonName(''); setNewSeasonStart(''); setNewSeasonEnd(''); setNewSeasonNotes(''); setError(''); }} />
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-gray-200 p-6">
+            <h2 className="font-semibold text-gray-900 mb-1">New Season</h2>
+            <p className="text-xs text-gray-500 mb-4">Seasons are standalone — they belong to no hotel and can be reused across any transport fee.</p>
+            <form onSubmit={createTransportSeason} className="space-y-3">
+              <div>
+                <label className="label">Season name *</label>
+                <input required className="input" value={newSeasonName} onChange={(e) => setNewSeasonName(e.target.value)} placeholder="e.g. Peak Season 2026" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Start date</label>
+                  <input type="date" className="input" value={newSeasonStart} onChange={(e) => setNewSeasonStart(e.target.value)} />
+                </div>
+                <div>
+                  <label className="label">End date</label>
+                  <input type="date" className="input" value={newSeasonEnd} onChange={(e) => setNewSeasonEnd(e.target.value)} />
+                </div>
+              </div>
+              <div>
+                <label className="label">Notes</label>
+                <textarea className="input" rows={2} value={newSeasonNotes} onChange={(e) => setNewSeasonNotes(e.target.value)} placeholder="Optional notes…" />
+              </div>
+              <div className="flex justify-end gap-2 mt-3">
+                <button type="button" onClick={() => { setNewSeasonOpen(false); setNewSeasonName(''); setNewSeasonStart(''); setNewSeasonEnd(''); setNewSeasonNotes(''); setError(''); }} className="btn-secondary text-sm">Cancel</button>
+                <button type="submit" disabled={savingSeason} className="btn-primary text-sm">{savingSeason ? 'Creating…' : 'Create Season'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {/* Filter */}
